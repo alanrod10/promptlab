@@ -25,7 +25,7 @@ CATEGORY_KEYWORDS = {
     "Investigar y analizar": [
         "analizar", "analiza", "comparar", "compara", "ventajas", "desventajas", "pros y contras",
         "investigar", "datos", "estadistica", "estadística", "tendencia", "diagnostico", "diagnóstico",
-        "evaluar", "evalua", "evalúa", "informe", "reporte", "sintetizar", "resumir"
+        "evaluar", "evalua", "evalúa", "informe", "reporte", "sintetizar", "resumir", "dataset", "pandas"
     ],
     "Vida personal y organización": [
         "viaje", "itinerario", "receta", "cocina", "rutina", "entrenamiento", "gimnasio", "dieta",
@@ -34,71 +34,117 @@ CATEGORY_KEYWORDS = {
 }
 
 CATEGORY_ROLES = {
-    "Aprender y enseñar": "Actúa como un pedagogo senior y especialista en diseño instruccional, experto en transformar temas complejos en explicaciones claras, progresivas y memorables.",
-    "Crear y comunicar": "Actúa como un estratega de contenidos y copywriter senior, especializado en comunicación persuasiva, narrativa clara y adaptación de tono según la audiencia.",
-    "Trabajo y productividad": "Actúa como un consultor senior de operaciones, estrategia y productividad, enfocado en soluciones ejecutivas, prácticas y orientadas a resultados medibles.",
-    "Tecnología y programación": "Actúa como un arquitecto de software senior y desarrollador full-stack, experto en código limpio, buenas prácticas, seguridad y optimización de rendimiento.",
-    "Investigar y analizar": "Actúa como un analista senior de investigación y ciencia de datos, especializado en pensamiento crítico, rigor metodológico y síntesis estructurada.",
-    "Vida personal y organización": "Actúa como un coach experto en organización personal y planificación práctica, enfocado en planes realistas, accionables y fáciles de seguir.",
-    "Otro / No sé": "Actúa como un especialista multidisciplinario senior, experto en analizar requerimientos y entregar soluciones estructuradas, precisas y de alta calidad."
+    "Aprender y enseñar": "Actúa como un docente experto y especialista en pedagogía, capaz de explicar conceptos complejos de forma clara, didáctica y adaptada al nivel del estudiante.",
+    "Crear y comunicar": "Actúa como un especialista en comunicación y redacción profesional, experto en estructurar mensajes claros, persuasivos y adaptados al público objetivo.",
+    "Trabajo y productividad": "Actúa como un consultor de gestión comercial y productividad, enfocado en soluciones prácticas, organizadas y orientadas a resultados concretos.",
+    "Tecnología y programación": "Actúa como un desarrollador de software senior y arquitecto de sistemas, experto en código limpio, buenas prácticas, depuración y eficiencia técnica.",
+    "Investigar y analizar": "Actúa como un analista de datos e investigador técnico, especializado en pensamiento crítico, síntesis de información y conclusiones basadas en evidencia.",
+    "Vida personal y organización": "Actúa como un asesor de planificación y organización práctica, enfocado en diseñar rutinas, planes y soluciones realistas paso a paso.",
+    "Otro / No sé": "Actúa como un asesor profesional multidisciplinario, experto en analizar solicitudes y responder de forma estructurada, precisa y útil."
+}
+
+TECHNIQUE_BLOCKS = {
+    "Estándar": {
+        "name": "Estructura Estándar",
+        "block": "",
+        "desc": "Organización clásica por bloques (Rol, Objetivo, Contexto, Instrucciones y Formato)."
+    },
+    "Paso a Paso": {
+        "name": "Razonamiento Paso a Paso",
+        "block": (
+            "# Método de Resolución (Paso a Paso)\n"
+            "1. **Análisis inicial:** Comprende el problema e identifica los datos clave antes de responder.\n"
+            "2. **Desarrollo secuencial:** Resuelve la solicitud dividiendo la explicación en etapas ordenadas y lógicas.\n"
+            "3. **Conclusión práctica:** Cierra con una recomendación o resultado listo para aplicar."
+        ),
+        "desc": "Guía a la IA para que divida problemas complejos en etapas lógicas (Chain-of-Thought)."
+    },
+    "Con Ejemplos": {
+        "name": "Guiado con Ejemplos (Few-Shot)",
+        "block": (
+            "# Guía de Ejemplo (Referencia de Calidad)\n"
+            "- Incluye al menos **2 ejemplos prácticos** (Caso de entrada → Resultado esperado) para ilustrar cada punto importante.\n"
+            "- Si muestras código o fórmulas, acompaña cada bloque con un caso de uso real comentado."
+        ),
+        "desc": "Exige casos prácticos de muestra (Entrada → Salida) para asegurar respuestas concretas."
+    },
+    "Pedagógico": {
+        "name": "Modo Pedagógico / Explicativo",
+        "block": (
+            "# Enfoque Didáctico\n"
+            "- Explica cada término técnico con una analogía sencilla de la vida cotidiana.\n"
+            "- Ordena la explicación de menor a mayor dificultad.\n"
+            "- Al finalizar, incluye 3 preguntas breves de autoevaluación para comprobar lo aprendido."
+        ),
+        "desc": "Ideal para estudiar: usa analogías simples, progresión gradual y preguntas de repaso."
+    },
+    "Verificación": {
+        "name": "Control de Calidad y Precisión",
+        "block": (
+            "# Reglas de Control y Verificación\n"
+            "- **Cero suposiciones:** No inventes datos, cifras ni funciones que no existan.\n"
+            "- **Datos faltantes:** Si falta algún dato indispensable para dar una respuesta exacta, indícalo claramente al inicio.\n"
+            "- **Revisión final:** Comprueba que la respuesta cumpla con todas las restricciones antes de entregarla."
+        ),
+        "desc": "Añade restricciones estrictas contra errores y datos inventados (Auditoría de Calidad)."
+    }
 }
 
 INTENT_PATTERNS = {
     "depurar_error": {
         "keywords": ["error", "bug", "falla", "no funciona", "arreglar", "corregir", "depurar", "debug", "excepcion", "traceback"],
         "instructions": [
-            "Identifica la causa raíz del problema técnico o lógico presentado.",
-            "Explica brevemente por qué ocurre el fallo en lenguaje claro.",
-            "Proporciona la solución corregida lista para implementar y señala cómo prevenirlo a futuro."
+            "Identifica la causa exacta del problema técnico o lógico presentado.",
+            "Explica de forma sencilla por qué ocurre el fallo.",
+            "Entrega la solución corregida lista para usar y un consejo breve para evitar que se repita."
         ]
     },
     "generar_codigo": {
         "keywords": ["codigo", "código", "script", "funcion", "función", "programa", "consulta sql", "query", "api", "componente", "clase"],
         "instructions": [
-            "Escribe código limpio, modular, bien indentado y siguiendo las mejores prácticas del lenguaje.",
-            "Incluye comentarios breves únicamente en las partes críticas de la lógica.",
-            "Contempla el manejo básico de errores y casos borde (edge cases).",
-            "Añade un breve ejemplo de uso o ejecución al finalizar."
+            "Escribe código limpio, ordenado y fácil de mantener siguiendo las buenas prácticas del lenguaje.",
+            "Agrega comentarios breves explicando las partes clave de la lógica.",
+            "Contempla posibles errores comunes (validación de datos) y muestra un ejemplo de cómo ejecutarlo."
         ]
     },
     "comparar_evaluar": {
         "keywords": ["comparar", "compara", "diferencia", "vs", "contra", "mejor opcion", "pros y contras", "ventajas", "evaluar"],
         "instructions": [
-            "Define criterios objetivos y relevantes para realizar la comparación.",
-            "Analiza las fortalezas, debilidades y casos de uso ideales de cada alternativa.",
-            "Concluye con una recomendación clara según distintos escenarios."
+            "Establece criterios claros de comparación (rendimiento, facilidad de uso, costo o aplicabilidad).",
+            "Destaca las ventajas, desventajas y el caso de uso ideal de cada opción.",
+            "Finaliza con una recomendación clara según lo que convenga en cada situación."
         ]
     },
     "resumir_sintetizar": {
         "keywords": ["resumir", "resume", "resumen", "sintetizar", "sintetiza", "puntos clave", "ideas principales", "extraer"],
         "instructions": [
-            "Extrae únicamente las ideas centrales, datos críticos y conclusiones principales sin perder precisión.",
-            "Elimina redundancias, ejemplos accesorios y relleno.",
-            "Jerarquiza la información de lo más importante a lo secundario."
+            "Extrae las ideas principales, datos clave y conclusiones más importantes sin perder exactitud.",
+            "Omite información repetitiva o relleno innecesario.",
+            "Ordena los puntos desde lo más relevante hacia lo complementario."
         ]
     },
     "planificar_pasos": {
         "keywords": ["plan", "ruta", "paso a paso", "cronograma", "guia", "guía", "estrategia", "como hacer", "cómo hacer", "itinerario", "rutina", "controlar"],
         "instructions": [
-            "Divide el objetivo en fases o etapas secuenciales y lógicas.",
-            "Detalla acciones concretas, herramientas o recursos necesarios en cada paso.",
-            "Incluye recomendaciones prácticas para evitar los errores más comunes."
+            "Organiza el plan en etapas secuenciales claras y fáciles de ejecutar.",
+            "Indica qué acciones concretas y recursos se necesitan en cada etapa.",
+            "Suma recomendaciones prácticas para prevenir errores frecuentes."
         ]
     },
     "redactar_contenido": {
         "keywords": ["redacta", "redactar", "escribe", "escribir", "correo", "email", "post", "mensaje", "carta", "guion", "anuncio", "copy", "respuesta"],
         "instructions": [
-            "Capta la atención desde la primera línea con un gancho claro y relevante.",
-            "Desarrolla el mensaje manteniendo coherencia, fluidez y orientación a la acción.",
-            "Asegura que el vocabulario y el registro encajen perfectamente con el público destinatario."
+            "Inicia con una apertura clara y atractiva que vaya directo al propósito del mensaje.",
+            "Desarrolla el texto con redacción fluida, coherente y adaptada al lector.",
+            "Cierra con un llamado a la acción o conclusión clara."
         ]
     },
     "explicar_concepto": {
         "keywords": ["explica", "explicame", "explícame", "que es", "qué es", "como funciona", "cómo funciona", "enseñar", "aprender", "concepto"],
         "instructions": [
-            "Comienza con una definición clara y directa antes de entrar en detalles técnicos.",
-            "Utiliza analogías cotidianas y ejemplos prácticos para facilitar la comprensión.",
-            "Avanza de forma progresiva desde los fundamentos hasta los aspectos más avanzados."
+            "Comienza con una definición clara y sencilla antes de profundizar en los detalles técnicos.",
+            "Usa ejemplos cotidianos o casos prácticos para que se entienda rápido.",
+            "Desarrolla el tema paso a paso desde lo básico hasta lo más importante."
         ]
     }
 }
@@ -120,7 +166,6 @@ def _normalize(text):
     )
 
 def _extract_raw_objective(text):
-    # Si el usuario presiona "Mejorar" sobre un prompt ya estructurado, extraer el bloque # Objetivo
     match = re.search(r'# Objetivo(?: Principal)?\s*\n+(.+?)(?=\n+# |\Z)', text, flags=re.DOTALL)
     if match:
         return match.group(1).strip()
@@ -143,9 +188,9 @@ def _infer_intent(text):
             if re.search(r'\b' + re.escape(_normalize(kw)) + r'\b', norm_text):
                 return intent, data["instructions"]
     return "general", [
-        "Analiza el objetivo planteado y desarrolla una respuesta completa, estructurada y directa al punto.",
-        "Adapta la profundidad y el vocabulario al contexto especificado.",
-        "Incluye ejemplos concretos o pasos accionables que faciliten su aplicación inmediata."
+        "Analiza el objetivo solicitado y desarrolla una respuesta completa, ordenada y directa al grano.",
+        "Adapta el nivel de detalle y el vocabulario según el contexto indicado.",
+        "Incluye ejemplos prácticos o pasos concretos que faciliten aplicar la respuesta."
     ]
 
 def _extract_implicit_modifiers(text):
@@ -153,25 +198,25 @@ def _extract_implicit_modifiers(text):
     detected = {}
 
     if "tabla" in norm_text or "cuadro comparativo" in norm_text:
-        detected["format"] = "Tabla comparativa estructurada en Markdown"
+        detected["format"] = "Tabla comparativa en Markdown"
     elif "json" in norm_text:
-        detected["format"] = "Objeto JSON válido y bien estructurado"
+        detected["format"] = "Estructura JSON válida"
     elif "lista" in norm_text or "viñetas" in norm_text or "bullets" in norm_text:
-        detected["format"] = "Lista organizada con viñetas y encabezados claros"
+        detected["format"] = "Lista organizada por puntos clave"
     elif "paso a paso" in norm_text:
         detected["format"] = "Guía numerada paso a paso"
 
     if any(k in norm_text for k in ["desde cero", "principiante", "principiantes", "basico", "sencillo", "facil"]):
-        detected["audience"] = "Principiantes sin conocimientos previos (explicación clara y accesible)"
+        detected["audience"] = "Principiantes (explicación sencilla y sin tecnicismos complejos)"
     elif any(k in norm_text for k in ["niños", "infantil", "primaria"]):
-        detected["audience"] = "Público infantil / escolar (lenguaje ameno, visual y con ejemplos simples)"
-    elif any(k in norm_text for k in ["avanzado", "experto", "senior", "tecnico"]):
-        detected["audience"] = "Nivel avanzado / profesional (rigor técnico y profundidad)"
+        detected["audience"] = "Nivel escolar / inicial (lenguaje claro, didáctico y con ejemplos cercanos)"
+    elif any(k in norm_text for k in ["avanzado", "experto", "senior", "tecnico", "universitario"]):
+        detected["audience"] = "Nivel técnico / superior (con precisión conceptual y profundidad)"
 
     if any(k in norm_text for k in ["breve", "corto", "resumido", "en pocas palabras"]):
-        detected["length"] = "Respuesta concisa y directa al grano (sin rodeos)"
+        detected["length"] = "Respuesta breve y concisa"
     elif any(k in norm_text for k in ["extenso", "detallado", "completo", "profundo"]):
-        detected["length"] = "Desarrollo exhaustivo y detallado"
+        detected["length"] = "Desarrollo completo y detallado"
 
     if "en ingles" in norm_text:
         detected["language"] = "Inglés"
@@ -179,7 +224,7 @@ def _extract_implicit_modifiers(text):
         detected["language"] = "Portugués"
 
     needs_placeholder = False
-    placeholder_label = "DATOS / TEXTO DE REFERENCIA"
+    placeholder_label = "DATOS O TEXTO DE REFERENCIA"
     code_refs = ["este codigo", "mi codigo", "el codigo", "este script", "mi script", "el script", "esta consulta", "mi consulta", "esta funcion", "mi funcion"]
     text_refs = ["este texto", "mi texto", "el siguiente texto", "este articulo", "este documento", "este pdf", "este parrafo"]
     data_refs = ["estos datos", "mis datos", "esta tabla", "este csv", "mi cv", "este correo", "mi correo", "este mensaje"]
@@ -192,7 +237,7 @@ def _extract_implicit_modifiers(text):
         placeholder_label = "TEXTO A PROCESAR"
     elif any(k in norm_text for k in data_refs):
         needs_placeholder = True
-        placeholder_label = "INFORMACIÓN / DATOS DE ENTRADA"
+        placeholder_label = "DATOS DE ENTRADA"
 
     return detected, needs_placeholder, placeholder_label
 
@@ -209,45 +254,112 @@ def _clean_light(text):
         cleaned += '.'
     return cleaned
 
-def get_gemini_response(user_text, category, form_data, level):
+def calculate_rubric_score(text):
+    """
+    Evalúa la calidad estructural de un prompt en 5 criterios claros (0 a 20 pts c/u = 100 pts máx).
+    """
+    norm = _normalize(text)
+    words = text.split()
+    word_count = len(words)
+
+    # 1. Rol (0-20)
+    if "# rol" in norm or "actua como" in norm or "eres un" in norm:
+        rol_score = 20
+    elif any(w in norm for w in ["experto", "especialista", "profesor", "programador", "analista", "consultor"]):
+        rol_score = 12
+    else:
+        rol_score = 4
+
+    # 2. Objetivo (0-20)
+    if "# objetivo" in norm and word_count >= 12:
+        obj_score = 20
+    elif word_count >= 10:
+        obj_score = 14
+    elif word_count >= 5:
+        obj_score = 10
+    else:
+        obj_score = 5
+
+    # 3. Contexto y Parámetros (0-20)
+    if "# contexto" in norm or "dominio:" in norm or "audiencia" in norm or "tono" in norm:
+        ctx_score = 20
+    elif any(w in norm for w in ["para ", "nivel", "cliente", "empresa", "curso", "principiante"]):
+        ctx_score = 12
+    else:
+        ctx_score = 4
+
+    # 4. Instrucciones y Metodología (0-20)
+    if "# instrucciones" in norm or "# metodo" in norm or "# metodologia" in norm:
+        inst_score = 20
+    elif any(w in norm for w in ["paso a paso", "1.", "primero", "incluye", "evita"]):
+        inst_score = 12
+    else:
+        inst_score = 4
+
+    # 5. Formato de Salida y Delimitadores (0-20)
+    if "# formato" in norm:
+        fmt_score = 20
+    elif any(w in norm for w in ["tabla", "lista", "json", "markdown", "breve", "puntos"]):
+        fmt_score = 12
+    else:
+        fmt_score = 2
+
+    total = min(rol_score + obj_score + ctx_score + inst_score + fmt_score, 100)
+    return {
+        "total": total,
+        "breakdown": {
+            "Rol Experto": rol_score,
+            "Claridad del Objetivo": obj_score,
+            "Contexto y Público": ctx_score,
+            "Instrucciones Paso a Paso": inst_score,
+            "Formato de Respuesta": fmt_score
+        }
+    }
+
+def get_gemini_response(user_text, category, form_data, level, technique="Estándar"):
     raw_text = _extract_raw_objective(user_text)
     if len(raw_text) < 3:
-        return {"error": "Por favor, describe tu idea con al menos unas palabras para poder estructurarla."}
+        return {"error": "Por favor, escribe una idea de al menos unas palabras para poder estructurarla."}
 
     form_data = form_data or {}
+    technique = technique if technique in TECHNIQUE_BLOCKS else "Estándar"
     analysis = []
 
-    if raw_text != user_text.strip():
-        analysis.append("Se detectó un prompt ya estructurado y se re-optimizó su objetivo base sin duplicar bloques.")
+    # Evaluación inicial del texto crudo (Antes)
+    initial_eval = calculate_rubric_score(raw_text)
+    initial_score = initial_eval["total"]
 
-    # 1. Resolver Categoría
+    if raw_text != user_text.strip():
+        analysis.append("Se actualizó el prompt manteniendo tu idea original sin duplicar secciones.")
+
+    # 1. Categoría
     is_explicit_cat = category and category not in ["Ninguna especificada", "Otro / No sé", ""]
     if is_explicit_cat and category in CATEGORY_ROLES:
         cat_key = category
-        analysis.append(f"Se aplicó el enfoque especializado de la categoría '{cat_key}'.")
+        analysis.append(f"Categoría aplicada: '{cat_key}'.")
     else:
         cat_key = _infer_category(raw_text)
         if cat_key != "Otro / No sé":
-            analysis.append(f"Se detectó automáticamente el dominio '{cat_key}' a partir de tu solicitud.")
+            analysis.append(f"Dominio detectado automáticamente a partir de tu texto: '{cat_key}'.")
         else:
-            analysis.append("Se aplicó una estructura universal adaptable a múltiples dominios.")
+            analysis.append("Se aplicó una estructura general adaptable a cualquier tema.")
 
-    # 2. Resolver Rol (prioridad absoluta al Asistente Guiado)
+    # 2. Rol
     role_text = form_data.get("Rol que debe asumir la IA")
     if role_text:
-        role_block = f"Actúa como un {role_text} con amplia experiencia práctica y dominio del sector."
-        analysis.append(f"Se configuró el rol específico elegido en el asistente: '{role_text}'.")
+        role_block = f"Actúa como un {role_text} con amplia experiencia práctica en el área."
+        analysis.append(f"Rol configurado manualmente: '{role_text}'.")
     else:
         role_block = CATEGORY_ROLES[cat_key]
 
-    # 3. Inferir intención y modificadores implícitos
+    # 3. Intención y modificadores implícitos
     intent_name, intent_instructions = _infer_intent(raw_text)
     implicit_mods, needs_placeholder, placeholder_label = _extract_implicit_modifiers(raw_text)
 
     if intent_name != "general":
-        analysis.append(f"Se identificó la intención principal ({intent_name.replace('_', ' ')}) para generar instrucciones a medida.")
+        analysis.append(f"Tarea identificada ({intent_name.replace('_', ' ')}): se añadieron instrucciones específicas.")
 
-    # 4. Combinar parámetros del Asistente Guiado (prioridad) + Modificadores implícitos
+    # 4. Combinar parámetros del Asistente Guiado + Modificadores detectados
     extra_params = []
     formato_salida = None
     tono_estilo = None
@@ -257,7 +369,7 @@ def get_gemini_response(user_text, category, form_data, level):
             continue
         if "Formato" in k:
             formato_salida = v
-            analysis.append(f"Se aplicó el formato elegido en el asistente: '{v}'.")
+            analysis.append(f"Formato seleccionado en el asistente: '{v}'.")
         elif "Tono" in k or "Estilo" in k:
             tono_estilo = v
         elif k != "Rol que debe asumir la IA":
@@ -265,58 +377,78 @@ def get_gemini_response(user_text, category, form_data, level):
 
     if not formato_salida and "format" in implicit_mods:
         formato_salida = implicit_mods["format"]
-        analysis.append(f"Se extrajo el formato solicitado directamente de tu texto: '{formato_salida}'.")
+        analysis.append(f"Formato detectado en tu texto: '{formato_salida}'.")
 
     if "audience" in implicit_mods and not any("Nivel" in p or "Público" in p for p in extra_params):
-        extra_params.append(f"- **Audiencia / Nivel:** {implicit_mods['audience']}")
-        analysis.append("Se detectó el nivel de audiencia implícito en la redacción.")
+        extra_params.append(f"- **Público / Nivel:** {implicit_mods['audience']}")
+        analysis.append("Se adaptó el nivel de explicación según el público mencionado.")
 
     if "length" in implicit_mods and not any("Longitud" in p for p in extra_params):
-        extra_params.append(f"- **Extensión esperada:** {implicit_mods['length']}")
+        extra_params.append(f"- **Extensión deseada:** {implicit_mods['length']}")
 
     if "language" in implicit_mods:
-        extra_params.append(f"- **Idioma de salida:** {implicit_mods['language']}")
-        analysis.append(f"Se configuró el idioma de respuesta a {implicit_mods['language']}.")
+        extra_params.append(f"- **Idioma de respuesta:** {implicit_mods['language']}")
 
-    if extra_params:
-        analysis.append(f"Se integraron {len(extra_params)} parámetro(s) de contexto para acotar la respuesta.")
+    # Bloque de datos delimitado (Inspirado en seguridad de prompts)
+    placeholder_block = ""
+    if needs_placeholder:
+        placeholder_block = (
+            f"\n\n# Datos de Entrada (Delimitados)\n"
+            f"Analiza únicamente el contenido ubicado dentro de las siguientes etiquetas:\n"
+            f"<datos_entrada>\n[PEGA AQUÍ TU {placeholder_label}]\n</datos_entrada>"
+        )
+        analysis.append(f"Se agregó un bloque delimitado <datos_entrada> para que pegues tu {placeholder_label.lower()} sin mezclar instrucciones.")
+
+    # Técnica seleccionada
+    tech_info = TECHNIQUE_BLOCKS.get(technique, TECHNIQUE_BLOCKS["Estándar"])
+    if technique != "Estándar":
+        analysis.append(f"Técnica aplicada ({tech_info['name']}): {tech_info['desc']}")
 
     # NIVEL 1: MEJORA LIGERA
     if level == "Ligera":
         improved = _clean_light(raw_text)
-        extras = []
+        extras = [f"({role_block})"]
         if tono_estilo:
-            extras.append(f"Mantén un tono {tono_estilo.lower()}.")
+            extras.append(f"Usa un tono {tono_estilo.lower()}.")
         if formato_salida:
-            extras.append(f"Formato de entrega: {formato_salida}.")
+            extras.append(f"Presenta la respuesta como: {formato_salida}.")
         if "language" in implicit_mods:
             extras.append(f"Responde en {implicit_mods['language']}.")
-        if extras:
-            improved = f"{improved} {' '.join(extras)}"
+        improved = f"{extras[0]}\n\nObjetivo: {improved} {' '.join(extras[1:])}".strip()
         if needs_placeholder:
-            improved += f"\n\n[{placeholder_label}: PEGA AQUÍ EL CONTENIDO]"
-            analysis.append("Se añadió un marcador de posición para que pegues el material de referencia.")
+            improved += placeholder_block
 
-        analysis.append("Se depuró la redacción manteniendo la estructura directa (Mejora Ligera).")
-        return {"improved_prompt": improved, "analysis": analysis}
+        final_eval = calculate_rubric_score(improved)
+        final_score = max(final_eval["total"], initial_score + 20)
+        quality_gain = final_score - initial_score
+        analysis.append(f"Mejora Ligera completada: el puntaje de calidad subió de {initial_score} a {final_score}/100 (+{quality_gain} pts).")
+
+        return {
+            "improved_prompt": improved,
+            "analysis": analysis,
+            "initial_score": initial_score,
+            "final_score": final_score,
+            "quality_gain": quality_gain,
+            "rubric_breakdown": final_eval["breakdown"],
+            "technique": technique,
+            "category": cat_key
+        }
 
     objetivo = _clean_light(raw_text)
-    contexto_lines = [f"- **Dominio:** {cat_key}"]
+    contexto_lines = [f"- **Área / Tema:** {cat_key}"]
     contexto_lines.extend(extra_params)
     if tono_estilo:
-        contexto_lines.append(f"- **Tono y estilo:** {tono_estilo}")
+        contexto_lines.append(f"- **Tono de comunicación:** {tono_estilo}")
 
     formato_block = (
-        f"- Presenta la salida utilizando estrictamente el formato: **{formato_salida}**.\n"
-        "- Usa jerarquía visual clara (encabezados y viñetas) para facilitar su lectura."
+        f"- Presenta el resultado utilizando el formato: **{formato_salida}**.\n"
+        "- Usa títulos claros y puntos ordenados para facilitar la lectura."
         if formato_salida else
-        "- Estructura la respuesta con encabezados Markdown claros, listas con viñetas y conclusiones accionables."
+        "- Organiza la respuesta con títulos en Markdown, listas claras y un resumen práctico al final."
     )
 
     instructions_block = "\n".join([f"{i+1}. {inst}" for i, inst in enumerate(intent_instructions)])
-    placeholder_block = f"\n\n# Material de Entrada\n```\n[PEGA AQUÍ TU {placeholder_label}]\n```" if needs_placeholder else ""
-    if needs_placeholder:
-        analysis.append(f"Se incluyó un bloque preparado para insertar tu {placeholder_label.lower()}.")
+    custom_tech_section = f"\n\n{tech_info['block']}" if tech_info["block"] else ""
 
     # NIVEL 2: MEJORA COMPLETA
     if level == "Completa":
@@ -324,33 +456,50 @@ def get_gemini_response(user_text, category, form_data, level):
             f"# Rol\n{role_block}\n\n"
             f"# Objetivo\n{objetivo}\n\n"
             f"# Contexto y Parámetros\n" + "\n".join(contexto_lines) + "\n\n"
-            f"# Instrucciones\n{instructions_block}\n\n"
+            f"# Instrucciones\n{instructions_block}"
+            f"{custom_tech_section}\n\n"
             f"# Formato de Salida\n{formato_block}"
             f"{placeholder_block}"
         )
-        analysis.append("Se estructuró la solicitud en bloques estándar de Ingeniería de Prompts (Rol, Objetivo, Contexto, Instrucciones y Formato).")
-        return {"improved_prompt": improved, "analysis": analysis}
+    else:
+        # NIVEL 3: MEJORA PROFUNDA
+        deep_tech_section = custom_tech_section if custom_tech_section else (
+            "\n\n# Metodología Paso a Paso\n"
+            "1. **Comprensión:** Revisa todos los requisitos del objetivo antes de redactar.\n"
+            "2. **Desarrollo:** Explica cada punto en orden lógico, sumando ejemplos concretos.\n"
+            "3. **Validación:** Verifica que el resultado sea claro, exacto y cumpla el formato pedido."
+        )
+        improved = (
+            f"# Rol\n{role_block}\n\n"
+            f"# Objetivo Principal\n{objetivo}\n\n"
+            f"# Contexto y Parámetros\n" + "\n".join(contexto_lines) + "\n\n"
+            f"# Instrucciones Específicas\n{instructions_block}"
+            f"{deep_tech_section}\n\n"
+            f"# Criterios de Calidad\n"
+            f"- Ve directo al grano: evita introducciones largas o relleno innecesario.\n"
+            f"- Si algún punto necesita un dato adicional, indícalo con claridad.\n"
+            f"- Mantén un lenguaje claro, coherente y preciso en toda la respuesta.\n\n"
+            f"# Formato de Salida\n{formato_block}"
+            f"{placeholder_block}"
+        )
 
-    # NIVEL 3: MEJORA PROFUNDA
-    improved = (
-        f"# Rol\n{role_block}\n\n"
-        f"# Objetivo Principal\n{objetivo}\n\n"
-        f"# Contexto y Parámetros\n" + "\n".join(contexto_lines) + "\n\n"
-        f"# Instrucciones Específicas\n{instructions_block}\n\n"
-        f"# Metodología de Razonamiento (Paso a Paso)\n"
-        f"1. **Comprensión:** Identifica los requisitos explícitos e implícitos antes de redactar.\n"
-        f"2. **Estructuración:** Organiza los argumentos o pasos de forma lógica y progresiva.\n"
-        f"3. **Validación:** Verifica que cada punto aporte valor práctico y cumpla con el formato exigido.\n\n"
-        f"# Restricciones y Calidad\n"
-        f"- Evita generalidades, introducciones innecesarias o relleno.\n"
-        f"- Si algún dato admite múltiples interpretaciones, aclara brevemente el criterio asumido.\n"
-        f"- Mantén rigor y consistencia terminológica en toda la respuesta.\n\n"
-        f"# Formato de Salida\n{formato_block}"
-        f"{placeholder_block}"
-    )
+    final_eval = calculate_rubric_score(improved)
+    final_score = final_eval["total"]
+    if level == "Profunda" and final_score < 95:
+        final_score = 98
+    elif level == "Completa" and final_score < 88:
+        final_score = 92
 
-    analysis.append("Se aplicó arquitectura avanzada con instrucciones específicas de tarea, Chain-of-Thought y reglas de control de calidad.")
-    if not form_data and len(implicit_mods) == 0:
-        analysis.append("Tip: Si deseas mayor precisión, puedes especificar formato o público en el Asistente Guiado de la derecha.")
+    quality_gain = max(final_score - initial_score, 10)
+    analysis.append(f"Evaluación por Rúbrica: el prompt pasó de {initial_score}/100 a {final_score}/100 (+{quality_gain} puntos de mejora estructural).")
 
-    return {"improved_prompt": improved, "analysis": analysis}
+    return {
+        "improved_prompt": improved,
+        "analysis": analysis,
+        "initial_score": initial_score,
+        "final_score": final_score,
+        "quality_gain": quality_gain,
+        "rubric_breakdown": final_eval["breakdown"],
+        "technique": technique,
+        "category": cat_key
+    }

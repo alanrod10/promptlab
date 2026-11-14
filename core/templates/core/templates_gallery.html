@@ -12,24 +12,28 @@
     </div>
 
     <div class="row g-4">
-        {% for tpl in templates %}
+        {% for slug, tpl in templates.items %}
         <div class="col-md-6 col-lg-4">
             <div class="card border-0 shadow-sm rounded-4 h-100 d-flex flex-column">
                 <div class="card-body p-4 d-flex flex-column">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-3 bg-{{ tpl.color }} bg-opacity-10 text-{{ tpl.color }} p-2 me-3">
-                            <i class="bi {{ tpl.icon }} fs-4"></i>
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 me-3">
+                            <i class="bi bi-lightning-charge-fill fs-4"></i>
                         </div>
                         <div>
                             <h5 class="fw-bold text-dark mb-0">{{ tpl.title }}</h5>
-                            <span class="badge bg-light text-secondary border mt-1">{{ tpl.category }}</span>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <span class="badge bg-light text-secondary border">{{ tpl.category }}</span>
+                                <span class="badge bg-info bg-opacity-10 text-dark border border-info border-opacity-25"><i class="bi bi-sliders me-1"></i>{{ tpl.technique }}</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">Nivel {{ tpl.level }}</span>
+                            </div>
                         </div>
                     </div>
                     <p class="text-secondary small mb-3">{{ tpl.description }}</p>
                     <div class="p-3 bg-light rounded-3 mb-4 flex-grow-1">
-                        <p class="small text-dark mb-0 fst-italic">"{{ tpl.prompt_text }}"</p>
+                        <p class="small text-dark mb-0 fst-italic">"{{ tpl.text }}"</p>
                     </div>
-                    <a href="{% url 'workspace' %}?preset={{ tpl.slug }}" class="btn btn-brand rounded-pill w-100 fw-medium">
+                    <a href="{% url 'workspace' %}?preset={{ slug }}" class="btn btn-brand rounded-pill w-100 fw-medium">
                         <i class="bi bi-magic me-1"></i> Usar en el Editor
                     </a>
                 </div>
