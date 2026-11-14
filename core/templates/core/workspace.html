@@ -1,0 +1,264 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="container-fluid h-100 p-0">
+    <div class="row g-0 h-100">
+        <!-- Lienzo Central (Modo Rápido) -->
+        <div class="col-md-8 d-flex flex-column p-4 h-100">
+            <h3 class="mb-3 fw-bold text-dark">Nuevo Prompt</h3>
+            <div class="card flex-grow-1 shadow-sm border-0 rounded-4 d-flex flex-column">
+                <div class="card-body d-flex flex-column p-4 h-100">
+                    <textarea id="main-prompt-editor" class="form-control flex-grow-1 border-0 fs-5 p-0" placeholder="Escribe tu idea de forma sencilla aquí... o abre el Asistente a la derecha para personalizar." style="resize: none; outline: none; box-shadow: none; background-color: transparent;">{{ loaded_prompt.improved_text|default:"" }}</textarea>
+                    
+                    <!-- Panel de Análisis -->
+                    <div id="analysis-panel" class="mt-3 p-3 rounded-3 d-none" style="background-color: #f8f9ff; border: 1px solid #e2e8f0;">
+                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-search me-2"></i>Análisis de mejoras</h6>
+                        <ul id="analysis-list" class="mb-0 small text-secondary" style="padding-left: 1.2rem;"></ul>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <div class="d-flex align-items-center">
+                            <span class="text-secondary small me-3"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Nivel:</span>
+                            <select id="improvement-level" class="form-select form-select-sm border-0 bg-light fw-medium text-dark" style="width: 140px;">
+                                <option value="Ligera">Mejora Ligera</option>
+                                <option value="Completa" selected>Mejora Completa</option>
+                                <option value="Profunda">Mejora Profunda</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-secondary me-2 rounded-pill px-3" onclick="limpiarEditor()">Limpiar</button>
+                            <!-- BOTÓN COPIAR NUEVO -->
+                            <button id="btn-copy" class="btn btn-outline-primary me-2 rounded-pill px-3 {% if not loaded_prompt %}d-none{% endif %}" onclick="copiarAlPortapapeles()"><i class="bi bi-clipboard me-1"></i> Copiar</button>
+                            
+                            <button id="btn-improve-main" class="btn btn-brand rounded-pill px-4 fw-medium" onclick="mejorarPrompt()">Mejorar Prompt <i class="bi bi-magic ms-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Asistente (Modo Personalizado) -->
+        <div class="col-md-4 bg-white border-start p-4 h-100 overflow-auto shadow-sm">
+            <h5 class="mb-2 fw-bold"><i class="bi bi-robot me-2 text-primary"></i> Asistente Guiado</h5>
+            <p class="text-secondary small mb-4">Completa solo lo que necesites. Nosotros estructuramos el resto.</p>
+            
+            <form id="assistant-form">
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-dark small text-uppercase">Categoría</label>
+                    <select id="category-select" class="form-select bg-light border-0 fw-medium text-primary">
+                        <option value="">Elige una categoría...</option>
+                        <option value="Aprender y enseñar">Aprender y enseñar</option>
+                        <option value="Crear y comunicar">Crear y comunicar</option>
+                        <option value="Trabajo y productividad">Trabajo y productividad</option>
+                        <option value="Tecnología y programación">Tecnología y programación</option>
+                        <option value="Investigar y analizar">Investigar y analizar</option>
+                        <option value="Vida personal y organización">Vida personal y organización</option>
+                        <option value="Otro / No sé">Otro / No sé</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-dark small text-uppercase">Objetivo Principal <span class="text-danger">*</span></label>
+                    <textarea id="main-objective" class="form-control bg-light border-0" rows="3" placeholder="¿Qué quieres que haga la IA? (Ej: Escribir un resumen del sistema digestivo)"></textarea>
+                </div>
+                
+                <div id="dynamic-fields-container">
+                    <div class="alert border-0 rounded-3 mt-4" style="background-color: #f0f0ff; color: #4a3aff;">
+                        <i class="bi bi-info-circle-fill me-1"></i> <strong>Modo Dinámico:</strong> Elige una categoría arriba para ver opciones avanzadas.
+                    </div>
+                </div>
+                
+                <div class="d-grid mt-4">
+                    <button type="button" id="btn-improve-assistant" class="btn btn-dark rounded-pill py-2 fw-medium" onclick="mejorarPrompt()">Generar Prompt Estructurado <i class="bi bi-arrow-left-circle ms-1"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const categoryConfig = {
+        "Aprender y enseñar": [
+            { label: "Nivel Educativo", type: "select", options: ["Infantil / Primaria", "Secundaria", "Universidad / Superior", "Postgrado / Profesional", "Autodidacta / Hobby"] },
+            { label: "Tono de explicación", type: "select", options: ["Sencillo (Para principiantes)", "Paso a paso y detallado", "Académico y formal", "Socrático (Que me haga preguntas)", "Con ejemplos de la vida real"] }
+        ],
+        "Crear y comunicar": [
+            { label: "Formato del contenido", type: "select", options: ["Post para Redes Sociales", "Artículo / Ensayo", "Email / Correo electrónico", "Guión para video/podcast", "Texto publicitario (Copywriting)"] },
+            { label: "Público Objetivo", type: "input", placeholder: "Ej: Clientes jóvenes, Profesionales de RRHH..." },
+            { label: "Estilo / Tono", type: "select", options: ["Persuasivo y comercial", "Informativo y objetivo", "Cercano y empático", "Humorístico / Relajado", "Inspirador / Emocional"] }
+        ],
+        "Trabajo y productividad": [
+            { label: "Rol que debe asumir la IA", type: "select", options: ["Asistente Ejecutivo", "Analista de Negocios", "Experto en Marketing", "Consultor Estratégico", "Atención al Cliente / Soporte"] },
+            { label: "Formato de Salida", type: "select", options: ["Lista de tareas accionables", "Tabla organizada por categorías", "Resumen ejecutivo corto", "Cronograma / Plan de acción", "Plantilla para rellenar"] }
+        ],
+        "Tecnología y programación": [
+            { label: "Lenguaje / Herramienta", type: "input", placeholder: "Ej: Python, React, SQL, Excel, Git..." },
+            { label: "Enfoque principal", type: "select", options: ["Escribir código desde cero", "Encontrar y solucionar un error (Debug)", "Explicar cómo funciona este código", "Optimizar o refactorizar", "Generar pruebas (Testing)"] }
+        ],
+        "Investigar y analizar": [
+            { label: "Nivel de profundidad", type: "select", options: ["Resumen rápido (Idea general)", "Análisis comparativo (Pros y Contras)", "Investigación exhaustiva (Con fuentes)", "Lluvia de ideas (Brainstorming)", "Resolución de problemas / Diagnóstico"] },
+            { label: "Formato de Salida", type: "select", options: ["Puntos clave (Bullets)", "Tabla comparativa o de datos", "Informe estructurado por secciones", "Mapa mental (en formato texto)"] }
+        ],
+        "Vida personal y organización": [
+            { label: "Área específica", type: "select", options: ["Viajes y turismo", "Hogar, cocina y rutinas", "Finanzas personales", "Salud, fitness y bienestar", "Desarrollo personal y hobbies"] },
+            { label: "Formato de Salida", type: "select", options: ["Planificador o Cronograma", "Lista de compras o verificación", "Receta o paso a paso", "Consejos prácticos"] }
+        ],
+        "Otro / No sé": [
+            { label: "Longitud de la respuesta", type: "select", options: ["Breve (1-2 párrafos)", "Intermedia", "Extensa y detallada"] },
+            { label: "Formato de Salida", type: "select", options: ["Texto libre fluido", "Puntos clave (Bullets)", "Tabla", "Código o bloque técnico"] },
+            { label: "Tono deseado", type: "select", options: ["Formal / Profesional", "Informal / Amigable", "Directo y al grano", "Creativo / Original"] }
+        ]
+    };
+
+    const selectEl = document.getElementById('category-select');
+    const container = document.getElementById('dynamic-fields-container');
+
+    if (selectEl && container) {
+        selectEl.addEventListener('change', function() {
+            const selectedCategory = this.value;
+            
+            if (!selectedCategory || !categoryConfig[selectedCategory]) {
+                container.innerHTML = `
+                    <div class="alert border-0 rounded-3 mt-4" style="background-color: #f0f0ff; color: #4a3aff;">
+                        <i class="bi bi-info-circle-fill me-1"></i> <strong>Modo Dinámico:</strong> Elige una categoría arriba para ver opciones avanzadas.
+                    </div>`;
+                return;
+            }
+
+            let html = '<hr class="my-4 text-secondary">';
+            html += '<h6 class="fw-bold mb-3 text-primary"><i class="bi bi-sliders me-2"></i>Ajustes de ' + selectedCategory + '</h6>';
+            
+            categoryConfig[selectedCategory].forEach((field, index) => {
+                html += `<div class="mb-3">
+                    <label class="form-label fw-bold text-dark small text-uppercase">${field.label}</label>`;
+                    
+                if (field.type === 'select') {
+                    html += `<select class="form-select bg-light border-0 mb-2 dynamic-input" data-label="${field.label}" onchange="if(this.value==='Otro'){ document.getElementById('other-input-${index}').classList.remove('d-none'); } else { document.getElementById('other-input-${index}').classList.add('d-none'); }">
+                        <option value="">Que la IA lo decida...</option>`;
+                    field.options.forEach(opt => {
+                        html += `<option value="${opt}">${opt}</option>`;
+                    });
+                    html += `<option value="Otro">Otro (Escribir...)</option>`;
+                    html += `</select>`;
+                    html += `<input type="text" id="other-input-${index}" class="form-control bg-white border border-secondary d-none dynamic-other-input" data-label="${field.label}" placeholder="Escribe tu opción...">`;
+                } else if (field.type === 'input') {
+                    html += `<input type="text" class="form-control bg-light border-0 dynamic-input" data-label="${field.label}" placeholder="${field.placeholder}">`;
+                }
+                html += `</div>`;
+            });
+            
+            container.innerHTML = html;
+        });
+    }
+});
+
+function limpiarEditor() {
+    document.getElementById('main-prompt-editor').value = '';
+    document.getElementById('analysis-panel').classList.add('d-none');
+    document.getElementById('btn-copy').classList.add('d-none');
+}
+
+function copiarAlPortapapeles() {
+    const editor = document.getElementById('main-prompt-editor');
+    navigator.clipboard.writeText(editor.value).then(() => {
+        const btnCopy = document.getElementById('btn-copy');
+        const originalHtml = btnCopy.innerHTML;
+        btnCopy.innerHTML = '<i class="bi bi-check2 me-1"></i> ¡Copiado!';
+        btnCopy.classList.replace('btn-outline-primary', 'btn-success');
+        btnCopy.classList.add('text-white');
+        
+        setTimeout(() => {
+            btnCopy.innerHTML = originalHtml;
+            btnCopy.classList.replace('btn-success', 'btn-outline-primary');
+            btnCopy.classList.remove('text-white');
+        }, 2000);
+    }).catch(err => {
+        console.error('Error al copiar: ', err);
+    });
+}
+
+async function mejorarPrompt() {
+    const editor = document.getElementById('main-prompt-editor');
+    const objective = document.getElementById('main-objective');
+    const category = document.getElementById('category-select').value;
+    const level = document.getElementById('improvement-level').value;
+    const analysisPanel = document.getElementById('analysis-panel');
+    const analysisList = document.getElementById('analysis-list');
+    const btnMain = document.getElementById('btn-improve-main');
+    const btnAssistant = document.getElementById('btn-improve-assistant');
+    const btnCopy = document.getElementById('btn-copy');
+    
+    let text = objective.value.trim() !== '' ? objective.value.trim() : editor.value.trim();
+    
+    if (!text) {
+        alert("Por favor, escribe una idea en el área de edición o en el objetivo del asistente.");
+        return;
+    }
+
+    let formData = {};
+    document.querySelectorAll('.dynamic-input').forEach(input => {
+        let label = input.getAttribute('data-label');
+        if (input.value && input.value !== "Otro" && input.value !== "") {
+            formData[label] = input.value;
+        }
+    });
+    document.querySelectorAll('.dynamic-other-input').forEach(input => {
+        if (!input.classList.contains('d-none') && input.value.trim() !== '') {
+             let label = input.getAttribute('data-label');
+             formData[label] = input.value.trim();
+        }
+    });
+
+    const originalMainHtml = btnMain.innerHTML;
+    const originalAstHtml = btnAssistant.innerHTML;
+    const spinner = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ';
+    
+    btnMain.innerHTML = spinner + 'Procesando...';
+    btnAssistant.innerHTML = spinner + 'Procesando...';
+    btnMain.disabled = true;
+    btnAssistant.disabled = true;
+    analysisPanel.classList.add('d-none');
+    btnCopy.classList.add('d-none');
+
+    try {
+        const response = await fetch('/api/improve/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                category: category || "Ninguna especificada",
+                form_data: formData,
+                level: level
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+            alert("Hubo un error: " + data.error);
+        } else {
+            editor.value = data.improved_prompt;
+            btnCopy.classList.remove('d-none');
+            
+            if (data.analysis && data.analysis.length > 0) {
+                analysisList.innerHTML = '';
+                data.analysis.forEach(item => {
+                    let li = document.createElement('li');
+                    li.innerText = item;
+                    li.classList.add('mb-1');
+                    analysisList.appendChild(li);
+                });
+                analysisPanel.classList.remove('d-none');
+            }
+        }
+    } catch (error) {
+        alert("Error de conexión con el servidor.");
+        console.error(error);
+    } finally {
+        btnMain.innerHTML = originalMainHtml;
+        btnAssistant.innerHTML = originalAstHtml;
+        btnMain.disabled = false;
+        btnAssistant.disabled = false;
+    }
+}
+</script>
+{% endblock %}

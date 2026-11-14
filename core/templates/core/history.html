@@ -1,0 +1,71 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="container py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Mi Historial de Prompts</h3>
+            <p class="text-secondary small mb-0">Todos tus prompts generados se guardan automáticamente aquí.</p>
+        </div>
+        <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i> Nuevo Prompt
+        </a>
+    </div>
+
+    {% if prompts %}
+        <div class="row g-3">
+            {% for p in prompts %}
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="badge bg-primary bg-opacity-10 text-primary me-2">{{ p.category|default:"General" }}</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">Mejora {{ p.improvement_level }}</span>
+                                <small class="text-muted ms-2">{{ p.created_at|date:"d/m/Y H:i" }}</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="copyText('prompt-text-{{ p.id }}', this)">
+                                    <i class="bi bi-clipboard me-1"></i> Copiar
+                                </button>
+                                <a href="{% url 'workspace' %}?load={{ p.id }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                    <i class="bi bi-pencil-square me-1"></i> Abrir
+                                </a>
+                                <a href="{% url 'delete_prompt' p.id %}" class="btn btn-sm btn-outline-danger rounded-pill px-2" onclick="return confirm('¿Eliminar este prompt del historial?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-2"><strong>Idea original:</strong> {{ p.original_text }}</p>
+                        <div class="p-3 bg-light rounded-3">
+                            <pre id="prompt-text-{{ p.id }}" class="mb-0 text-dark" style="white-space: pre-wrap; font-family: inherit; font-size: 0.92rem;">{{ p.improved_text }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5 bg-white rounded-4 shadow-sm">
+            <i class="bi bi-inbox fs-1 text-muted"></i>
+            <h5 class="mt-3 fw-bold text-dark">Aún no tienes prompts guardados</h5>
+            <p class="text-secondary small">Ve al Espacio de Trabajo y mejora tu primera idea para verla aquí.</p>
+            <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4 mt-2">Ir al Espacio de Trabajo</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function copyText(elementId, btn) {
+    const text = document.getElementById(elementId).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = original;
+            btn.classList.replace('btn-success', 'btn-outline-primary');
+        }, 1500);
+    });
+}
+</script>
+{% endblock %}
