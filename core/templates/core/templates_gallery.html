@@ -1,12 +1,12 @@
 {% extends 'core/base.html' %}
 {% block content %}
 <div class="container py-4 px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
         <div>
-            <h3 class="fw-bold text-dark mb-1">Galería de Plantillas</h3>
-            <p class="text-secondary small mb-0">Selecciona una plantilla curada para cargarla directamente en el editor y personalizarla.</p>
+            <h3 class="fw-bold pl-text-primary mb-1" style="letter-spacing: -0.02em;">Galería de Plantillas</h3>
+            <p class="pl-text-secondary small mb-0">Selecciona una plantilla curada para cargarla directamente en el editor y personalizarla.</p>
         </div>
-        <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4">
+        <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 fw-medium">
             <i class="bi bi-pencil-square me-1"></i> Editor Libre
         </a>
     </div>
@@ -14,26 +14,26 @@
     <div class="row g-4">
         {% for slug, tpl in templates.items %}
         <div class="col-md-6 col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 d-flex flex-column">
-                <div class="card-body p-4 d-flex flex-column">
+            <div class="pl-card pl-card-hover h-100 d-flex flex-column">
+                <div class="card-body p-4 d-flex flex-column h-100">
                     <div class="d-flex align-items-start mb-3">
-                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 me-3">
-                            <i class="bi bi-lightning-charge-fill fs-4"></i>
+                        <div class="pl-kpi-icon bg-primary bg-opacity-10 text-primary me-3">
+                            <i class="bi bi-lightning-charge-fill"></i>
                         </div>
                         <div>
-                            <h5 class="fw-bold text-dark mb-0">{{ tpl.title }}</h5>
+                            <h5 class="fw-bold pl-text-primary mb-1" style="font-size: 1.05rem;">{{ tpl.title }}</h5>
                             <div class="d-flex flex-wrap gap-1 mt-1">
-                                <span class="badge bg-light text-secondary border">{{ tpl.category }}</span>
-                                <span class="badge bg-info bg-opacity-10 text-dark border border-info border-opacity-25"><i class="bi bi-sliders me-1"></i>{{ tpl.technique }}</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary">Nivel {{ tpl.level }}</span>
+                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">{{ tpl.category }}</span>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill"><i class="bi bi-sliders me-1"></i>{{ tpl.technique }}</span>
+                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill">Nivel {{ tpl.level }}</span>
                             </div>
                         </div>
                     </div>
-                    <p class="text-secondary small mb-3">{{ tpl.description }}</p>
-                    <div class="p-3 bg-light rounded-3 mb-4 flex-grow-1">
-                        <p class="small text-dark mb-0 fst-italic">"{{ tpl.text }}"</p>
+                    <p class="pl-text-secondary small mb-3" style="line-height: 1.55;">{{ tpl.description }}</p>
+                    <div class="p-3 pl-code-block mb-4 flex-grow-1">
+                        <p class="small pl-text-primary mb-0 fst-italic" style="line-height: 1.6;">"{{ tpl.text }}"</p>
                     </div>
-                    <a href="{% url 'workspace' %}?preset={{ slug }}" class="btn btn-brand rounded-pill w-100 fw-medium">
+                    <a href="{% url 'workspace' %}?preset={{ slug }}" class="btn btn-brand w-100 py-2 fw-medium mt-auto">
                         <i class="bi bi-magic me-1"></i> Usar en el Editor
                     </a>
                 </div>

@@ -4,86 +4,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PromptLab - De una idea simple a un prompt extraordinario</title>
+    <title>PromptLab - Studio de Ingeniería de Prompts &amp; Ciencia de Datos</title>
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('promptlab_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .sidebar { width: 260px; min-width: 260px; min-height: 100vh; background-color: #12121e; color: white; }
-        .sidebar a { color: #a1a1aa; text-decoration: none; padding: 12px 20px; display: block; border-radius: 8px; margin: 4px 12px; transition: all 0.2s; }
-        .sidebar a:hover, .sidebar a.active { background-color: #27273f; color: #fff; }
-        .brand-text { color: #9d8df1; font-weight: 700; letter-spacing: 0.5px; }
-        .main-content { flex-grow: 1; background-color: #f7f7f9; height: 100vh; overflow-y: auto; }
-        .btn-brand { background-color: #635bff; color: white; border: none; }
-        .btn-brand:hover { background-color: #534be5; color: white; }
-        @media (max-width: 767.98px) {
-            body { flex-direction: column; }
-            .main-content { height: auto; min-height: calc(100vh - 56px); }
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}">
 </head>
 <body class="d-flex">
     <!-- Barra superior móvil -->
-    <header class="d-md-none d-flex align-items-center justify-content-between px-3 py-2 text-white" style="background-color: #12121e;">
-        <span class="brand-text fs-5"><i class="bi bi-stars text-warning me-1"></i> PromptLab</span>
-        <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
-            <i class="bi bi-list fs-5"></i>
-        </button>
+    <header class="d-md-none d-flex align-items-center justify-content-between px-3 py-2 text-white" style="background-color: var(--pl-sidebar-bg); border-bottom: 1px solid var(--pl-sidebar-border);">
+        <a href="{% url 'workspace' %}" class="d-flex align-items-center gap-2 text-decoration-none">
+            <svg width="30" height="30" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                    <linearGradient id="plLogoGradMob" x1="2" y1="2" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#635bff"/>
+                        <stop offset="50%" stop-color="#8b5cf6"/>
+                        <stop offset="100%" stop-color="#06b6d4"/>
+                    </linearGradient>
+                </defs>
+                <rect x="2" y="2" width="32" height="32" rx="9" fill="url(#plLogoGradMob)" fill-opacity="0.16" stroke="url(#plLogoGradMob)" stroke-width="1.6"/>
+                <polygon points="18,7 27,13 27,23 18,29 9,23 9,13" stroke="url(#plLogoGradMob)" stroke-width="1.7" fill="none"/>
+                <path d="M18 11.5L19.6 16.4L24.5 18L19.6 19.6L18 24.5L16.4 19.6L11.5 18L16.4 16.4L18 11.5Z" fill="url(#plLogoGradMob)"/>
+            </svg>
+            <div>
+                <div class="brand-title fs-6">PromptLab</div>
+                <div class="brand-subtitle" style="font-size: 0.56rem;">STUDIO • DS &amp; IA</div>
+            </div>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 theme-toggle-trigger" onclick="togglePromptLabTheme()" title="Cambiar tema">
+                <i class="bi bi-moon-stars-fill theme-icon"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-light rounded-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+                <i class="bi bi-list fs-5"></i>
+            </button>
+        </div>
     </header>
 
     <!-- Menú lateral escritorio -->
     <nav class="sidebar d-none d-md-flex flex-column py-3">
-        <h4 class="mb-4 px-4 brand-text"><i class="bi bi-stars text-warning me-1"></i> PromptLab</h4>
-        <a href="{% url 'workspace' %}" class="{% if request.resolver_match.url_name == 'workspace' %}active{% endif %}">
-            <i class="bi bi-house-door me-2"></i> Espacio de Trabajo
+        <a href="{% url 'workspace' %}" class="brand-lockup mb-4">
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                    <linearGradient id="plLogoGrad" x1="2" y1="2" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#635bff"/>
+                        <stop offset="50%" stop-color="#8b5cf6"/>
+                        <stop offset="100%" stop-color="#06b6d4"/>
+                    </linearGradient>
+                </defs>
+                <rect x="2" y="2" width="32" height="32" rx="10" fill="url(#plLogoGrad)" fill-opacity="0.18" stroke="url(#plLogoGrad)" stroke-width="1.6"/>
+                <polygon points="18,7 27,13 27,23 18,29 9,23 9,13" stroke="url(#plLogoGrad)" stroke-width="1.6" fill="none"/>
+                <circle cx="18" cy="7" r="1.6" fill="#06b6d4"/>
+                <circle cx="27" cy="23" r="1.6" fill="#8b5cf6"/>
+                <circle cx="9" cy="23" r="1.6" fill="#635bff"/>
+                <path d="M18 11.5L19.6 16.4L24.5 18L19.6 19.6L18 24.5L16.4 19.6L11.5 18L16.4 16.4L18 11.5Z" fill="url(#plLogoGrad)"/>
+            </svg>
+            <div>
+                <div class="brand-title">PromptLab</div>
+                <div class="brand-subtitle">STUDIO • DS &amp; IA</div>
+            </div>
         </a>
-        <a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">
-            <i class="bi bi-clock-history me-2"></i> Mi Historial
+
+        <a href="{% url 'workspace' %}" class="nav-link-item {% if request.resolver_match.url_name == 'workspace' %}active{% endif %}">
+            <i class="bi bi-house-door"></i> <span>Espacio de Trabajo</span>
         </a>
-        <a href="{% url 'favorites' %}" class="{% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">
-            <i class="bi bi-star me-2"></i> Favoritos
+        <a href="{% url 'history' %}" class="nav-link-item {% if request.resolver_match.url_name == 'history' %}active{% endif %}">
+            <i class="bi bi-clock-history"></i> <span>Mi Historial</span>
         </a>
-        <a href="{% url 'templates_gallery' %}" class="{% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}">
-            <i class="bi bi-grid me-2"></i> Plantillas
+        <a href="{% url 'favorites' %}" class="nav-link-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">
+            <i class="bi bi-star"></i> <span>Favoritos</span>
         </a>
-        <a href="{% url 'analytics' %}" class="{% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
-            <i class="bi bi-bar-chart-line me-2"></i> Analítica y Datos
+        <a href="{% url 'templates_gallery' %}" class="nav-link-item {% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}">
+            <i class="bi bi-grid"></i> <span>Plantillas</span>
         </a>
-        <div class="mt-auto">
-            <hr class="text-secondary mx-3">
-            <div class="px-4 py-2 small text-secondary d-flex align-items-center">
-                <span class="badge rounded-pill bg-success bg-opacity-25 text-success me-2 p-1">
-                    <i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i>
-                </span>
-                <span>Motor Heurístico v3.0 • Rúbrica Activa</span>
+        <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
+            <i class="bi bi-bar-chart-line"></i> <span>Analítica y Datos</span>
+        </a>
+
+        <div class="mt-auto pt-3">
+            <div class="px-3 mb-3">
+                <button type="button" class="theme-toggle-btn theme-toggle-trigger" onclick="togglePromptLabTheme()">
+                    <span class="d-flex align-items-center gap-2">
+                        <i class="bi bi-moon-stars-fill theme-icon text-info"></i>
+                        <span class="theme-label">Modo Oscuro</span>
+                    </span>
+                    <i class="bi bi-arrow-left-right small opacity-50"></i>
+                </button>
+            </div>
+            <div class="status-card small text-secondary d-flex align-items-center gap-2">
+                <span class="pulse-dot"></span>
+                <div class="lh-sm">
+                    <div class="text-light fw-semibold" style="font-size: 0.78rem;">Motor Heurístico v3.1</div>
+                    <div style="font-size: 0.7rem; color: #94a3b8;">100% Offline • Rúbrica Activa</div>
+                </div>
             </div>
         </div>
     </nav>
 
     <!-- Menú offcanvas móvil -->
-    <div class="offcanvas offcanvas-start text-white d-md-none" tabindex="-1" id="mobileSidebar" style="background-color: #12121e; width: 260px;">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title brand-text"><i class="bi bi-stars text-warning me-1"></i> PromptLab</h5>
+    <div class="offcanvas offcanvas-start text-white d-md-none" tabindex="-1" id="mobileSidebar" style="background-color: var(--pl-sidebar-bg); width: 272px;">
+        <div class="offcanvas-header border-bottom border-secondary border-opacity-25">
+            <div class="d-flex align-items-center gap-2">
+                <svg width="30" height="30" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="plLogoGradOff" x1="2" y1="2" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#635bff"/>
+                            <stop offset="50%" stop-color="#8b5cf6"/>
+                            <stop offset="100%" stop-color="#06b6d4"/>
+                        </linearGradient>
+                    </defs>
+                    <rect x="2" y="2" width="32" height="32" rx="9" fill="url(#plLogoGradOff)" fill-opacity="0.18" stroke="url(#plLogoGradOff)" stroke-width="1.6"/>
+                    <polygon points="18,7 27,13 27,23 18,29 9,23 9,13" stroke="url(#plLogoGradOff)" stroke-width="1.6" fill="none"/>
+                    <path d="M18 11.5L19.6 16.4L24.5 18L19.6 19.6L18 24.5L16.4 19.6L11.5 18L16.4 16.4L18 11.5Z" fill="url(#plLogoGradOff)"/>
+                </svg>
+                <div>
+                    <div class="brand-title fs-6">PromptLab</div>
+                    <div class="brand-subtitle" style="font-size: 0.56rem;">STUDIO • DS &amp; IA</div>
+                </div>
+            </div>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
         </div>
-        <div class="offcanvas-body px-0 d-flex flex-column sidebar">
-            <a href="{% url 'workspace' %}" class="{% if request.resolver_match.url_name == 'workspace' %}active{% endif %}">
-                <i class="bi bi-house-door me-2"></i> Espacio de Trabajo
+        <div class="offcanvas-body px-0 d-flex flex-column sidebar" style="min-height: auto; border-right: none;">
+            <a href="{% url 'workspace' %}" class="nav-link-item {% if request.resolver_match.url_name == 'workspace' %}active{% endif %}">
+                <i class="bi bi-house-door"></i> <span>Espacio de Trabajo</span>
             </a>
-            <a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">
-                <i class="bi bi-clock-history me-2"></i> Mi Historial
+            <a href="{% url 'history' %}" class="nav-link-item {% if request.resolver_match.url_name == 'history' %}active{% endif %}">
+                <i class="bi bi-clock-history"></i> <span>Mi Historial</span>
             </a>
-            <a href="{% url 'favorites' %}" class="{% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">
-                <i class="bi bi-star me-2"></i> Favoritos
+            <a href="{% url 'favorites' %}" class="nav-link-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">
+                <i class="bi bi-star"></i> <span>Favoritos</span>
             </a>
-            <a href="{% url 'templates_gallery' %}" class="{% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}">
-                <i class="bi bi-grid me-2"></i> Plantillas
+            <a href="{% url 'templates_gallery' %}" class="nav-link-item {% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}">
+                <i class="bi bi-grid"></i> <span>Plantillas</span>
             </a>
-            <a href="{% url 'analytics' %}" class="{% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
-                <i class="bi bi-bar-chart-line me-2"></i> Analítica y Datos
+            <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
+                <i class="bi bi-bar-chart-line"></i> <span>Analítica y Datos</span>
             </a>
-            <div class="mt-auto px-4 py-2 small text-secondary">
-                Motor Heurístico v3.0 • Rúbrica Activa
+            <div class="mt-auto pt-3">
+                <div class="px-3 mb-3">
+                    <button type="button" class="theme-toggle-btn theme-toggle-trigger" onclick="togglePromptLabTheme()">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="bi bi-moon-stars-fill theme-icon text-info"></i>
+                            <span class="theme-label">Modo Oscuro</span>
+                        </span>
+                        <i class="bi bi-arrow-left-right small opacity-50"></i>
+                    </button>
+                </div>
+                <div class="status-card small text-secondary d-flex align-items-center gap-2">
+                    <span class="pulse-dot"></span>
+                    <div class="lh-sm">
+                        <div class="text-light fw-semibold" style="font-size: 0.78rem;">Motor Heurístico v3.1</div>
+                        <div style="font-size: 0.7rem; color: #94a3b8;">100% Offline • Rúbrica Activa</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -91,6 +170,38 @@
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
+
     <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        function updateThemeToggleUI(theme) {
+            const isDark = theme === 'dark';
+            document.querySelectorAll('.theme-icon').forEach(icon => {
+                icon.classList.remove('bi-sun-fill', 'bi-moon-stars-fill', 'text-warning', 'text-info');
+                if (isDark) {
+                    icon.classList.add('bi-sun-fill', 'text-warning');
+                } else {
+                    icon.classList.add('bi-moon-stars-fill', 'text-info');
+                }
+            });
+            document.querySelectorAll('.theme-label').forEach(lbl => {
+                lbl.textContent = isDark ? 'Modo Claro' : 'Modo Oscuro';
+            });
+        }
+
+        function togglePromptLabTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-bs-theme', next);
+            localStorage.setItem('promptlab_theme', next);
+            updateThemeToggleUI(next);
+            window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: next } }));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const activeTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            updateThemeToggleUI(activeTheme);
+        });
+    </script>
 </body>
 </html>
