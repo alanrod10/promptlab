@@ -7,13 +7,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth.models import User
 from django.db.models import Count
-from .services import get_gemini_response, calculate_rubric_score
+from .services import get_gemini_response, calculate_rubric_score, analyze_live_preview
 from .models import Prompt
 
 TEMPLATES_CATALOG = {
     "analisis-datos-pandas": {
         "title": "Análisis Exploratorio de Datos (Pandas)",
-        "category": "Investigar y analizar",
+        "category": "Ciencia de Datos e IA",
         "technique": "Paso a Paso",
         "level": "Profunda",
         "description": "Estructura un flujo completo en Python y Pandas para limpiar datos, detectar valores nulos y obtener conclusiones estadísticas.",
@@ -29,7 +29,7 @@ TEMPLATES_CATALOG = {
     },
     "estudio-pedagogico": {
         "title": "Guía de Estudio con Ejemplos y Autoevaluación",
-        "category": "Aprender y enseñar",
+        "category": "Estudio y academia",
         "technique": "Pedagógico",
         "level": "Completa",
         "description": "Explica cualquier tema complejo desde cero usando analogías sencillas y preguntas de repaso para exámenes.",
@@ -37,27 +37,43 @@ TEMPLATES_CATALOG = {
     },
     "control-comercial-stock": {
         "title": "Plan de Control de Inventario y Ventas",
-        "category": "Trabajo y productividad",
+        "category": "Negocios y comercio",
         "technique": "Paso a Paso",
         "level": "Completa",
         "description": "Diseña un plan práctico para organizar stock, controlar vencimientos y mejorar la rentabilidad de un comercio.",
         "text": "Armar un plan paso a paso para controlar el stock, vencimientos y reposición de mercadería en un comercio minorista"
     },
-    "comparativa-tecnica": {
-        "title": "Tabla Comparativa de Tecnologías",
-        "category": "Tecnología y programación",
-        "technique": "Con Ejemplos",
-        "level": "Completa",
-        "description": "Compara dos herramientas, lenguajes o motores de bases de datos en una tabla clara con ventajas y casos de uso.",
-        "text": "Comparar SQLite vs PostgreSQL en una tabla clara indicando ventajas, límites y cuándo conviene usar cada uno"
-    },
     "redaccion-profesional": {
         "title": "Redacción de Correo o Propuesta Profesional",
-        "category": "Crear y comunicar",
+        "category": "Redacción y comunicación",
         "technique": "Estándar",
         "level": "Completa",
         "description": "Estructura mensajes formales, claros y persuasivos para clientes, proveedores o presentaciones académicas.",
         "text": "Redactar una respuesta profesional para este correo presentando una propuesta de trabajo clara y cordial"
+    },
+    "tramites-nota-formal": {
+        "title": "Nota Formal o Reclamo Administrativo",
+        "category": "Trámites y documentos",
+        "technique": "Verificación",
+        "level": "Completa",
+        "description": "Redacta reclamos formales, descargos o solicitudes administrativas con estructura clara y marcadores seguros.",
+        "text": "Redactame una nota formal de reclamo por demora en la entrega de un servicio indicando hechos, plazos y solicitud concreta"
+    },
+    "planificacion-roadmap": {
+        "title": "Hoja de Ruta y Cronograma de Proyecto",
+        "category": "Planificación y productividad",
+        "technique": "Paso a Paso",
+        "level": "Completa",
+        "description": "Divide metas complejas en hitos semanales, prioridades y entregables concretos.",
+        "text": "Planificar un cronograma de 4 semanas con hitos, prioridades y entregables para lanzar una aplicación web"
+    },
+    "decision-comparativa": {
+        "title": "Matriz de Decisión y Comparativa",
+        "category": "Toma de decisiones",
+        "technique": "Con Ejemplos",
+        "level": "Completa",
+        "description": "Evalúa alternativas con criterios ponderados, ventajas, riesgos y recomendación fundamentada.",
+        "text": "Comparar SQLite vs PostgreSQL en una tabla clara indicando ventajas, límites y cuándo conviene elegir cada uno"
     }
 }
 
@@ -127,6 +143,48 @@ def templates_gallery(request):
     return render(request, 'core/templates_gallery.html', {'templates': TEMPLATES_CATALOG})
 
 @csrf_exempt
+def analyze_live_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            if not isinstance(data, dict):
+                return JsonResponse({"error": "Formato JSON inválido: se esperaba un objeto."}, status=400)
+
+            user_text = data.get('text', '')
+            if not isinstance(user_text, str):
+                return JsonResponse({"error": "El campo 'text' debe ser una cadena de texto."}, status=400)
+
+            category = data.get('category', '')
+            form_data = data.get('form_data', {})
+            if not isinstance(form_data, dict):
+                form_data = {}
+            technique = data.get('technique', 'Estándar')
+            override_domain = data.get('override_domain', '') or ''
+            override_action = data.get('override_action', '') or ''
+            override_deliverable = data.get('override_deliverable', '') or ''
+            negative_constraints = data.get('negative_constraints', [])
+            if not isinstance(negative_constraints, list):
+                negative_constraints = []
+
+            result = analyze_live_preview(
+                text=user_text,
+                category=category,
+                form_data=form_data,
+                technique=technique,
+                override_domain=override_domain,
+                override_action=override_action,
+                override_deliverable=override_deliverable,
+                negative_constraints=negative_constraints,
+            )
+            return JsonResponse(result)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "JSON malformado en la solicitud."}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+@csrf_exempt
 def improve_prompt_api(request):
     if request.method == 'POST':
         try:
@@ -147,7 +205,28 @@ def improve_prompt_api(request):
                 level = 'Completa'
             technique = data.get('technique', 'Estándar')
 
-            result = get_gemini_response(user_text, category, form_data, level, technique)
+            override_domain = data.get('override_domain', '') or ''
+            override_action = data.get('override_action', '') or ''
+            override_deliverable = data.get('override_deliverable', '') or ''
+            negative_constraints = data.get('negative_constraints', [])
+            if not isinstance(negative_constraints, list):
+                negative_constraints = []
+            user_example = data.get('user_example', '') or ''
+            mask_pii = bool(data.get('mask_pii', False))
+
+            result = get_gemini_response(
+                user_text=user_text,
+                category=category,
+                form_data=form_data,
+                level=level,
+                technique=technique,
+                override_domain=override_domain,
+                override_action=override_action,
+                override_deliverable=override_deliverable,
+                negative_constraints=negative_constraints,
+                user_example=user_example,
+                mask_pii=mask_pii,
+            )
 
             if 'improved_prompt' in result:
                 user = request.user if request.user.is_authenticated else User.objects.first()
@@ -161,11 +240,24 @@ def improve_prompt_api(request):
                     original_text=raw_orig,
                     improved_text=result['improved_prompt'],
                     category=resolved_cat,
+                    detected_action=result.get('detected_action', 'explicar_concepto'),
+                    detected_deliverable=result.get('detected_deliverable', 'informe estructurado'),
                     improvement_level=level,
                     technique=result.get('technique', technique),
+                    engine_version=result.get('engine_version', 'v4.0'),
                     initial_score=result.get('initial_score', 25),
+                    information_gain=result.get('information_gain', 0),
                     final_score=result.get('final_score', 90),
-                    quality_gain=result.get('quality_gain', 65)
+                    quality_gain=result.get('quality_gain', 65),
+                    intent_confidence=result.get('intent_confidence', 0.85),
+                    intent_margin=result.get('intent_margin', 0.30),
+                    n_intents=result.get('n_intents', 1),
+                    n_entities=result.get('n_entities', 0),
+                    n_neg_constraints=result.get('n_neg_constraints', 0),
+                    n_slots_used=result.get('n_slots_used', 0),
+                    info_density=result.get('info_density', 0.0),
+                    user_corrected=result.get('user_corrected', False),
+                    has_pii_masked=result.get('has_pii_masked', False),
                 )
 
             return JsonResponse(result)
@@ -187,7 +279,12 @@ def analytics_dashboard(request):
     init_scores = []
     final_scores = []
     gains = []
+    info_gains = []
+    densities = []
+    confidences = []
+    corrected_count = 0
     tech_stats = {}
+    action_stats = {}
 
     for p in prompts:
         o_words = max(len(p.original_text.split()), 1)
@@ -209,6 +306,11 @@ def analytics_dashboard(request):
         init_scores.append(i_score)
         final_scores.append(f_score)
         gains.append(gain)
+        info_gains.append(p.information_gain)
+        densities.append(p.info_density)
+        confidences.append(p.intent_confidence * 100.0)
+        if p.user_corrected:
+            corrected_count += 1
 
         tech_name = p.technique or 'Estándar'
         if tech_name not in tech_stats:
@@ -216,12 +318,23 @@ def analytics_dashboard(request):
         tech_stats[tech_name]['init'].append(i_score)
         tech_stats[tech_name]['final'].append(f_score)
 
+        act_name = (p.detected_action or 'explicar_concepto').replace('_', ' ').capitalize()
+        if act_name not in action_stats:
+            action_stats[act_name] = {'init': [], 'final': []}
+        action_stats[act_name]['init'].append(i_score)
+        action_stats[act_name]['final'].append(f_score)
+
     avg_orig_words = round(sum(orig_words_list) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_imp_words = round(sum(imp_words_list) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_expansion_ratio = round(sum(ratios) / total_prompts, 2) if total_prompts > 0 else 0.0
     avg_initial_score = round(sum(init_scores) / total_prompts, 1) if total_prompts > 0 else 0.0
+    avg_user_score = avg_initial_score
+    avg_info_gain = round(sum(info_gains) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_final_score = round(sum(final_scores) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_quality_gain = round(sum(gains) / total_prompts, 1) if total_prompts > 0 else 0.0
+    avg_info_density = round(sum(densities) / total_prompts, 3) if total_prompts > 0 else 0.0
+    avg_confidence = round(sum(confidences) / total_prompts, 1) if total_prompts > 0 else 0.0
+    correction_rate = round((corrected_count / total_prompts) * 100, 1) if total_prompts > 0 else 0.0
 
     cat_qs = Prompt.objects.values('category').annotate(total=Count('id')).order_by('-total')
     cat_labels = [item['category'] or 'General' for item in cat_qs]
@@ -235,6 +348,10 @@ def analytics_dashboard(request):
     tech_init_avg = [round(sum(v['init']) / len(v['init']), 1) for v in tech_stats.values()]
     tech_final_avg = [round(sum(v['final']) / len(v['final']), 1) for v in tech_stats.values()]
 
+    action_labels = list(action_stats.keys())
+    action_init_scores = [round(sum(v['init']) / len(v['init']), 1) for v in action_stats.values()]
+    action_final_scores = [round(sum(v['final']) / len(v['final']), 1) for v in action_stats.values()]
+
     context = {
         'total_prompts': total_prompts,
         'favorites_count': favorites_count,
@@ -243,8 +360,13 @@ def analytics_dashboard(request):
         'avg_imp_words': avg_imp_words,
         'avg_expansion_ratio': avg_expansion_ratio,
         'avg_initial_score': avg_initial_score,
+        'avg_user_score': avg_user_score,
+        'avg_info_gain': avg_info_gain,
         'avg_final_score': avg_final_score,
         'avg_quality_gain': avg_quality_gain,
+        'avg_info_density': avg_info_density,
+        'avg_confidence': avg_confidence,
+        'correction_rate': correction_rate,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_counts_json': json.dumps(cat_counts),
         'tech_labels_json': json.dumps(tech_labels),
@@ -252,6 +374,9 @@ def analytics_dashboard(request):
         'tech_score_labels_json': json.dumps(tech_score_labels),
         'tech_init_avg_json': json.dumps(tech_init_avg),
         'tech_final_avg_json': json.dumps(tech_final_avg),
+        'action_labels_json': json.dumps(action_labels),
+        'action_init_scores_json': json.dumps(action_init_scores),
+        'action_final_scores_json': json.dumps(action_final_scores),
     }
     return render(request, 'core/analytics.html', context)
 
@@ -264,12 +389,25 @@ def export_dataset_csv(request):
     writer.writerow([
         'id',
         'fecha_creacion',
+        'engine_version',
         'categoria',
+        'detected_action',
+        'detected_deliverable',
         'nivel_mejora',
         'tecnica_aplicada',
         'puntaje_inicial',
+        'information_gain',
         'puntaje_final',
         'ganancia_calidad_pts',
+        'intent_confidence',
+        'intent_margin',
+        'n_intents',
+        'n_entities',
+        'n_neg_constraints',
+        'n_slots_used',
+        'info_density',
+        'user_corrected',
+        'has_pii_masked',
         'es_favorito',
         'palabras_entrada',
         'palabras_salida',
@@ -294,12 +432,25 @@ def export_dataset_csv(request):
         writer.writerow([
             p.id,
             p.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            p.engine_version,
             p.category or 'General',
+            p.detected_action,
+            p.detected_deliverable,
             p.improvement_level,
             p.technique or 'Estándar',
             p.initial_score,
+            p.information_gain,
             p.final_score,
             p.quality_gain,
+            p.intent_confidence,
+            p.intent_margin,
+            p.n_intents,
+            p.n_entities,
+            p.n_neg_constraints,
+            p.n_slots_used,
+            p.info_density,
+            int(p.user_corrected),
+            int(p.has_pii_masked),
             int(p.is_favorite),
             o_words,
             i_words,

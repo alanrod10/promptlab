@@ -1,12 +1,21 @@
 import csv
 import io
 import json
+from pathlib import Path
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
 from .models import Prompt
-from .services import calculate_rubric_score, get_gemini_response, TECHNIQUE_BLOCKS
+from .services import (
+    calculate_rubric_score,
+    get_gemini_response,
+    analyze_live_preview,
+    detect_and_mask_pii,
+    normalize_and_lemmatize,
+    parse_request,
+    TECHNIQUE_BLOCKS,
+)
 
 
 class PromptLabServicesTests(TestCase):
@@ -162,11 +171,103 @@ class PromptLabViewsAndIntegrationTests(TestCase):
         rows = list(csv.reader(io.StringIO(resp.content.decode("utf-8-sig"))))
         self.assertEqual(len(rows), 2)
         expected_cols = [
-            "id", "fecha_creacion", "categoria", "nivel_mejora", "tecnica_aplicada",
-            "puntaje_inicial", "puntaje_final", "ganancia_calidad_pts", "es_favorito",
-            "palabras_entrada", "palabras_salida", "caracteres_entrada", "caracteres_salida",
-            "factor_expansion", "bloques_estructura", "tiene_delimitadores",
-            "texto_original", "prompt_mejorado",
+            "id", "fecha_creacion", "engine_version", "categoria", "detected_action",
+            "detected_deliverable", "nivel_mejora", "tecnica_aplicada",
+            "puntaje_inicial", "information_gain", "puntaje_final", "ganancia_calidad_pts",
+            "intent_confidence", "intent_margin", "n_intents", "n_entities",
+            "n_neg_constraints", "n_slots_used", "info_density", "user_corrected",
+            "has_pii_masked", "es_favorito", "palabras_entrada", "palabras_salida",
+            "caracteres_entrada", "caracteres_salida", "factor_expansion",
+            "bloques_estructura", "tiene_delimitadores", "texto_original", "prompt_mejorado",
         ]
         self.assertEqual(rows[0], expected_cols)
-        self.assertEqual(rows[1][15], "1")  # tiene_delimitadores == 1
+        self.assertEqual(rows[1][28], "1")  # tiene_delimitadores == 1
+
+    def test_v4_analyze_live_and_overrides(self):
+        live_payload = {
+            "text": "Armame un script en Python 3.12 con Pandas sin usar librerías externas; mi mail es test@example.com",
+            "technique": "Paso a Paso",
+        }
+        resp_live = self.client.post("/api/analyze-live/", data=json.dumps(live_payload), content_type="application/json")
+        self.assertEqual(resp_live.status_code, 200)
+        live_data = resp_live.json()
+        self.assertEqual(live_data["engine_version"], "v4.0")
+        self.assertIn("python", live_data["entities"])
+        self.assertIn("pandas", live_data["entities"])
+        self.assertTrue(live_data["has_pii"])
+        self.assertGreaterEqual(len(live_data["neg_constraints"]), 1)
+        self.assertEqual(Prompt.objects.count(), 0)
+
+        improve_payload = {
+            "text": "Armame un script en Python con Pandas; mi mail es test@example.com",
+            "override_domain": "Ciencia de Datos e IA",
+            "override_action": "analizar_datos",
+            "override_deliverable": "código",
+            "mask_pii": True,
+            "user_example": "Entrada: ventas.csv -> Salida: resumen de nulos",
+        }
+        resp_imp = self.client.post("/api/improve/", data=json.dumps(improve_payload), content_type="application/json")
+        self.assertEqual(resp_imp.status_code, 200)
+        imp_data = resp_imp.json()
+        self.assertTrue(imp_data["user_corrected"])
+        self.assertTrue(imp_data["has_pii_masked"])
+        self.assertIn("[EMAIL_OCULTO]", imp_data["raw_objective"])
+        self.assertGreater(imp_data["information_gain"], 0)
+        self.assertIn("segments", imp_data)
+        self.assertIn("trace", imp_data)
+        self.assertEqual(Prompt.objects.count(), 1)
+
+    def test_voseo_clitic_normalization(self):
+        norm, tokens, _ = normalize_and_lemmatize("Armame un plan y explicamelo fácil")
+        self.assertIn("armar", tokens)
+        self.assertIn("explicar", tokens)
+        self.assertIn("armar", norm)
+
+    def test_pii_detection_and_masking(self):
+        masked, warnings = detect_and_mask_pii(
+            "Mi CUIL es 20-34567890-9, email usuario@dominio.com y tel 11 4567-8901"
+        )
+        self.assertIn("[DNI_CUIL_OCULTO]", masked)
+        self.assertIn("[EMAIL_OCULTO]", masked)
+        self.assertIn("[TELEFONO_OCULTO]", masked)
+        types = {w["type"] for w in warnings}
+        self.assertIn("dni_cuil", types)
+        self.assertIn("email", types)
+        self.assertIn("telefono", types)
+
+    def test_negative_constraints_and_contradictions(self):
+        parsed = parse_request(
+            "Dame un resumen breve pero exhaustivo sin tecnicismos ni ejemplos",
+            technique="Con Ejemplos",
+        )
+        self.assertTrue(any("tecnicismos" in nc for nc in parsed.neg_constraints))
+        self.assertGreaterEqual(len(parsed.contradictions), 1)
+
+    def test_orthogonal_classification_and_multi_intent(self):
+        res = analyze_live_preview(
+            "Analizar este ventas.csv con Pandas; y además redactar un correo para gerencia"
+        )
+        self.assertEqual(res["domain"], "Ciencia de Datos e IA")
+        self.assertEqual(res["action"], "analizar_datos")
+        self.assertIn("redactar_contenido", res["secondary_actions"])
+        self.assertEqual(res["deliverable"], "email / mensaje")
+        self.assertGreater(res["confidence"], 0.0)
+        self.assertGreaterEqual(res["margin"], 0.0)
+
+    def test_non_circular_rubric_v2_scores(self):
+        res_plain = get_gemini_response("explicar bases de datos sql")
+        res_rich = get_gemini_response(
+            "explicar normalización en sql sin tecnicismos",
+            form_data={"edu_level": "Terciario / Universitario"},
+            user_example="Tabla Clientes -> 3FN",
+            override_domain="Estudio y academia",
+        )
+        self.assertGreater(res_rich["information_gain"], res_plain["information_gain"])
+        self.assertGreaterEqual(res_rich["final_score"], res_plain["final_score"])
+
+    def test_offline_templates_have_no_external_urls(self):
+        templates_dir = Path(__file__).resolve().parent / "templates"
+        for html_file in templates_dir.rglob("*.html"):
+            content = html_file.read_text(encoding="utf-8").replace("http://www.w3.org/2000/svg", "")
+            self.assertNotIn("http://", content, f"URL externa encontrada en {html_file.name}")
+            self.assertNotIn("https://", content, f"URL externa encontrada en {html_file.name}")

@@ -11,4 +11,5 @@ urlpatterns = [
     path('analitica/', views.analytics_dashboard, name='analytics'),
     path('analitica/exportar-csv/', views.export_dataset_csv, name='export_csv'),
     path('api/improve/', views.improve_prompt_api, name='improve_prompt_api'),
+    path('api/analyze-live/', views.analyze_live_api, name='analyze_live_api'),
 ]

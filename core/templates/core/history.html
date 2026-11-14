@@ -65,9 +65,16 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">{{ p.category|default:"General" }}</span>
-                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">Nivel {{ p.improvement_level }}</span>
-                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-sliders me-1"></i>{{ p.technique|default:"Estándar" }}</span>
-                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1"><i class="bi bi-award me-1"></i>Calidad: {{ p.final_score }}/100 (+{{ p.quality_gain }} pts)</span>
+                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1"><i class="bi bi-lightning-charge me-1"></i>{{ p.detected_action|default:"explicar_concepto" }}</span>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-file-earmark-text me-1"></i>{{ p.detected_deliverable|default:"informe estructurado" }}</span>
+                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">{{ p.technique|default:"Estándar" }}</span>
+                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1"><i class="bi bi-award me-1"></i>{{ p.initial_score }} → {{ p.final_score }}/100</span>
+                                {% if p.user_corrected %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-pencil-square me-1"></i>Corregido por usuario</span>
+                                {% endif %}
+                                {% if p.has_pii_masked %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-shield-check me-1"></i>PII anonimizado</span>
+                                {% endif %}
                                 <small class="pl-text-secondary ms-1">{{ p.created_at|date:"d/m/Y H:i" }}</small>
                             </div>
                             <div class="d-flex flex-wrap gap-2">

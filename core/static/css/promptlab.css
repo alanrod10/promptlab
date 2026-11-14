@@ -364,3 +364,124 @@ body {
     border: 1px solid var(--pl-border);
     color: var(--pl-text);
 }
+
+/* ==========================================================================
+   PromptLab v4.0 — Interacción en Vivo, Chips, Origen y Trazabilidad
+   ========================================================================== */
+
+.pl-live-bar {
+    background-color: var(--pl-surface-alt);
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+.pl-live-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    background-color: var(--pl-surface);
+    color: var(--pl-text);
+    border: 1px solid var(--pl-border);
+    cursor: pointer;
+    transition: all 0.16s ease;
+    user-select: none;
+}
+
+.pl-live-chip:hover {
+    border-color: var(--pl-accent);
+    box-shadow: 0 2px 8px rgba(91, 82, 245, 0.12);
+}
+
+.pl-live-chip.corrected {
+    border-color: var(--pl-accent);
+    background-color: rgba(91, 82, 245, 0.10);
+}
+
+[data-theme="dark"] .pl-live-chip.corrected {
+    background-color: rgba(124, 115, 255, 0.18);
+}
+
+.pl-quick-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    background-color: var(--pl-surface);
+    color: var(--pl-text-secondary);
+    border: 1px solid var(--pl-border);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pl-quick-option:hover {
+    border-color: var(--pl-accent);
+    color: var(--pl-text);
+}
+
+.pl-quick-option.active {
+    background-color: var(--pl-accent);
+    border-color: var(--pl-accent);
+    color: #ffffff;
+}
+
+/* Resaltado por origen en el Mapa de Origen y Trazabilidad */
+.origin-block {
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+    color: var(--pl-text);
+}
+
+.origin-block:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--pl-shadow);
+}
+
+.origin-user {
+    background-color: rgba(6, 182, 212, 0.14);
+    border-bottom: 2px dotted rgba(6, 182, 212, 0.65);
+}
+
+.origin-inferred {
+    background-color: rgba(139, 92, 246, 0.14);
+    border-left: 3px solid rgba(139, 92, 246, 0.7);
+}
+
+.origin-scaffold {
+    background-color: rgba(148, 163, 184, 0.12);
+    border-left: 3px solid rgba(148, 163, 184, 0.5);
+}
+
+/* Insignia de impacto (+X pts) */
+.pl-impact-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.pl-alert-soft-warning {
+    background-color: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: var(--pl-text);
+}
+
+.pl-alert-soft-danger {
+    background-color: rgba(239, 68, 68, 0.10);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: var(--pl-text);
+}
