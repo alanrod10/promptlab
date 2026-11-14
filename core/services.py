@@ -281,9 +281,13 @@ def calculate_rubric_score(text):
         obj_score = 5
 
     # 3. Contexto y Parámetros (0-20)
-    if "# contexto" in norm or "dominio:" in norm or "audiencia" in norm or "tono" in norm:
+    ctx_match = re.search(r'# contexto[^\n]*\n(.*?)(?=\n# |\Z)', norm, flags=re.DOTALL)
+    ctx_scope = ctx_match.group(1) if ctx_match else norm
+    if any(w in ctx_scope for w in ["audiencia", "publico", "nivel", "idioma", "principiantes", "escolar", "tecnico"]):
         ctx_score = 20
-    elif any(w in norm for w in ["para ", "nivel", "cliente", "empresa", "curso", "principiante"]):
+    elif "# contexto" in norm or "dominio:" in norm or "area / tema" in norm:
+        ctx_score = 14
+    elif any(w in norm for w in ["para ", "cliente", "empresa", "curso", "principiante"]):
         ctx_score = 12
     else:
         ctx_score = 4
@@ -485,12 +489,8 @@ def get_gemini_response(user_text, category, form_data, level, technique="Están
 
     final_eval = calculate_rubric_score(improved)
     final_score = final_eval["total"]
-    if level == "Profunda" and final_score < 95:
-        final_score = 98
-    elif level == "Completa" and final_score < 88:
-        final_score = 92
 
-    quality_gain = max(final_score - initial_score, 10)
+    quality_gain = max(final_score - initial_score, 0)
     analysis.append(f"Evaluación por Rúbrica: el prompt pasó de {initial_score}/100 a {final_score}/100 (+{quality_gain} puntos de mejora estructural).")
 
     return {
