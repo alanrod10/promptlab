@@ -257,10 +257,9 @@ def _clean_light(text):
 def calculate_rubric_score(text):
     """
     Evalúa la calidad estructural de un prompt en 5 criterios claros (0 a 20 pts c/u = 100 pts máx).
+    Mide la claridad del objetivo únicamente sobre el texto de la idea/objetivo real.
     """
     norm = _normalize(text)
-    words = text.split()
-    word_count = len(words)
 
     # 1. Rol (0-20)
     if "# rol" in norm or "actua como" in norm or "eres un" in norm:
@@ -270,15 +269,19 @@ def calculate_rubric_score(text):
     else:
         rol_score = 4
 
-    # 2. Objetivo (0-20)
-    if "# objetivo" in norm and word_count >= 12:
-        obj_score = 20
-    elif word_count >= 10:
-        obj_score = 14
-    elif word_count >= 5:
-        obj_score = 10
+    # 2. Objetivo (0-20) evaluado únicamente sobre la sección # Objetivo o el texto crudo
+    obj_match = re.search(r'# objetivo(?: principal)?\s*\n+(.+?)(?=\n+# |\Z)', norm, flags=re.DOTALL)
+    obj_text = obj_match.group(1).strip() if obj_match else norm
+    obj_words = len(obj_text.split())
+
+    if obj_words <= 3:
+        obj_score = 2
+    elif obj_words <= 5:
+        obj_score = 12 if obj_match else 10
+    elif obj_words <= 9:
+        obj_score = 16 if obj_match else 13
     else:
-        obj_score = 5
+        obj_score = 20 if obj_match else 15
 
     # 3. Contexto y Parámetros (0-20)
     ctx_match = re.search(r'# contexto[^\n]*\n(.*?)(?=\n# |\Z)', norm, flags=re.DOTALL)
@@ -309,6 +312,9 @@ def calculate_rubric_score(text):
         fmt_score = 2
 
     total = min(rol_score + obj_score + ctx_score + inst_score + fmt_score, 100)
+    if obj_words <= 3:
+        total = min(total, 45)
+
     return {
         "total": total,
         "breakdown": {
@@ -419,15 +425,18 @@ def get_gemini_response(user_text, category, form_data, level, technique="Están
         if "language" in implicit_mods:
             extras.append(f"Responde en {implicit_mods['language']}.")
         improved = f"{extras[0]}\n\nObjetivo: {improved} {' '.join(extras[1:])}".strip()
+        if technique != "Estándar":
+            improved += f"\n\nNota de técnica ({tech_info['name']}): {tech_info['desc']}"
         if needs_placeholder:
             improved += placeholder_block
 
         final_eval = calculate_rubric_score(improved)
-        final_score = max(final_eval["total"], initial_score + 20)
-        quality_gain = final_score - initial_score
+        final_score = final_eval["total"]
+        quality_gain = max(final_score - initial_score, 0)
         analysis.append(f"Mejora Ligera completada: el puntaje de calidad subió de {initial_score} a {final_score}/100 (+{quality_gain} pts).")
 
         return {
+            "raw_objective": raw_text,
             "improved_prompt": improved,
             "analysis": analysis,
             "initial_score": initial_score,
@@ -494,6 +503,7 @@ def get_gemini_response(user_text, category, form_data, level, technique="Están
     analysis.append(f"Evaluación por Rúbrica: el prompt pasó de {initial_score}/100 a {final_score}/100 (+{quality_gain} puntos de mejora estructural).")
 
     return {
+        "raw_objective": raw_text,
         "improved_prompt": improved,
         "analysis": analysis,
         "initial_score": initial_score,

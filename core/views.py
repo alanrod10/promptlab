@@ -1,10 +1,12 @@
 import csv
 import json
+import re
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.contrib.auth.models import User
-from django.db.models import Count, Avg
+from django.db.models import Count
 from .services import get_gemini_response, calculate_rubric_score
 from .models import Prompt
 
@@ -64,36 +66,62 @@ def workspace(request):
     preset_slug = request.GET.get('preset')
     loaded_prompt = None
     preset_data = None
+    loaded_rubric_json = 'null'
 
     if prompt_id:
         loaded_prompt = Prompt.objects.filter(id=prompt_id).first()
+        if loaded_prompt:
+            rubric = calculate_rubric_score(loaded_prompt.improved_text)
+            loaded_rubric_json = json.dumps(rubric['breakdown'])
     elif preset_slug and preset_slug in TEMPLATES_CATALOG:
         preset_data = TEMPLATES_CATALOG[preset_slug]
 
     return render(request, 'core/workspace.html', {
         'loaded_prompt': loaded_prompt,
-        'preset_data': preset_data
+        'preset_data': preset_data,
+        'loaded_rubric_json': loaded_rubric_json,
     })
 
 def history(request):
     prompts = Prompt.objects.all().order_by('-created_at')
-    return render(request, 'core/history.html', {'prompts': prompts, 'only_favorites': False})
+    categories = sorted({p.category or 'General' for p in prompts})
+    techniques = sorted({p.technique or 'Estándar' for p in prompts})
+    return render(request, 'core/history.html', {
+        'prompts': prompts,
+        'only_favorites': False,
+        'categories': categories,
+        'techniques': techniques,
+    })
 
 def favorites(request):
     prompts = Prompt.objects.filter(is_favorite=True).order_by('-created_at')
-    return render(request, 'core/history.html', {'prompts': prompts, 'only_favorites': True})
+    categories = sorted({p.category or 'General' for p in prompts})
+    techniques = sorted({p.technique or 'Estándar' for p in prompts})
+    return render(request, 'core/history.html', {
+        'prompts': prompts,
+        'only_favorites': True,
+        'categories': categories,
+        'techniques': techniques,
+    })
 
+@require_POST
 def toggle_favorite(request, prompt_id):
     prompt = get_object_or_404(Prompt, id=prompt_id)
     prompt.is_favorite = not prompt.is_favorite
     prompt.save()
-    next_url = request.GET.get('next', 'history')
+    next_url = request.POST.get('next') or request.GET.get('next') or 'history'
+    if next_url not in ('history', 'favorites'):
+        next_url = 'history'
     return redirect(next_url)
 
+@require_POST
 def delete_prompt(request, prompt_id):
     prompt = get_object_or_404(Prompt, id=prompt_id)
     prompt.delete()
-    return redirect('history')
+    next_url = request.POST.get('next') or request.GET.get('next') or 'history'
+    if next_url not in ('history', 'favorites'):
+        next_url = 'history'
+    return redirect(next_url)
 
 def templates_gallery(request):
     return render(request, 'core/templates_gallery.html', {'templates': TEMPLATES_CATALOG})
@@ -103,10 +131,20 @@ def improve_prompt_api(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            if not isinstance(data, dict):
+                return JsonResponse({"error": "Formato JSON inválido: se esperaba un objeto."}, status=400)
+
             user_text = data.get('text', '')
+            if not isinstance(user_text, str):
+                return JsonResponse({"error": "El campo 'text' debe ser una cadena de texto."}, status=400)
+
             category = data.get('category', 'Otro / No sé')
             form_data = data.get('form_data', {})
+            if not isinstance(form_data, dict):
+                form_data = {}
             level = data.get('level', 'Completa')
+            if level not in ('Ligera', 'Completa', 'Profunda'):
+                level = 'Completa'
             technique = data.get('technique', 'Estándar')
 
             result = get_gemini_response(user_text, category, form_data, level, technique)
@@ -117,27 +155,30 @@ def improve_prompt_api(request):
                     user = User.objects.create_user(username='alan', password='123')
 
                 resolved_cat = result.get('category') or category or 'General'
+                raw_orig = result.get('raw_objective') or user_text
                 Prompt.objects.create(
                     user=user,
-                    original_text=user_text,
+                    original_text=raw_orig,
                     improved_text=result['improved_prompt'],
                     category=resolved_cat,
                     improvement_level=level,
                     technique=result.get('technique', technique),
                     initial_score=result.get('initial_score', 25),
-                    final_score=result.get('final_score', 92),
-                    quality_gain=result.get('quality_gain', 67)
+                    final_score=result.get('final_score', 90),
+                    quality_gain=result.get('quality_gain', 65)
                 )
 
             return JsonResponse(result)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "JSON malformado en la solicitud."}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 def analytics_dashboard(request):
-    prompts = Prompt.objects.all()
-    total_prompts = prompts.count()
-    favorites_count = prompts.filter(is_favorite=True).count()
+    prompts = list(Prompt.objects.all())
+    total_prompts = len(prompts)
+    favorites_count = sum(1 for p in prompts if p.is_favorite)
     approval_rate = round((favorites_count / total_prompts) * 100, 1) if total_prompts > 0 else 0.0
 
     orig_words_list = []
@@ -146,6 +187,7 @@ def analytics_dashboard(request):
     init_scores = []
     final_scores = []
     gains = []
+    tech_stats = {}
 
     for p in prompts:
         o_words = max(len(p.original_text.split()), 1)
@@ -154,16 +196,25 @@ def analytics_dashboard(request):
         imp_words_list.append(i_words)
         ratios.append(i_words / o_words)
 
-        # Asegurar puntajes reales si había registros previos
+        # Cálculo en memoria para registros antiguos sin mutar la BD en una petición GET
         if not p.final_score or p.final_score == 0:
-            p.initial_score = calculate_rubric_score(p.original_text)["total"]
-            p.final_score = max(calculate_rubric_score(p.improved_text)["total"], 88)
-            p.quality_gain = max(p.final_score - p.initial_score, 15)
-            p.save()
+            i_score = calculate_rubric_score(p.original_text)["total"]
+            f_score = calculate_rubric_score(p.improved_text)["total"]
+            gain = max(f_score - i_score, 0)
+        else:
+            i_score = p.initial_score
+            f_score = p.final_score
+            gain = p.quality_gain
 
-        init_scores.append(p.initial_score)
-        final_scores.append(p.final_score)
-        gains.append(p.quality_gain)
+        init_scores.append(i_score)
+        final_scores.append(f_score)
+        gains.append(gain)
+
+        tech_name = p.technique or 'Estándar'
+        if tech_name not in tech_stats:
+            tech_stats[tech_name] = {'init': [], 'final': []}
+        tech_stats[tech_name]['init'].append(i_score)
+        tech_stats[tech_name]['final'].append(f_score)
 
     avg_orig_words = round(sum(orig_words_list) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_imp_words = round(sum(imp_words_list) / total_prompts, 1) if total_prompts > 0 else 0.0
@@ -172,13 +223,17 @@ def analytics_dashboard(request):
     avg_final_score = round(sum(final_scores) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_quality_gain = round(sum(gains) / total_prompts, 1) if total_prompts > 0 else 0.0
 
-    cat_qs = prompts.values('category').annotate(total=Count('id')).order_by('-total')
+    cat_qs = Prompt.objects.values('category').annotate(total=Count('id')).order_by('-total')
     cat_labels = [item['category'] or 'General' for item in cat_qs]
     cat_counts = [item['total'] for item in cat_qs]
 
-    tech_qs = prompts.values('technique').annotate(total=Count('id')).order_by('-total')
+    tech_qs = Prompt.objects.values('technique').annotate(total=Count('id')).order_by('-total')
     tech_labels = [item['technique'] or 'Estándar' for item in tech_qs]
     tech_counts = [item['total'] for item in tech_qs]
+
+    tech_score_labels = list(tech_stats.keys())
+    tech_init_avg = [round(sum(v['init']) / len(v['init']), 1) for v in tech_stats.values()]
+    tech_final_avg = [round(sum(v['final']) / len(v['final']), 1) for v in tech_stats.values()]
 
     context = {
         'total_prompts': total_prompts,
@@ -194,6 +249,9 @@ def analytics_dashboard(request):
         'cat_counts_json': json.dumps(cat_counts),
         'tech_labels_json': json.dumps(tech_labels),
         'tech_counts_json': json.dumps(tech_counts),
+        'tech_score_labels_json': json.dumps(tech_score_labels),
+        'tech_init_avg_json': json.dumps(tech_init_avg),
+        'tech_final_avg_json': json.dumps(tech_final_avg),
     }
     return render(request, 'core/analytics.html', context)
 
@@ -202,7 +260,7 @@ def export_dataset_csv(request):
     response['Content-Disposition'] = 'attachment; filename="promptlab_dataset.csv"'
     response.write('\ufeff')
 
-    writer = csv.writer(response)
+    writer = csv.writer(response, quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
     writer.writerow([
         'id',
         'fecha_creacion',
@@ -215,7 +273,11 @@ def export_dataset_csv(request):
         'es_favorito',
         'palabras_entrada',
         'palabras_salida',
+        'caracteres_entrada',
+        'caracteres_salida',
         'factor_expansion',
+        'bloques_estructura',
+        'tiene_delimitadores',
         'texto_original',
         'prompt_mejorado'
     ])
@@ -223,7 +285,12 @@ def export_dataset_csv(request):
     for p in Prompt.objects.all().order_by('id'):
         o_words = max(len(p.original_text.split()), 1)
         i_words = max(len(p.improved_text.split()), 1)
+        o_chars = len(p.original_text)
+        i_chars = len(p.improved_text)
         ratio = round(i_words / o_words, 2)
+        blocks_count = len(re.findall(r'^#\s+.+', p.improved_text, flags=re.MULTILINE))
+        has_delimiters = int('<datos_entrada>' in p.improved_text)
+
         writer.writerow([
             p.id,
             p.created_at.strftime('%Y-%m-%d %H:%M:%S'),
@@ -236,7 +303,11 @@ def export_dataset_csv(request):
             int(p.is_favorite),
             o_words,
             i_words,
+            o_chars,
+            i_chars,
             ratio,
+            blocks_count,
+            has_delimiters,
             p.original_text,
             p.improved_text
         ])
