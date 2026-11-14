@@ -3,8 +3,13 @@
 <div class="container py-4 px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1">Mi Historial de Prompts</h3>
-            <p class="text-secondary small mb-0">Todos tus prompts generados se guardan automáticamente aquí.</p>
+            {% if only_favorites %}
+                <h3 class="fw-bold text-dark mb-1"><i class="bi bi-star-fill text-warning me-2"></i>Mis Prompts Favoritos</h3>
+                <p class="text-secondary small mb-0">Tus prompts destacados para acceso rápido.</p>
+            {% else %}
+                <h3 class="fw-bold text-dark mb-1">Mi Historial de Prompts</h3>
+                <p class="text-secondary small mb-0">Todos tus prompts generados se guardan automáticamente aquí.</p>
+            {% endif %}
         </div>
         <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4">
             <i class="bi bi-plus-lg me-1"></i> Nuevo Prompt
@@ -24,6 +29,13 @@
                                 <small class="text-muted ms-2">{{ p.created_at|date:"d/m/Y H:i" }}</small>
                             </div>
                             <div class="d-flex gap-2">
+                                <a href="{% url 'toggle_favorite' p.id %}" class="btn btn-sm btn-outline-warning rounded-pill px-2" title="{% if p.is_favorite %}Quitar de favoritos{% else %}Marcar como favorito{% endif %}">
+                                    {% if p.is_favorite %}
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                    {% else %}
+                                        <i class="bi bi-star"></i>
+                                    {% endif %}
+                                </a>
                                 <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="copyText('prompt-text-{{ p.id }}', this)">
                                     <i class="bi bi-clipboard me-1"></i> Copiar
                                 </button>
@@ -46,10 +58,16 @@
         </div>
     {% else %}
         <div class="text-center py-5 bg-white rounded-4 shadow-sm">
-            <i class="bi bi-inbox fs-1 text-muted"></i>
-            <h5 class="mt-3 fw-bold text-dark">Aún no tienes prompts guardados</h5>
-            <p class="text-secondary small">Ve al Espacio de Trabajo y mejora tu primera idea para verla aquí.</p>
-            <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4 mt-2">Ir al Espacio de Trabajo</a>
+            <i class="bi {% if only_favorites %}bi-star{% else %}bi-inbox{% endif %} fs-1 text-muted"></i>
+            {% if only_favorites %}
+                <h5 class="mt-3 fw-bold text-dark">Aún no tienes prompts favoritos</h5>
+                <p class="text-secondary small">Marca con una estrella tus prompts en el historial para tenerlos siempre a mano.</p>
+                <a href="{% url 'history' %}" class="btn btn-brand rounded-pill px-4 mt-2">Ver Historial</a>
+            {% else %}
+                <h5 class="mt-3 fw-bold text-dark">Aún no tienes prompts guardados</h5>
+                <p class="text-secondary small">Ve al Espacio de Trabajo y mejora tu primera idea para verla aquí.</p>
+                <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4 mt-2">Ir al Espacio de Trabajo</a>
+            {% endif %}
         </div>
     {% endif %}
 </div>

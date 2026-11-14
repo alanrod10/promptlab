@@ -5,9 +5,14 @@
         <!-- Lienzo Central (Modo Rápido) -->
         <div class="col-md-8 d-flex flex-column p-4 h-100">
             <h3 class="mb-3 fw-bold text-dark">Nuevo Prompt</h3>
+            <div id="ui-alert-banner" class="alert alert-warning alert-dismissible fade show d-none rounded-3 py-2 px-3 small" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span id="ui-alert-message"></span>
+                <button type="button" class="btn-close py-2" aria-label="Cerrar" onclick="document.getElementById('ui-alert-banner').classList.add('d-none')"></button>
+            </div>
             <div class="card flex-grow-1 shadow-sm border-0 rounded-4 d-flex flex-column">
                 <div class="card-body d-flex flex-column p-4 h-100">
-                    <textarea id="main-prompt-editor" class="form-control flex-grow-1 border-0 fs-5 p-0" placeholder="Escribe tu idea de forma sencilla aquí... o abre el Asistente a la derecha para personalizar." style="resize: none; outline: none; box-shadow: none; background-color: transparent;">{{ loaded_prompt.improved_text|default:"" }}</textarea>
+                    <textarea id="main-prompt-editor" class="form-control flex-grow-1 border-0 fs-5 p-0" placeholder="Escribe tu idea de forma sencilla aquí... o abre el Asistente a la derecha para personalizar." style="resize: none; outline: none; box-shadow: none; background-color: transparent;">{{ loaded_prompt.improved_text|default:preset_text|default:"" }}</textarea>
                     
                     <!-- Panel de Análisis -->
                     <div id="analysis-panel" class="mt-3 p-3 rounded-3 d-none" style="background-color: #f8f9ff; border: 1px solid #e2e8f0;">
@@ -27,7 +32,7 @@
                         <div>
                             <button class="btn btn-outline-secondary me-2 rounded-pill px-3" onclick="limpiarEditor()">Limpiar</button>
                             <!-- BOTÓN COPIAR NUEVO -->
-                            <button id="btn-copy" class="btn btn-outline-primary me-2 rounded-pill px-3 {% if not loaded_prompt %}d-none{% endif %}" onclick="copiarAlPortapapeles()"><i class="bi bi-clipboard me-1"></i> Copiar</button>
+                            <button id="btn-copy" class="btn btn-outline-primary me-2 rounded-pill px-3 {% if not loaded_prompt and not preset_text %}d-none{% endif %}" onclick="copiarAlPortapapeles()"><i class="bi bi-clipboard me-1"></i> Copiar</button>
                             
                             <button id="btn-improve-main" class="btn btn-brand rounded-pill px-4 fw-medium" onclick="mejorarPrompt()">Mejorar Prompt <i class="bi bi-magic ms-1"></i></button>
                         </div>
@@ -148,13 +153,45 @@ document.addEventListener("DOMContentLoaded", function() {
             
             container.innerHTML = html;
         });
+
+        const presetCategory = "{{ preset_category|escapejs }}";
+        if (presetCategory) {
+            selectEl.value = presetCategory;
+            selectEl.dispatchEvent(new Event('change'));
+        }
     }
 });
 
+let alertTimeoutId = null;
+
+function showAlert(message, type = 'warning') {
+    const banner = document.getElementById('ui-alert-banner');
+    const msgEl = document.getElementById('ui-alert-message');
+    if (!banner || !msgEl) return;
+
+    banner.className = `alert alert-${type} alert-dismissible fade show rounded-3 py-2 px-3 small`;
+    msgEl.innerText = message;
+    banner.classList.remove('d-none');
+
+    if (alertTimeoutId) {
+        clearTimeout(alertTimeoutId);
+    }
+    alertTimeoutId = setTimeout(() => {
+        banner.classList.add('d-none');
+    }, 4000);
+}
+
 function limpiarEditor() {
     document.getElementById('main-prompt-editor').value = '';
+    document.getElementById('main-objective').value = '';
+    const categorySelect = document.getElementById('category-select');
+    if (categorySelect) {
+        categorySelect.value = '';
+        categorySelect.dispatchEvent(new Event('change'));
+    }
     document.getElementById('analysis-panel').classList.add('d-none');
     document.getElementById('btn-copy').classList.add('d-none');
+    document.getElementById('ui-alert-banner').classList.add('d-none');
 }
 
 function copiarAlPortapapeles() {
@@ -190,7 +227,7 @@ async function mejorarPrompt() {
     let text = objective.value.trim() !== '' ? objective.value.trim() : editor.value.trim();
     
     if (!text) {
-        alert("Por favor, escribe una idea en el área de edición o en el objetivo del asistente.");
+        showAlert("Por favor, escribe una idea en el área de edición o en el objetivo del asistente.", "warning");
         return;
     }
 
@@ -234,7 +271,7 @@ async function mejorarPrompt() {
         const data = await response.json();
         
         if (data.error) {
-            alert("Hubo un error: " + data.error);
+            showAlert("Hubo un error: " + data.error, "danger");
         } else {
             editor.value = data.improved_prompt;
             btnCopy.classList.remove('d-none');
@@ -251,7 +288,7 @@ async function mejorarPrompt() {
             }
         }
     } catch (error) {
-        alert("Error de conexión con el servidor.");
+        showAlert("Error de conexión con el servidor.", "danger");
         console.error(error);
     } finally {
         btnMain.innerHTML = originalMainHtml;

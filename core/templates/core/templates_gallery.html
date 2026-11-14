@@ -1,0 +1,41 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="container py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Galería de Plantillas</h3>
+            <p class="text-secondary small mb-0">Selecciona una plantilla curada para cargarla directamente en el editor y personalizarla.</p>
+        </div>
+        <a href="{% url 'workspace' %}" class="btn btn-brand rounded-pill px-4">
+            <i class="bi bi-pencil-square me-1"></i> Editor Libre
+        </a>
+    </div>
+
+    <div class="row g-4">
+        {% for tpl in templates %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 d-flex flex-column">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-3 bg-{{ tpl.color }} bg-opacity-10 text-{{ tpl.color }} p-2 me-3">
+                            <i class="bi {{ tpl.icon }} fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-dark mb-0">{{ tpl.title }}</h5>
+                            <span class="badge bg-light text-secondary border mt-1">{{ tpl.category }}</span>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mb-3">{{ tpl.description }}</p>
+                    <div class="p-3 bg-light rounded-3 mb-4 flex-grow-1">
+                        <p class="small text-dark mb-0 fst-italic">"{{ tpl.prompt_text }}"</p>
+                    </div>
+                    <a href="{% url 'workspace' %}?preset={{ tpl.slug }}" class="btn btn-brand rounded-pill w-100 fw-medium">
+                        <i class="bi bi-magic me-1"></i> Usar en el Editor
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
