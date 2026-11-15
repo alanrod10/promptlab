@@ -4,8 +4,8 @@
 <div class="container-fluid py-4 px-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
         <div>
-            <h3 class="fw-bold pl-text-primary mb-1" style="letter-spacing: -0.02em;"><i class="bi bi-bar-chart-line text-primary me-2"></i>Analítica y Ciencia de Datos</h3>
-            <p class="pl-text-secondary small mb-0">Panel de monitoreo de datos recolectados en SQLite, métricas de calidad estructural y exportación a CSV para Pandas.</p>
+            <h3 class="fw-bold pl-text-primary mb-1" style="letter-spacing: -0.02em;"><i class="bi bi-bar-chart-line text-primary me-2"></i>Estadísticas y Datos</h3>
+            <p class="pl-text-secondary small mb-0">Resumen claro de tus prompts guardados, mejora lograda y exportación a CSV para análisis.</p>
         </div>
         <a href="{% url 'export_csv' %}" class="btn btn-brand px-4 py-2 fw-medium">
             <i class="bi bi-file-earmark-spreadsheet me-2"></i>Descargar Dataset (.CSV)
@@ -18,9 +18,9 @@
             <div class="pl-card h-100">
                 <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
                     <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Registros en SQLite</span>
+                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Prompts Analizados</span>
                         <h2 class="fw-bold pl-text-primary my-2" style="letter-spacing: -0.03em;">{{ total_prompts }}</h2>
-                        <small class="pl-text-secondary"><i class="bi bi-database me-1 text-primary"></i>{{ favorites_count }} favoritos ({{ approval_rate }}%)</small>
+                        <small class="pl-text-secondary"><i class="bi bi-database me-1 text-primary"></i>Guardados en SQLite ({{ favorites_count }} favoritos)</small>
                     </div>
                     <div class="pl-kpi-icon rounded-circle bg-primary bg-opacity-10 text-primary">
                         <i class="bi bi-database-fill"></i>
@@ -32,9 +32,9 @@
             <div class="pl-card h-100">
                 <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
                     <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Puntaje Final y Aporte Real</span>
+                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Calidad Promedio Lograda</span>
                         <h2 class="fw-bold text-success my-2" style="letter-spacing: -0.03em;">{{ avg_final_score }}<span class="fs-6 pl-text-secondary">/100</span></h2>
-                        <small class="pl-text-secondary"><i class="bi bi-graph-up-arrow me-1 text-success"></i>Idea inicial: {{ avg_user_score }} • Aporte usuario: +{{ avg_info_gain }} pts</small>
+                        <small class="pl-text-secondary"><i class="bi bi-graph-up-arrow me-1 text-success"></i>Pedido inicial: {{ avg_user_score }} • Datos sumados: +{{ avg_info_gain }} pts</small>
                     </div>
                     <div class="pl-kpi-icon rounded-circle bg-success bg-opacity-10 text-success">
                         <i class="bi bi-award-fill"></i>
@@ -46,9 +46,9 @@
             <div class="pl-card h-100">
                 <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
                     <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Densidad Informativa Media</span>
-                        <h2 class="fw-bold text-info my-2" style="letter-spacing: -0.03em;">{{ avg_info_density }}</h2>
-                        <small class="pl-text-secondary"><i class="bi bi-arrows-angle-expand me-1 text-info"></i>Entidades/restricciones por palabra ({{ avg_expansion_ratio }}x)</small>
+                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Precisión sin Relleno</span>
+                        <h2 class="fw-bold text-info my-2" style="letter-spacing: -0.03em;">{{ avg_anchor_coverage }}%</h2>
+                        <small class="pl-text-secondary"><i class="bi bi-check2-all me-1 text-info"></i>Líneas con datos útiles • Solo {{ avg_noise_ratio }}% de relleno</small>
                     </div>
                     <div class="pl-kpi-icon rounded-circle bg-info bg-opacity-10 text-info">
                         <i class="bi bi-diagram-3-fill"></i>
@@ -60,9 +60,9 @@
             <div class="pl-card h-100">
                 <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
                     <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Confianza y Aprendizaje Activo</span>
+                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Seguridad y Aprendizaje</span>
                         <h2 class="fw-bold text-warning my-2" style="letter-spacing: -0.03em;">{{ avg_confidence }}%</h2>
-                        <small class="pl-text-secondary"><i class="bi bi-pencil-square me-1 text-warning"></i>{{ correction_rate }}% corregidos por usuario</small>
+                        <small class="pl-text-secondary"><i class="bi bi-pencil-square me-1 text-warning"></i>Seguridad al detectar • {{ correction_rate }}% ajustados por el usuario</small>
                     </div>
                     <div class="pl-kpi-icon rounded-circle bg-warning bg-opacity-10 text-warning">
                         <i class="bi bi-cpu-fill"></i>
@@ -77,8 +77,8 @@
         <div class="col-lg-7">
             <div class="pl-card h-100">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">Prompts por Categoría o Área Temática</h6>
-                    <p class="pl-text-secondary small mb-3">Muestra qué temas consultan más los usuarios dentro de la aplicación.</p>
+                    <h6 class="fw-bold pl-text-primary mb-1">¿Sobre qué temas consultás más?</h6>
+                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> las barras más largas muestran las áreas donde más usás PromptLab.</p>
                     {% if total_prompts > 0 %}
                         <div style="height: 260px;">
                             <canvas id="categoryChart"></canvas>
@@ -92,8 +92,8 @@
         <div class="col-lg-5">
             <div class="pl-card h-100">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">Técnicas de Estructuración Utilizadas</h6>
-                    <p class="pl-text-secondary small mb-3">Proporción de métodos elegidos (Estándar, Paso a Paso, Ejemplos, Pedagógico, Control).</p>
+                    <h6 class="fw-bold pl-text-primary mb-1">¿Qué estilos de respuesta elegís más?</h6>
+                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> cada porción representa la proporción de uso de cada técnica.</p>
                     {% if total_prompts > 0 %}
                         <div style="height: 260px;">
                             <canvas id="techChart"></canvas>
@@ -111,8 +111,8 @@
         <div class="col-lg-6">
             <div class="pl-card h-100">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">Puntaje Inicial vs. Final por Técnica</h6>
-                    <p class="pl-text-secondary small mb-3">Compara la calidad de entrada frente a la alcanzada según técnica aplicada.</p>
+                    <h6 class="fw-bold pl-text-primary mb-1">¿Cuánto mejoran los prompts según la técnica elegida?</h6>
+                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> compara el puntaje de la idea original (gris) contra el prompt terminado (verde).</p>
                     {% if total_prompts > 0 %}
                         <div style="height: 260px;">
                             <canvas id="techScoreChart"></canvas>
@@ -126,8 +126,8 @@
         <div class="col-lg-6">
             <div class="pl-card h-100">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">Puntaje Idea Inicial vs. Puntaje Final por Acción</h6>
-                    <p class="pl-text-secondary small mb-3">Mide el salto de calidad según la intención ortogonal detectada.</p>
+                    <h6 class="fw-bold pl-text-primary mb-1">¿Cuánto mejoran los prompts según la tarea?</h6>
+                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> compara el puntaje de la idea original contra el prompt terminado para cada tipo de tarea.</p>
                     {% if total_prompts > 0 %}
                         <div style="height: 260px;">
                             <canvas id="actionScoreChart"></canvas>
@@ -140,40 +140,117 @@
         </div>
     </div>
 
-    <!-- Esquema del Dataset CSV v4.0 -->
+    <!-- Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline v6.0) -->
     <div class="pl-card mb-4">
         <div class="card-body p-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                 <div>
-                    <h6 class="fw-bold pl-text-primary mb-1"><i class="bi bi-table text-primary me-2"></i>Esquema del Dataset Exportado v4.0 (<code>promptlab_dataset.csv</code>)</h6>
-                    <p class="pl-text-secondary small mb-0">Variables estructuradas listas para cargar en Python con <code>pd.read_csv('promptlab_dataset.csv')</code>.</p>
+                    <h6 class="fw-bold pl-text-primary mb-1">
+                        <i class="bi bi-compass-fill text-primary me-2"></i>Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline)
+                    </h6>
+                    <p class="pl-text-secondary small mb-0">
+                        Minería estadística local (Log-Odds Dirichlet suavizado) sobre tu historial SQLite para detectar patrones de cola larga sin internet.
+                    </p>
                 </div>
-                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">31 columnas • UTF-8</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">
+                        Roles completos: <strong>{{ avg_roles_filled }}%</strong>
+                    </span>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
+                        Predicados verificables: <strong>{{ avg_verifiable_ratio }}%</strong>
+                    </span>
+                </div>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle small mb-0">
-                    <thead>
-                        <tr>
-                            <th>Columna</th>
-                            <th>Tipo</th>
-                            <th>Descripción</th>
-                            <th>Columna</th>
-                            <th>Tipo</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td><code>id</code> / <code>engine_version</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int/str</span></td><td>Identificador y versión del motor (v4.0)</td><td><code>intent_confidence</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Confianza del clasificador TF-IDF + léxico (0–1)</td></tr>
-                        <tr><td><code>categoria</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Dominio especializado asignado o inferido</td><td><code>intent_margin</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Margen entre top-1 y top-2 de intención</td></tr>
-                        <tr><td><code>detected_action</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Intención ortogonal detectada (8 clases)</td><td><code>n_entities</code> / <code>n_intents</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de entidades e intenciones detectadas</td></tr>
-                        <tr><td><code>detected_deliverable</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Entregable objetivo (código, tabla, lista, etc.)</td><td><code>n_neg_constraints</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de restricciones negativas extraídas</td></tr>
-                        <tr><td><code>puntaje_inicial</code> (<code>user_score</code>)</td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntaje de la idea cruda del usuario (0–100)</td><td><code>n_slots_used</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Preguntas del asistente respondidas</td></tr>
-                        <tr><td><code>information_gain</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntos reales aportados por el usuario (0–40)</td><td><code>info_density</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Densidad informativa por palabra de entrada</td></tr>
-                        <tr><td><code>puntaje_final</code> (<code>final_score</code>)</td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntaje estructural final ponderado (0–100)</td><td><code>user_corrected</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>1 si el usuario corrigió chips (Aprendizaje Activo)</td></tr>
-                        <tr><td><code>ganancia_calidad_pts</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Diferencia entre puntaje final e inicial</td><td><code>has_pii_masked</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>1 si se anonimizó PII antes de guardar</td></tr>
-                        <tr><td><code>es_favorito</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>Validación del usuario (1 favorito, 0 normal)</td><td><code>factor_expansion</code> / <code>textos</code></td><td><span class="badge bg-info bg-opacity-10 text-info">float/str</span></td><td>Métricas de longitud y textos original/mejorado</td></tr>
-                    </tbody>
-                </table>
+            {% if long_tail_candidates %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle small mb-0">
+                        <thead>
+                            <tr>
+                                <th>Término o Frase Candidata</th>
+                                <th>Frecuencia</th>
+                                <th>Casos Difíciles / Baja Confianza</th>
+                                <th>Z-Score Log-Odds</th>
+                                <th>Arquetipo Sugerido</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cand in long_tail_candidates %}
+                            <tr>
+                                <td><code>{{ cand.term }}</code>{% if cand.is_bigram %} <span class="badge bg-secondary bg-opacity-10 pl-text-secondary ms-1">bigrama</span>{% endif %}</td>
+                                <td>{{ cand.support }}</td>
+                                <td>{{ cand.hard_hits }}</td>
+                                <td><span class="badge bg-info bg-opacity-10 text-info">{{ cand.z_score }}</span></td>
+                                <td><code>{{ cand.suggested_action }}</code></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="pl-analysis-box p-3 small pl-text-secondary">
+                    <i class="bi bi-info-circle text-primary me-1"></i>
+                    A medida que acumules nuevos pedidos en SQLite (especialmente consultas complejas o inusuales), esta tabla mostrará automáticamente frases recurrentes candidatas para ampliar las reglas offline.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bloque Desplegable: Ver Fórmulas y Detalle Técnico para Evaluación Académica -->
+    <div class="accordion mb-4" id="academicDetailAccordion">
+        <div class="accordion-item pl-card border-0">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed bg-transparent pl-text-primary fw-bold px-4 py-3 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAcademicDetail">
+                    <i class="bi bi-mortarboard-fill text-primary me-2"></i>Ver Fórmulas y Detalle Técnico para Evaluación Académica (38 columnas CSV)
+                </button>
+            </h2>
+            <div id="collapseAcademicDetail" class="accordion-collapse collapse">
+                <div class="accordion-body px-4 pb-4 pt-2">
+                    <div class="pl-analysis-box p-3 mb-3 small pl-text-secondary">
+                        <strong class="pl-text-primary d-block mb-1">Variables y Fórmulas del Motor Universal v6.0:</strong>
+                        <code>user_score</code> (0–100, riqueza de entrada) •
+                        <code>information_gain</code> (0–40, slots + restricciones + ejemplos) •
+                        <code>final_score</code> (0–100, rúbrica ponderada por acción menos penalizaciones) •
+                        <code>info_density</code> = (entidades + restricciones + slots + intenciones) / palabras •
+                        <code>anchor_coverage</code> (meta ≥ 0.90) •
+                        <code>noise_ratio</code> = 1 − anchor_coverage (meta &lt; 0.10) •
+                        <code>roles_filled</code> (0–1, roles semánticos cubiertos) •
+                        <code>verifiable_ratio</code> (0–1, densidad de predicados verificables) •
+                        <code>intent_confidence</code> y <code>intent_margin</code> (TF-IDF + léxico + gramática de roles).
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                        <div>
+                            <h6 class="fw-bold pl-text-primary mb-1"><i class="bi bi-table text-primary me-2"></i>Esquema del Dataset Exportado v6.0 (<code>promptlab_dataset.csv</code>)</h6>
+                            <p class="pl-text-secondary small mb-0">Variables estructuradas listas para cargar en Python con <code>pd.read_csv('promptlab_dataset.csv')</code>.</p>
+                        </div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">38 columnas • UTF-8</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle small mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Columna</th>
+                                    <th>Tipo</th>
+                                    <th>Descripción</th>
+                                    <th>Columna</th>
+                                    <th>Tipo</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>id</code> / <code>engine_version</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int/str</span></td><td>Identificador y versión del motor (v6.0)</td><td><code>intent_confidence</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Confianza del clasificador TF-IDF + léxico (0–1)</td></tr>
+                                <tr><td><code>categoria</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Dominio especializado asignado o inferido</td><td><code>intent_margin</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Margen entre top-1 y top-2 de intención</td></tr>
+                                <tr><td><code>detected_action</code> / <code>subintent</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Arquetipo cognitivo (21 posibles) y sub-intención</td><td><code>n_entities</code> / <code>n_intents</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de entidades e intenciones detectadas</td></tr>
+                                <tr><td><code>detected_deliverable</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Entregable objetivo (código, tabla, diálogo, json, etc.)</td><td><code>n_neg_constraints</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de restricciones negativas extraídas</td></tr>
+                                <tr><td><code>puntaje_inicial</code> (<code>user_score</code>)</td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntaje de la idea cruda del usuario (0–100)</td><td><code>n_slots_used</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Preguntas del asistente respondidas</td></tr>
+                                <tr><td><code>information_gain</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntos reales aportados por el usuario (0–40)</td><td><code>info_density</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Densidad informativa por palabra de entrada</td></tr>
+                                <tr><td><code>puntaje_final</code> (<code>final_score</code>)</td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntaje estructural final ponderado (0–100)</td><td><code>noise_ratio</code> / <code>anchor_coverage</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Proporción de relleno (&lt;0.10) y anclas útiles (≥0.90)</td></tr>
+                                <tr><td><code>payload_kind</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Tipo de insumo pegado detectado estructuralmente</td><td><code>roles_filled</code> / <code>verifiable_ratio</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Roles semánticos resueltos y tasa de predicados verificables</td></tr>
+                                <tr><td><code>ganancia_calidad_pts</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Diferencia entre puntaje final e inicial</td><td><code>tiene_criterio_exito</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>1 si incluye sección # Criterio de éxito</td></tr>
+                                <tr><td><code>es_favorito</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>Validación del usuario (1 favorito, 0 normal)</td><td><code>user_corrected</code> / <code>has_pii_masked</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>Corrección de chips y anonimización PII</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

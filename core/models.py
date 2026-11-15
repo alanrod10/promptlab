@@ -9,9 +9,10 @@ class Prompt(models.Model):
     category = models.CharField(max_length=60, blank=True, null=True)
     detected_action = models.CharField(max_length=50, default='explicar_concepto')
     detected_deliverable = models.CharField(max_length=50, default='informe estructurado')
+    subintent = models.CharField(max_length=50, default='general')
     improvement_level = models.CharField(max_length=20, default='Completa')
     technique = models.CharField(max_length=50, default='Estándar')
-    engine_version = models.CharField(max_length=20, default='v4.0')
+    engine_version = models.CharField(max_length=20, default='v6.0')
 
     # Métricas de Rúbrica v2 (no circular)
     initial_score = models.IntegerField(default=25)      # Puntaje de la idea cruda del usuario
@@ -27,6 +28,11 @@ class Prompt(models.Model):
     n_neg_constraints = models.IntegerField(default=0)
     n_slots_used = models.IntegerField(default=0)
     info_density = models.FloatField(default=0.0)
+    noise_ratio = models.FloatField(default=0.04)
+    anchor_coverage = models.FloatField(default=0.95)
+    payload_kind = models.CharField(max_length=40, default='sin_insumo')
+    roles_filled = models.FloatField(default=0.80)
+    verifiable_ratio = models.FloatField(default=0.85)
     user_corrected = models.BooleanField(default=False)
     has_pii_masked = models.BooleanField(default=False)
 

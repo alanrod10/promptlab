@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.models import User
 from django.db.models import Count
 from .services import get_gemini_response, calculate_rubric_score, analyze_live_preview
+from .universal_engine import mine_long_tail_candidates
 from .models import Prompt
 
 TEMPLATES_CATALOG = {
@@ -242,9 +243,10 @@ def improve_prompt_api(request):
                     category=resolved_cat,
                     detected_action=result.get('detected_action', 'explicar_concepto'),
                     detected_deliverable=result.get('detected_deliverable', 'informe estructurado'),
+                    subintent=result.get('subintent', 'general'),
                     improvement_level=level,
                     technique=result.get('technique', technique),
-                    engine_version=result.get('engine_version', 'v4.0'),
+                    engine_version=result.get('engine_version', 'v6.0'),
                     initial_score=result.get('initial_score', 25),
                     information_gain=result.get('information_gain', 0),
                     final_score=result.get('final_score', 90),
@@ -256,6 +258,11 @@ def improve_prompt_api(request):
                     n_neg_constraints=result.get('n_neg_constraints', 0),
                     n_slots_used=result.get('n_slots_used', 0),
                     info_density=result.get('info_density', 0.0),
+                    noise_ratio=result.get('noise_ratio', 0.04),
+                    anchor_coverage=result.get('anchor_coverage', 0.95),
+                    payload_kind=result.get('payload_kind', 'sin_insumo'),
+                    roles_filled=result.get('roles_filled', 0.80),
+                    verifiable_ratio=result.get('verifiable_ratio', 0.85),
                     user_corrected=result.get('user_corrected', False),
                     has_pii_masked=result.get('has_pii_masked', False),
                 )
@@ -281,6 +288,10 @@ def analytics_dashboard(request):
     gains = []
     info_gains = []
     densities = []
+    noise_ratios = []
+    anchor_coverages = []
+    roles_filled_list = []
+    verifiable_ratios = []
     confidences = []
     corrected_count = 0
     tech_stats = {}
@@ -308,6 +319,10 @@ def analytics_dashboard(request):
         gains.append(gain)
         info_gains.append(p.information_gain)
         densities.append(p.info_density)
+        noise_ratios.append(p.noise_ratio * 100.0)
+        anchor_coverages.append(p.anchor_coverage * 100.0)
+        roles_filled_list.append(p.roles_filled * 100.0)
+        verifiable_ratios.append(p.verifiable_ratio * 100.0)
         confidences.append(p.intent_confidence * 100.0)
         if p.user_corrected:
             corrected_count += 1
@@ -333,8 +348,13 @@ def analytics_dashboard(request):
     avg_final_score = round(sum(final_scores) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_quality_gain = round(sum(gains) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_info_density = round(sum(densities) / total_prompts, 3) if total_prompts > 0 else 0.0
+    avg_noise_ratio = round(sum(noise_ratios) / total_prompts, 1) if total_prompts > 0 else 0.0
+    avg_anchor_coverage = round(sum(anchor_coverages) / total_prompts, 1) if total_prompts > 0 else 0.0
+    avg_roles_filled = round(sum(roles_filled_list) / total_prompts, 1) if total_prompts > 0 else 0.0
+    avg_verifiable_ratio = round(sum(verifiable_ratios) / total_prompts, 1) if total_prompts > 0 else 0.0
     avg_confidence = round(sum(confidences) / total_prompts, 1) if total_prompts > 0 else 0.0
     correction_rate = round((corrected_count / total_prompts) * 100, 1) if total_prompts > 0 else 0.0
+    long_tail_candidates = mine_long_tail_candidates(prompts, top_n=8)
 
     cat_qs = Prompt.objects.values('category').annotate(total=Count('id')).order_by('-total')
     cat_labels = [item['category'] or 'General' for item in cat_qs]
@@ -365,6 +385,11 @@ def analytics_dashboard(request):
         'avg_final_score': avg_final_score,
         'avg_quality_gain': avg_quality_gain,
         'avg_info_density': avg_info_density,
+        'avg_noise_ratio': avg_noise_ratio,
+        'avg_anchor_coverage': avg_anchor_coverage,
+        'avg_roles_filled': avg_roles_filled,
+        'avg_verifiable_ratio': avg_verifiable_ratio,
+        'long_tail_candidates': long_tail_candidates,
         'avg_confidence': avg_confidence,
         'correction_rate': correction_rate,
         'cat_labels_json': json.dumps(cat_labels),
@@ -393,6 +418,7 @@ def export_dataset_csv(request):
         'categoria',
         'detected_action',
         'detected_deliverable',
+        'subintent',
         'nivel_mejora',
         'tecnica_aplicada',
         'puntaje_inicial',
@@ -406,6 +432,12 @@ def export_dataset_csv(request):
         'n_neg_constraints',
         'n_slots_used',
         'info_density',
+        'noise_ratio',
+        'anchor_coverage',
+        'payload_kind',
+        'roles_filled',
+        'verifiable_ratio',
+        'tiene_criterio_exito',
         'user_corrected',
         'has_pii_masked',
         'es_favorito',
@@ -428,6 +460,7 @@ def export_dataset_csv(request):
         ratio = round(i_words / o_words, 2)
         blocks_count = len(re.findall(r'^#\s+.+', p.improved_text, flags=re.MULTILINE))
         has_delimiters = int('<datos_entrada>' in p.improved_text)
+        has_success_criteria = int('# Criterio de éxito' in p.improved_text)
 
         writer.writerow([
             p.id,
@@ -436,6 +469,7 @@ def export_dataset_csv(request):
             p.category or 'General',
             p.detected_action,
             p.detected_deliverable,
+            p.subintent,
             p.improvement_level,
             p.technique or 'Estándar',
             p.initial_score,
@@ -449,6 +483,12 @@ def export_dataset_csv(request):
             p.n_neg_constraints,
             p.n_slots_used,
             p.info_density,
+            p.noise_ratio,
+            p.anchor_coverage,
+            p.payload_kind,
+            p.roles_filled,
+            p.verifiable_ratio,
+            has_success_criteria,
             int(p.user_corrected),
             int(p.has_pii_masked),
             int(p.is_favorite),

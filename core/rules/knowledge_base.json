@@ -2,14 +2,59 @@
   "domains": {
     "Ciencia de Datos e IA": {
       "keywords": [
-        "dataset", "pandas", "numpy", "scikit-learn", "sklearn", "machine learning", "deep learning",
-        "modelo", "regresion", "clasificacion", "clustering", "k-means", "random forest", "xgboost",
-        "red neuronal", "redes neuronales", "nlp", "procesamiento de lenguaje", "tf-idf", "embedding",
-        "entrenamiento", "validacion cruzada", "cross-validation", "overfitting", "underfitting",
-        "hiperparametros", "feature engineering", "matriz de confusion", "roc", "auc", "f1", "accuracy",
-        "eda", "analisis exploratorio", "valores nulos", "outliers", "correlacion", "series temporales",
-        "prompt", "llm", "inteligencia artificial", "ia", "datos", "csv", "parquet", "jupyter", "colab",
-        "prediccion", "predecime", "entrenar", "entrena", "analizame el dataset", "limpia los datos"
+        "dataset",
+        "pandas",
+        "numpy",
+        "scikit-learn",
+        "sklearn",
+        "machine learning",
+        "deep learning",
+        "modelo",
+        "regresion",
+        "clasificacion",
+        "clustering",
+        "k-means",
+        "random forest",
+        "xgboost",
+        "red neuronal",
+        "redes neuronales",
+        "nlp",
+        "procesamiento de lenguaje",
+        "tf-idf",
+        "embedding",
+        "entrenamiento",
+        "validacion cruzada",
+        "cross-validation",
+        "overfitting",
+        "underfitting",
+        "hiperparametros",
+        "feature engineering",
+        "matriz de confusion",
+        "roc",
+        "auc",
+        "f1",
+        "accuracy",
+        "eda",
+        "analisis exploratorio",
+        "valores nulos",
+        "outliers",
+        "correlacion",
+        "series temporales",
+        "prompt",
+        "llm",
+        "inteligencia artificial",
+        "ia",
+        "datos",
+        "csv",
+        "parquet",
+        "jupyter",
+        "colab",
+        "prediccion",
+        "predecime",
+        "entrenar",
+        "entrena",
+        "analizame el dataset",
+        "limpia los datos"
       ],
       "role": "Actúa como un Científico de Datos Senior e Ingeniero de Machine Learning, experto en estadística aplicada, análisis exploratorio riguroso, modelado predictivo y comunicación clara de hallazgos.",
       "guardrails": [
@@ -19,12 +64,63 @@
     },
     "Tecnología y programación": {
       "keywords": [
-        "codigo", "python", "django", "flask", "fastapi", "javascript", "typescript", "react", "vue",
-        "html", "css", "sql", "postgresql", "mysql", "sqlite", "mongodb", "api", "rest", "graphql",
-        "bug", "error", "traceback", "excepcion", "funcion", "clase", "metodo", "script", "algoritmo",
-        "git", "github", "docker", "linux", "bash", "servidor", "backend", "frontend", "deploy",
-        "refactorizar", "refactoriza", "optimizar", "debug", "depurar", "depurame", "arreglame",
-        "pasame el codigo", "armame una funcion", "query", "consulta sql", "endpoint", "json", "regex", "test"
+        "codigo",
+        "python",
+        "django",
+        "flask",
+        "fastapi",
+        "javascript",
+        "typescript",
+        "react",
+        "vue",
+        "html",
+        "css",
+        "sql",
+        "postgresql",
+        "mysql",
+        "sqlite",
+        "mongodb",
+        "api",
+        "rest",
+        "graphql",
+        "bug",
+        "error",
+        "traceback",
+        "excepcion",
+        "funcion",
+        "clase",
+        "metodo",
+        "script",
+        "algoritmo",
+        "git",
+        "github",
+        "docker",
+        "linux",
+        "bash",
+        "servidor",
+        "backend",
+        "frontend",
+        "deploy",
+        "refactorizar",
+        "refactoriza",
+        "optimizar",
+        "debug",
+        "depurar",
+        "depurame",
+        "arreglame",
+        "pasame el codigo",
+        "armame una funcion",
+        "query",
+        "consulta sql",
+        "endpoint",
+        "json",
+        "regex",
+        "test",
+        "keyerror",
+        "dataframe",
+        "typeerror",
+        "valueerror",
+        "attributeerror"
       ],
       "role": "Actúa como un Arquitecto de Software y Desarrollador Senior, especializado en código limpio, modular, seguro, mantenible y buenas prácticas de ingeniería.",
       "guardrails": [
@@ -34,12 +130,53 @@
     },
     "Estudio y academia": {
       "keywords": [
-        "estudiar", "estudio", "aprender", "aprendizaje", "enseñar", "explicar", "explicame", "explicamelo",
-        "curso", "clase", "catedra", "examen", "parcial", "final", "recuperatorio", "tp", "trabajo practico",
-        "monografia", "tesis", "tesina", "paper", "bibliografia", "cita", "apa", "concepto", "teoria",
-        "definicion", "resumen de estudio", "guia de estudio", "ejercicio", "problema", "matematica",
-        "estadistica", "probabilidad", "algebra", "calculo", "fisica", "quimica", "historia", "biologia",
-        "derecho", "economia", "universidad", "facultad", "terciario", "secundaria", "autoevaluacion"
+        "estudiar",
+        "estudio",
+        "aprender",
+        "aprendizaje",
+        "enseñar",
+        "explicar",
+        "explicame",
+        "explicamelo",
+        "curso",
+        "clase",
+        "catedra",
+        "examen",
+        "parcial",
+        "final",
+        "recuperatorio",
+        "tp",
+        "trabajo practico",
+        "monografia",
+        "tesis",
+        "tesina",
+        "paper",
+        "bibliografia",
+        "cita",
+        "apa",
+        "concepto",
+        "teoria",
+        "definicion",
+        "resumen de estudio",
+        "guia de estudio",
+        "ejercicio",
+        "problema",
+        "matematica",
+        "estadistica",
+        "probabilidad",
+        "algebra",
+        "calculo",
+        "fisica",
+        "quimica",
+        "historia",
+        "biologia",
+        "derecho",
+        "economia",
+        "universidad",
+        "facultad",
+        "terciario",
+        "secundaria",
+        "autoevaluacion"
       ],
       "role": "Actúa como un Docente Universitario y Especialista en Pedagogía, capaz de explicar conceptos complejos de lo simple a lo profundo con rigor académico y ejemplos claros.",
       "guardrails": [
@@ -49,12 +186,48 @@
     },
     "Negocios y comercio": {
       "keywords": [
-        "negocio", "empresa", "pyme", "comercio", "local", "tienda", "emprendimiento", "ventas", "vender",
-        "cliente", "clientes", "proveedor", "proveedores", "stock", "inventario", "mercaderia", "vencimientos",
-        "reposicion", "margen", "rentabilidad", "ganancia", "costo", "costos", "precio", "presupuesto",
-        "facturacion", "factura", "kpi", "roi", "conversion", "embudo", "funnel", "marketing", "campaña",
-        "propuesta comercial", "cotizacion", "negociacion", "estrategia comercial", "fidelizacion", "churn",
-        "armame un plan de ventas", "calculame el margen"
+        "negocio",
+        "empresa",
+        "pyme",
+        "comercio",
+        "local",
+        "tienda",
+        "emprendimiento",
+        "ventas",
+        "vender",
+        "cliente",
+        "clientes",
+        "proveedor",
+        "proveedores",
+        "stock",
+        "inventario",
+        "mercaderia",
+        "vencimientos",
+        "reposicion",
+        "margen",
+        "rentabilidad",
+        "ganancia",
+        "costo",
+        "costos",
+        "precio",
+        "presupuesto",
+        "facturacion",
+        "factura",
+        "kpi",
+        "roi",
+        "conversion",
+        "embudo",
+        "funnel",
+        "marketing",
+        "campaña",
+        "propuesta comercial",
+        "cotizacion",
+        "negociacion",
+        "estrategia comercial",
+        "fidelizacion",
+        "churn",
+        "armame un plan de ventas",
+        "calculame el margen"
       ],
       "role": "Actúa como un Consultor Senior de Negocios y Estrategia Comercial, enfocado en rentabilidad, eficiencia operativa, experiencia del cliente y métricas accionables.",
       "guardrails": [
@@ -64,11 +237,48 @@
     },
     "Redacción y comunicación": {
       "keywords": [
-        "redactar", "redacta", "redactame", "escribir", "escribi", "escribime", "correo", "email", "mail",
-        "mensaje", "whatsapp", "carta", "nota", "comunicado", "post", "publicacion", "linkedin", "instagram",
-        "hilo", "tweet", "guion", "discurso", "presentacion", "pitch", "copy", "copywriting", "anuncio",
-        "slogan", "titulo", "asunto", "tono", "formal", "informal", "cordial", "persuasivo", "corregir texto",
-        "mejorar redaccion", "reclamo", "respuesta", "invitacion", "agradecimiento", "pasame un mail"
+        "redactar",
+        "redacta",
+        "redactame",
+        "escribir",
+        "escribi",
+        "escribime",
+        "correo",
+        "email",
+        "mail",
+        "mensaje",
+        "whatsapp",
+        "carta",
+        "nota",
+        "comunicado",
+        "post",
+        "publicacion",
+        "linkedin",
+        "instagram",
+        "hilo",
+        "tweet",
+        "guion",
+        "discurso",
+        "presentacion",
+        "pitch",
+        "copy",
+        "copywriting",
+        "anuncio",
+        "slogan",
+        "titulo",
+        "asunto",
+        "tono",
+        "formal",
+        "informal",
+        "cordial",
+        "persuasivo",
+        "corregir texto",
+        "mejorar redaccion",
+        "reclamo",
+        "respuesta",
+        "invitacion",
+        "agradecimiento",
+        "pasame un mail"
       ],
       "role": "Actúa como un Especialista en Comunicación Corporativa y Redacción Profesional, experto en claridad, estructura persuasiva y adaptación precisa del tono al destinatario.",
       "guardrails": [
@@ -78,11 +288,41 @@
     },
     "Investigar y analizar": {
       "keywords": [
-        "investigar", "investiga", "analizar", "analiza", "analizame", "evaluar", "evalua", "diagnostico",
-        "comparar", "compara", "comparame", "ventajas", "desventajas", "pros y contras", "diferencias",
-        "benchmark", "estado del arte", "tendencias", "mercado", "competencia", "foda", "swot", "causa raiz",
-        "hallazgos", "evidencia", "fuentes", "informe", "reporte", "sintesis", "resumir", "resumime",
-        "extraer conclusiones", "revisar documento", "auditar", "hipotesis"
+        "investigar",
+        "investiga",
+        "analizar",
+        "analiza",
+        "analizame",
+        "evaluar",
+        "evalua",
+        "diagnostico",
+        "comparar",
+        "compara",
+        "comparame",
+        "ventajas",
+        "desventajas",
+        "pros y contras",
+        "diferencias",
+        "benchmark",
+        "estado del arte",
+        "tendencias",
+        "mercado",
+        "competencia",
+        "foda",
+        "swot",
+        "causa raiz",
+        "hallazgos",
+        "evidencia",
+        "fuentes",
+        "informe",
+        "reporte",
+        "sintesis",
+        "resumir",
+        "resumime",
+        "extraer conclusiones",
+        "revisar documento",
+        "auditar",
+        "hipotesis"
       ],
       "role": "Actúa como un Analista de Investigación Senior, especializado en pensamiento crítico, evaluación objetiva basada en evidencia y síntesis estructurada.",
       "guardrails": [
@@ -92,11 +332,39 @@
     },
     "Trámites y documentos": {
       "keywords": [
-        "tramite", "gestion", "documento", "documentacion", "formulario", "solicitud", "nota formal",
-        "carta documento", "descargo", "reclamo formal", "defensa del consumidor", "contrato", "clausula",
-        "acuerdo", "nda", "terminos y condiciones", "afip", "arca", "anses", "monotributo", "habilitacion",
-        "certificado", "constancia", "declaracion jurada", "poder", "acta", "cv", "curriculum", "carta de presentacion",
-        "legajo", "requisitos", "pasos para tramitar", "redactame una nota formal"
+        "tramite",
+        "gestion",
+        "documento",
+        "documentacion",
+        "formulario",
+        "solicitud",
+        "nota formal",
+        "carta documento",
+        "descargo",
+        "reclamo formal",
+        "defensa del consumidor",
+        "contrato",
+        "clausula",
+        "acuerdo",
+        "nda",
+        "terminos y condiciones",
+        "afip",
+        "arca",
+        "anses",
+        "monotributo",
+        "habilitacion",
+        "certificado",
+        "constancia",
+        "declaracion jurada",
+        "poder",
+        "acta",
+        "cv",
+        "curriculum",
+        "carta de presentacion",
+        "legajo",
+        "requisitos",
+        "pasos para tramitar",
+        "redactame una nota formal"
       ],
       "role": "Actúa como un Especialista en Gestión Documental y Redacción Administrativa, experto en claridad procedimental, estructura formal y requisitos documentales.",
       "guardrails": [
@@ -106,11 +374,42 @@
     },
     "Planificación y productividad": {
       "keywords": [
-        "planificar", "planifica", "planificame", "plan", "cronograma", "agenda", "calendario", "rutina",
-        "habitos", "organizar", "organiza", "organizame", "proyecto", "hitos", "roadmap", "checklist",
-        "lista de tareas", "priorizar", "prioridades", "eisenhower", "pomodoro", "gestion del tiempo",
-        "flujo de trabajo", "workflow", "sprint", "tablero", "kanban", "objetivos", "okr", "metas",
-        "itinerario", "viaje", "evento", "armame una rutina", "armame un cronograma", "paso a paso"
+        "planificar",
+        "planifica",
+        "planificame",
+        "plan",
+        "cronograma",
+        "agenda",
+        "calendario",
+        "rutina",
+        "habitos",
+        "organizar",
+        "organiza",
+        "organizame",
+        "proyecto",
+        "hitos",
+        "roadmap",
+        "checklist",
+        "lista de tareas",
+        "priorizar",
+        "prioridades",
+        "eisenhower",
+        "pomodoro",
+        "gestion del tiempo",
+        "flujo de trabajo",
+        "workflow",
+        "sprint",
+        "tablero",
+        "kanban",
+        "objetivos",
+        "okr",
+        "metas",
+        "itinerario",
+        "viaje",
+        "evento",
+        "armame una rutina",
+        "armame un cronograma",
+        "paso a paso"
       ],
       "role": "Actúa como un Especialista en Planificación Estratégica y Productividad Operativa, enfocado en desglosar metas en pasos realistas, secuenciales y medibles.",
       "guardrails": [
@@ -120,11 +419,33 @@
     },
     "Toma de decisiones": {
       "keywords": [
-        "decidir", "decision", "elegir", "elijo", "conviene", "me conviene", "que hago", "alternativas",
-        "opciones", "escenarios", "riesgos", "impacto", "costo beneficio", "trade-off", "dilema",
-        "matriz de decision", "ponderacion", "criterios", "evaluar opciones", "comprar o alquilar",
-        "cambiar de trabajo", "elegir carrera", "elegir proveedor", "elegir tecnologia", "cual es mejor",
-        "comparame opciones", "ayudame a decidir"
+        "decidir",
+        "decision",
+        "elegir",
+        "elijo",
+        "conviene",
+        "me conviene",
+        "que hago",
+        "alternativas",
+        "opciones",
+        "escenarios",
+        "riesgos",
+        "impacto",
+        "costo beneficio",
+        "trade-off",
+        "dilema",
+        "matriz de decision",
+        "ponderacion",
+        "criterios",
+        "evaluar opciones",
+        "comprar o alquilar",
+        "cambiar de trabajo",
+        "elegir carrera",
+        "elegir proveedor",
+        "elegir tecnologia",
+        "cual es mejor",
+        "comparame opciones",
+        "ayudame a decidir"
       ],
       "role": "Actúa como un Asesor Estratégico en Análisis de Decisiones, experto en estructurar dilemas complejos mediante criterios ponderados, análisis de riesgos y escenarios.",
       "guardrails": [
@@ -134,9 +455,31 @@
     },
     "Otro / General": {
       "keywords": [
-        "ayuda", "ayudame", "necesito", "quiero", "hacer", "haceme", "generar", "crear", "armar", "armame",
-        "idea", "ideas", "brainstorming", "lluvia de ideas", "consulta", "pregunta", "consejo", "recomendacion",
-        "general", "varios", "tema", "asunto", "informacion", "dato", "orientacion"
+        "ayuda",
+        "ayudame",
+        "necesito",
+        "quiero",
+        "hacer",
+        "haceme",
+        "generar",
+        "crear",
+        "armar",
+        "armame",
+        "idea",
+        "ideas",
+        "brainstorming",
+        "lluvia de ideas",
+        "consulta",
+        "pregunta",
+        "consejo",
+        "recomendacion",
+        "general",
+        "varios",
+        "tema",
+        "asunto",
+        "informacion",
+        "dato",
+        "orientacion"
       ],
       "role": "Actúa como un Asistente Experto Multidisciplinario, capaz de comprender solicitudes abiertas, estructurarlas con claridad y entregar respuestas prácticas y precisas.",
       "guardrails": [
@@ -149,10 +492,33 @@
     "depurar_error": {
       "label": "Depurar error",
       "keywords": [
-        "error", "bug", "falla", "no funciona", "rompe", "crashea", "arreglar", "arreglame",
-        "corregir", "corregime", "depurar", "depurame", "debug", "excepcion", "traceback",
-        "stacktrace", "500", "404", "403", "syntaxerror", "typeerror", "keyerror", "valueerror",
-        "solucionar", "solucioname", "por que falla", "no anda"
+        "error",
+        "bug",
+        "falla",
+        "no funciona",
+        "rompe",
+        "crashea",
+        "arreglar",
+        "arreglame",
+        "corregir",
+        "corregime",
+        "depurar",
+        "depurame",
+        "debug",
+        "excepcion",
+        "traceback",
+        "stacktrace",
+        "500",
+        "404",
+        "403",
+        "syntaxerror",
+        "typeerror",
+        "keyerror",
+        "valueerror",
+        "solucionar",
+        "solucioname",
+        "por que falla",
+        "no anda"
       ],
       "prototypes": [
         "Depurar este error en mi código y explicar por qué falla",
@@ -173,16 +539,42 @@
         "objetivo": 0.25,
         "contexto": 0.25,
         "instrucciones": 0.25,
-        "formato": 0.10
-      }
+        "formato": 0.1
+      },
+      "verifiable_predicates": [
+        "traceable_to_input",
+        "value_check",
+        "contains_all"
+      ]
     },
     "generar_codigo": {
       "label": "Generar código",
       "keywords": [
-        "codigo", "programar", "programa", "script", "funcion", "clase", "modulo", "api", "endpoint",
-        "query", "consulta sql", "componente", "automatizar", "automatizacion", "bot", "scraper",
-        "implementar", "implementa", "desarrollar", "crea una funcion", "haceme un script", "armame una api",
-        "generar codigo", "escribi un programa", "regex"
+        "codigo",
+        "programar",
+        "programa",
+        "script",
+        "funcion",
+        "clase",
+        "modulo",
+        "api",
+        "endpoint",
+        "query",
+        "consulta sql",
+        "componente",
+        "automatizar",
+        "automatizacion",
+        "bot",
+        "scraper",
+        "implementar",
+        "implementa",
+        "desarrollar",
+        "crea una funcion",
+        "haceme un script",
+        "armame una api",
+        "generar codigo",
+        "escribi un programa",
+        "regex"
       ],
       "prototypes": [
         "Crear un script en Python para leer archivos CSV y limpiar duplicados",
@@ -201,18 +593,45 @@
       "rubric_weights": {
         "rol": 0.15,
         "objetivo": 0.25,
-        "contexto": 0.20,
+        "contexto": 0.2,
         "instrucciones": 0.25,
         "formato": 0.15
-      }
+      },
+      "verifiable_predicates": [
+        "format_valid",
+        "contains_none",
+        "value_check"
+      ]
     },
     "analizar_datos": {
       "label": "Analizar datos",
       "keywords": [
-        "analizar", "analiza", "analizame", "analisis", "datos", "dataset", "csv", "excel", "xlsx",
-        "pandas", "estadistica", "metricas", "kpi", "tendencia", "correlacion", "outliers", "valores nulos",
-        "eda", "diagnostico", "patrones", "segmentacion", "cohortes", "evaluar modelo", "evaluar resultados",
-        "inspeccionar", "calcular promedio"
+        "analizar",
+        "analiza",
+        "analizame",
+        "analisis",
+        "datos",
+        "dataset",
+        "csv",
+        "excel",
+        "xlsx",
+        "pandas",
+        "estadistica",
+        "metricas",
+        "kpi",
+        "tendencia",
+        "correlacion",
+        "outliers",
+        "valores nulos",
+        "eda",
+        "diagnostico",
+        "patrones",
+        "segmentacion",
+        "cohortes",
+        "evaluar modelo",
+        "evaluar resultados",
+        "inspeccionar",
+        "calcular promedio"
       ],
       "prototypes": [
         "Analizar este dataset en Pandas para detectar valores nulos y outliers",
@@ -230,18 +649,41 @@
       ],
       "rubric_weights": {
         "rol": 0.15,
-        "objetivo": 0.20,
+        "objetivo": 0.2,
         "contexto": 0.25,
         "instrucciones": 0.25,
         "formato": 0.15
-      }
+      },
+      "verifiable_predicates": [
+        "traceable_to_input",
+        "value_check",
+        "no_new_facts"
+      ]
     },
     "comparar_evaluar": {
       "label": "Comparar y evaluar",
       "keywords": [
-        "comparar", "compara", "comparame", "comparativa", "diferencia", "diferencias", "vs", "versus",
-        "contra", "pros y contras", "ventajas", "desventajas", "evaluar", "evalua", "cual conviene",
-        "cual es mejor", "elegir entre", "alternativas", "benchmark", "trade-off", "costo beneficio"
+        "comparar",
+        "compara",
+        "comparame",
+        "comparativa",
+        "diferencia",
+        "diferencias",
+        "vs",
+        "versus",
+        "contra",
+        "pros y contras",
+        "ventajas",
+        "desventajas",
+        "evaluar",
+        "evalua",
+        "cual conviene",
+        "cual es mejor",
+        "elegir entre",
+        "alternativas",
+        "benchmark",
+        "trade-off",
+        "costo beneficio"
       ],
       "prototypes": [
         "Comparar SQLite vs PostgreSQL indicando ventajas, límites y casos de uso",
@@ -259,18 +701,37 @@
       ],
       "rubric_weights": {
         "rol": 0.15,
-        "objetivo": 0.20,
-        "contexto": 0.20,
+        "objetivo": 0.2,
+        "contexto": 0.2,
         "instrucciones": 0.25,
-        "formato": 0.20
-      }
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "count_eq",
+        "distinct",
+        "format_valid"
+      ]
     },
     "resumir_sintetizar": {
       "label": "Resumir y sintetizar",
       "keywords": [
-        "resumir", "resume", "resumime", "resumen", "sintetizar", "sintetiza", "sintesis", "puntos clave",
-        "ideas principales", "extraer lo importante", "condensar", "acortar", "abstract", "minuta",
-        "conclusiones clave", "bullet points", "lo mas importante"
+        "resumir",
+        "resume",
+        "resumime",
+        "resumen",
+        "sintetizar",
+        "sintetiza",
+        "sintesis",
+        "puntos clave",
+        "ideas principales",
+        "extraer lo importante",
+        "condensar",
+        "acortar",
+        "abstract",
+        "minuta",
+        "conclusiones clave",
+        "bullet points",
+        "lo mas importante"
       ],
       "prototypes": [
         "Resumir este artículo largo en 5 puntos clave fáciles de leer",
@@ -287,19 +748,42 @@
         "Si hay acciones pendientes o conclusiones críticas, destácalas al final."
       ],
       "rubric_weights": {
-        "rol": 0.10,
+        "rol": 0.1,
         "objetivo": 0.25,
-        "contexto": 0.20,
+        "contexto": 0.2,
         "instrucciones": 0.25,
-        "formato": 0.20
-      }
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "traceable_to_input",
+        "no_new_facts",
+        "bounded"
+      ]
     },
     "planificar_pasos": {
       "label": "Planificar pasos",
       "keywords": [
-        "planificar", "planifica", "planificame", "plan", "pasos", "paso a paso", "cronograma", "agenda",
-        "rutina", "estrategia", "roadmap", "checklist", "organizar", "organizame", "armame un plan",
-        "como empiezo", "hoja de ruta", "etapas", "fases", "itinerario", "secuencia"
+        "planificar",
+        "planifica",
+        "planificame",
+        "plan",
+        "pasos",
+        "paso a paso",
+        "cronograma",
+        "agenda",
+        "rutina",
+        "estrategia",
+        "roadmap",
+        "checklist",
+        "organizar",
+        "organizame",
+        "armame un plan",
+        "como empiezo",
+        "hoja de ruta",
+        "etapas",
+        "fases",
+        "itinerario",
+        "secuencia"
       ],
       "prototypes": [
         "Armar un plan paso a paso para controlar el stock y vencimientos de un local",
@@ -317,18 +801,44 @@
       ],
       "rubric_weights": {
         "rol": 0.15,
-        "objetivo": 0.20,
-        "contexto": 0.20,
+        "objetivo": 0.2,
+        "contexto": 0.2,
         "instrucciones": 0.25,
-        "formato": 0.20
-      }
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "distinct",
+        "bounded",
+        "closure_event"
+      ]
     },
     "redactar_contenido": {
       "label": "Redactar contenido",
       "keywords": [
-        "redactar", "redacta", "redactame", "escribir", "escribi", "escribime", "correo", "email", "mail",
-        "mensaje", "carta", "nota", "post", "publicacion", "guion", "propuesta", "reclamo", "respuesta",
-        "copy", "anuncio", "comunicado", "reescribir", "mejorar texto", "pasame un mensaje"
+        "redactar",
+        "redacta",
+        "redactame",
+        "escribir",
+        "escribi",
+        "escribime",
+        "correo",
+        "email",
+        "mail",
+        "mensaje",
+        "carta",
+        "nota",
+        "post",
+        "publicacion",
+        "guion",
+        "propuesta",
+        "reclamo",
+        "respuesta",
+        "copy",
+        "anuncio",
+        "comunicado",
+        "reescribir",
+        "mejorar texto",
+        "pasame un mensaje"
       ],
       "prototypes": [
         "Redactar un correo profesional presentando una propuesta comercial a un cliente",
@@ -346,18 +856,40 @@
       ],
       "rubric_weights": {
         "rol": 0.15,
-        "objetivo": 0.20,
+        "objetivo": 0.2,
         "contexto": 0.25,
-        "instrucciones": 0.20,
-        "formato": 0.20
-      }
+        "instrucciones": 0.2,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "no_new_facts",
+        "bounded",
+        "format_valid"
+      ]
     },
     "explicar_concepto": {
       "label": "Explicar concepto",
       "keywords": [
-        "explicar", "explica", "explicame", "explicamelo", "que es", "como funciona", "definir", "definicion",
-        "entender", "comprender", "enseñar", "enseñame", "desde cero", "concepto", "teoria", "diferencia conceptual",
-        "para principiantes", "analogia", "ejemplos de", "guia conceptual"
+        "explicar",
+        "explica",
+        "explicame",
+        "explicamelo",
+        "que es",
+        "como funciona",
+        "definir",
+        "definicion",
+        "entender",
+        "comprender",
+        "enseñar",
+        "enseñame",
+        "desde cero",
+        "concepto",
+        "teoria",
+        "diferencia conceptual",
+        "para principiantes",
+        "analogia",
+        "ejemplos de",
+        "guia conceptual"
       ],
       "prototypes": [
         "Explicar qué es la regresión logística desde cero con ejemplos sencillos",
@@ -376,88 +908,787 @@
       "rubric_weights": {
         "rol": 0.15,
         "objetivo": 0.25,
-        "contexto": 0.20,
+        "contexto": 0.2,
         "instrucciones": 0.25,
         "formato": 0.15
-      }
+      },
+      "verifiable_predicates": [
+        "count_eq",
+        "distinct",
+        "closure_event"
+      ]
+    },
+    "transformar_formato": {
+      "label": "Transformar o estructurar datos",
+      "keywords": [
+        "converti",
+        "convertir",
+        "transforma",
+        "transformar",
+        "pasar a json",
+        "pasar a tabla",
+        "pasar a csv",
+        "en un json",
+        "json limpio",
+        "estructurar datos",
+        "formatear lista",
+        "normalizar datos",
+        "lista desordenada"
+      ],
+      "prototypes": [
+        "Convertir esta lista desordenada de productos y precios en un JSON limpio con campos definidos",
+        "Transformar estos datos de texto plano en una tabla Markdown estructurada",
+        "Pasar este listado de clientes con teléfonos y direcciones a formato CSV válido",
+        "Reestructurar esta tabla desordenada separando nombre, presentación y precio numérico"
+      ],
+      "instructions": [
+        "Procesa {MATERIAL} generando exactamente un objeto o fila por cada ítem detectado.",
+        "Normaliza los campos solicitados ({CAMPOS}) separando unidades o presentaciones del valor numérico.",
+        "Conserva todos los registros aunque falte un campo opcional (usa null o 'sin_categoria' sin descartar filas).",
+        "Verifica los totales y valores de control extraídos de {MATERIAL} antes de cerrar."
+      ],
+      "rubric_weights": {
+        "rol": 0.1,
+        "objetivo": 0.25,
+        "contexto": 0.2,
+        "instrucciones": 0.25,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "count_eq",
+        "format_valid",
+        "value_check",
+        "traceable_to_input"
+      ]
+    },
+    "extraer_informacion": {
+      "label": "Extraer datos puntuales",
+      "keywords": [
+        "extrae",
+        "extraer",
+        "sacar datos",
+        "obtener datos",
+        "capturar campos",
+        "extraeme",
+        "identificar fechas",
+        "identificar montos",
+        "listar entidades"
+      ],
+      "prototypes": [
+        "Extraer fechas, montos y responsables de este documento sin inventar nada",
+        "Sacar todos los correos electrónicos y nombres de clientes de este texto",
+        "Extraer únicamente los requisitos obligatorios de este pliego o convocatoria"
+      ],
+      "instructions": [
+        "Extrae exclusivamente los campos pedidos ({CAMPOS}) presentes en {MATERIAL}.",
+        "Si un dato no aparece explícitamente en el texto fuente, marca 'NO CONSTA' sin inferirlo.",
+        "Cita literalmente el fragmento origen junto a cada dato extraído cuando haya ambigüedad."
+      ],
+      "rubric_weights": {
+        "rol": 0.1,
+        "objetivo": 0.25,
+        "contexto": 0.25,
+        "instrucciones": 0.25,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "traceable_to_input",
+        "no_new_facts",
+        "format_valid"
+      ]
+    },
+    "clasificar_categorizar": {
+      "label": "Clasificar o etiquetar",
+      "keywords": [
+        "clasifica",
+        "clasificar",
+        "categoriza",
+        "categorizar",
+        "etiqueta",
+        "etiquetar",
+        "agrupar por",
+        "ordenar por categoria",
+        "asignar categoria",
+        "taxonomia"
+      ],
+      "prototypes": [
+        "Clasificar estos comentarios de clientes en positivo, neutro o negativo con motivo",
+        "Categorizar esta lista de gastos por rubro contable en una tabla",
+        "Etiquetar cada ticket de soporte según urgencia y área responsable"
+      ],
+      "instructions": [
+        "Asigna cada elemento de {MATERIAL} a una categoría mutuamente excluyente sobre {TEMA}.",
+        "Si un elemento resulta ambiguo, usa 'otros / revisar' y explica brevemente el criterio.",
+        "Incluye un conteo resumen por categoría al finalizar."
+      ],
+      "rubric_weights": {
+        "rol": 0.1,
+        "objetivo": 0.2,
+        "contexto": 0.25,
+        "instrucciones": 0.25,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "count_eq",
+        "distinct",
+        "format_valid"
+      ]
+    },
+    "traducir_adaptar": {
+      "label": "Traducir o adaptar tono/nivel",
+      "keywords": [
+        "traducir",
+        "traducime",
+        "traduce",
+        "pasar al ingles",
+        "pasar al espanol",
+        "adaptar el tono",
+        "bajar a tierra",
+        "lenguaje simple",
+        "reescribir para"
+      ],
+      "prototypes": [
+        "Traducir este informe técnico al inglés manteniendo la terminología del dominio",
+        "Adaptar este comunicado legal a lenguaje sencillo para clientes de WhatsApp",
+        "Cambiar el tono de este mensaje de técnico a ejecutivo para directorio"
+      ],
+      "instructions": [
+        "Traduce o adapta {MATERIAL} para {DESTINATARIO} por el canal {CANAL} conservando el sentido exacto.",
+        "Preserva cifras, fechas, nombres propios y restricciones sin agregar ni omitir hechos.",
+        "Señala entre corchetes si alguna expresión requiere adaptación cultural o normativa."
+      ],
+      "rubric_weights": {
+        "rol": 0.15,
+        "objetivo": 0.25,
+        "contexto": 0.25,
+        "instrucciones": 0.2,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "no_new_facts",
+        "traceable_to_input",
+        "bounded"
+      ]
+    },
+    "reescribir_mejorar": {
+      "label": "Pulir o mejorar redacción",
+      "keywords": [
+        "pulir",
+        "pulime",
+        "mejorar redaccion",
+        "corregir estilo",
+        "mejorar este texto",
+        "hacer mas claro",
+        "hacer mas corto",
+        "depurar texto",
+        "corregir ortografia"
+      ],
+      "prototypes": [
+        "Pulir la redacción de este correo para que suene más claro y profesional",
+        "Acortar este párrafo a la mitad sin perder los datos clave ni la fuerza del mensaje",
+        "Corregir ortografía, cohesión y puntuación de este borrador"
+      ],
+      "instructions": [
+        "Reescribe {MATERIAL} eliminando muletillas, redundancias y rodeos sin alterar los hechos.",
+        "Adecúa el texto al destinatario ({DESTINATARIO}) respetando la extensión o límites indicados.",
+        "Entrega primero la versión final lista para usar y luego lista brevemente los 3 cambios principales."
+      ],
+      "rubric_weights": {
+        "rol": 0.15,
+        "objetivo": 0.25,
+        "contexto": 0.2,
+        "instrucciones": 0.2,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "no_new_facts",
+        "bounded",
+        "traceable_to_input"
+      ]
+    },
+    "auditar_criticar": {
+      "label": "Revisar riesgos, fallas o cláusulas",
+      "keywords": [
+        "revisa",
+        "revisar",
+        "audita",
+        "auditar",
+        "criticar",
+        "riesgos",
+        "riesgo",
+        "clausula",
+        "clausulas",
+        "contrato",
+        "alquiler",
+        "inquilino",
+        "locatario",
+        "puntos debiles",
+        "letra chica",
+        "abusiva",
+        "problemas tiene"
+      ],
+      "prototypes": [
+        "Revisar esta cláusula de alquiler y detectar riesgos para mí como inquilino",
+        "Auditar este borrador de propuesta comercial buscando vacíos o compromisos riesgosos",
+        "Criticar este argumento o plan señalando puntos débiles y suposiciones ocultas"
+      ],
+      "instructions": [
+        "Resume en una oración qué obliga o exige {MATERIAL} desde la perspectiva de {PERSPECTIVA}.",
+        "Construye una tabla con columnas exactas: Frase de la cláusula | Riesgo | Gravedad | Cambio sugerido.",
+        "Lista preguntas concretas que conviene hacer antes de firmar o aprobar {TEMA}.",
+        "Indica qué puntos específicos requieren validación con un abogado o profesional matriculado."
+      ],
+      "rubric_weights": {
+        "rol": 0.15,
+        "objetivo": 0.2,
+        "contexto": 0.25,
+        "instrucciones": 0.25,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "traceable_to_input",
+        "format_valid",
+        "no_new_facts",
+        "distinct"
+      ]
+    },
+    "simular_practicar": {
+      "label": "Simular diálogo o entrenamiento",
+      "keywords": [
+        "simula",
+        "simular",
+        "simulacion",
+        "roleplay",
+        "practicar",
+        "entrenar",
+        "actua como si fueras",
+        "hace de cuenta",
+        "cliente enojado",
+        "entrevista simulada",
+        "como responderle",
+        "ensayar"
+      ],
+      "prototypes": [
+        "Simular ser un cliente enojado porque le llegó un producto vencido para practicar respuesta por WhatsApp",
+        "Simular una entrevista laboral técnica haciendo una pregunta por turno",
+        "Practicar una negociación de sueldo respondiendo en personaje y dando feedback al final"
+      ],
+      "instructions": [
+        "Actúa únicamente en el rol de {ROL} frente a la situación: {TEMA}, sin salir del personaje durante la práctica.",
+        "Envía 1 solo mensaje por turno (máximo 3 oraciones) adaptado al estilo real de {CANAL}.",
+        "Gradúa tu reacción según la empatía, claridad y solución concreta que proponga el usuario.",
+        "Cuando el usuario escriba exactamente 'FIN', detén la simulación y entrega una devolución con 3 aciertos, 3 mejoras citando frases textuales del usuario y la reescritura de su respuesta más débil."
+      ],
+      "rubric_weights": {
+        "rol": 0.2,
+        "objetivo": 0.2,
+        "contexto": 0.2,
+        "instrucciones": 0.25,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "bounded",
+        "closure_event",
+        "traceable_to_input",
+        "count_eq"
+      ]
+    },
+    "idear_alternativas": {
+      "label": "Generar ideas o alternativas",
+      "keywords": [
+        "ideas",
+        "idear",
+        "dame ideas",
+        "brainstorming",
+        "lluvia de ideas",
+        "contenido para",
+        "instagram",
+        "tiktok",
+        "reels",
+        "carrusel",
+        "propuestas creativas",
+        "enfoques",
+        "angulos",
+        "sin humo"
+      ],
+      "prototypes": [
+        "Dame 5 ideas de contenido educativo para Instagram sobre inteligencia artificial aplicada a comercios chicos, sin humo",
+        "Generar 6 alternativas de nombre y eslogan para una tienda saludable",
+        "Proponer 4 ángulos distintos para una campaña de lanzamiento sin promesas exageradas"
+      ],
+      "instructions": [
+        "Genera exactamente {N} ideas distintas sobre {TEMA} adaptadas al canal {CANAL}.",
+        "Varía los ángulos y formatos (ej. carrusel, reel corto, historia interactiva, caso práctico).",
+        "Para cada idea entrega obligatoriamente: Gancho (máx. 12 palabras), Formato, Mensaje central, Ejemplo concreto aplicable y Límite honesto (qué NO resuelve).",
+        "Prohibido usar lenguaje de promesa garantizada, exageraciones ('revoluciona', 'multiplica x10') o cifras de ahorro/ganancia sin fuente."
+      ],
+      "rubric_weights": {
+        "rol": 0.15,
+        "objetivo": 0.2,
+        "contexto": 0.2,
+        "instrucciones": 0.25,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "count_eq",
+        "distinct",
+        "bounded",
+        "contains_none"
+      ]
+    },
+    "calcular_modelar": {
+      "label": "Calcular números o escenarios",
+      "keywords": [
+        "calcular",
+        "calcula",
+        "calculame",
+        "cuanto tengo que vender",
+        "cuanto necesito",
+        "punto de equilibrio",
+        "gastos fijos",
+        "margen del",
+        "escenarios",
+        "cuanto sale",
+        "proyeccion financiera",
+        "rentabilidad numerica",
+        "cubrir gastos"
+      ],
+      "prototypes": [
+        "Calcular cuánto tengo que vender por día para cubrir $1.200.000 de gastos fijos con margen del 30%",
+        "Modelar escenarios de ventas mensuales variando precio unitario y costos variables",
+        "Calcular el punto de equilibrio y margen sobre costo vs margen sobre venta"
+      ],
+      "instructions": [
+        "Declara explícitamente los supuestos iniciales: período analizado y si el margen se aplica sobre venta o sobre costo.",
+        "Muestra la fórmula utilizada y desarrolla el cálculo paso a paso con unidades monetarias claras ({UNIDAD}).",
+        "Presenta una tabla con 3 escenarios de días hábiles/calendario (24, 26 y 30 días) y diferencia ambos enfoques de margen.",
+        "Valida cada resultado numérico contra los valores de control verificados antes de emitir conclusiones."
+      ],
+      "rubric_weights": {
+        "rol": 0.1,
+        "objetivo": 0.25,
+        "contexto": 0.2,
+        "instrucciones": 0.25,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "value_check",
+        "count_eq",
+        "format_valid",
+        "no_new_facts"
+      ]
+    },
+    "razonar_resolver": {
+      "label": "Resolver problema lógico o dilema",
+      "keywords": [
+        "problema logico",
+        "acertijo",
+        "deducir",
+        "demostrar",
+        "resolver ejercicio",
+        "ecuacion",
+        "probabilidad",
+        "combinatoria",
+        "logica proposicional",
+        "paso logico"
+      ],
+      "prototypes": [
+        "Resolver este problema de probabilidad condicional explicando cada deducción",
+        "Deducir qué restricción se rompe en este acertijo lógico paso a paso",
+        "Encontrar la solución matemática óptima verificando las condiciones de borde"
+      ],
+      "instructions": [
+        "Lista las premisas, variables y restricciones conocidas de {TEMA} antes de operar.",
+        "Avanza paso a paso justificando cada inferencia lógica o matemática.",
+        "Verifica la solución sustituyendo el resultado en todas las condiciones iniciales."
+      ],
+      "rubric_weights": {
+        "rol": 0.1,
+        "objetivo": 0.25,
+        "contexto": 0.2,
+        "instrucciones": 0.3,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "value_check",
+        "traceable_to_input",
+        "no_new_facts"
+      ]
+    },
+    "decidir_recomendar": {
+      "label": "Evaluar opciones y recomendar",
+      "keywords": [
+        "que me conviene",
+        "decidir entre",
+        "recomendar",
+        "recomendame",
+        "conviene comprar",
+        "elegir opcion",
+        "matriz de decision",
+        "ponderar opciones",
+        "mejor alternativa"
+      ],
+      "prototypes": [
+        "Evaluar si conviene comprar o alquilar un local comercial según flujo de caja y riesgo",
+        "Recomendar qué herramienta elegir entre tres opciones según presupuesto y curva de aprendizaje",
+        "Armar una matriz ponderada para decidir entre dos ofertas laborales"
+      ],
+      "instructions": [
+        "Define entre 4 y 6 criterios de decisión ponderados alineados a las prioridades del usuario.",
+        "Evalúa cada alternativa con evidencia, riesgos y costo de oportunidad.",
+        "Emite una recomendación clara indicando bajo qué condición cambiaría la decisión."
+      ],
+      "rubric_weights": {
+        "rol": 0.15,
+        "objetivo": 0.2,
+        "contexto": 0.25,
+        "instrucciones": 0.25,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "distinct",
+        "count_eq",
+        "format_valid"
+      ]
+    },
+    "diagnosticar_resolver": {
+      "label": "Diagnosticar fallas generales",
+      "keywords": [
+        "diagnostico",
+        "por que baja",
+        "caida de",
+        "cuello de botella",
+        "no rinde",
+        "sintomas",
+        "causa probable",
+        "descarta causas",
+        "problema operativo"
+      ],
+      "prototypes": [
+        "Diagnosticar por qué cayeron las ventas este mes y proponer pruebas para verificar la causa",
+        "Identificar cuellos de botella en la atención al cliente de un comercio",
+        "Detectar causas probables de ausentismo o rotación en un equipo"
+      ],
+      "instructions": [
+        "Formula 3 a 5 hipótesis ordenadas de la causa más probable a la menos probable para {TEMA}.",
+        "Indica para cada hipótesis qué dato concreto o prueba rápida permite confirmarla o descartarla.",
+        "Propone acciones correctivas priorizadas por impacto y facilidad."
+      ],
+      "rubric_weights": {
+        "rol": 0.15,
+        "objetivo": 0.2,
+        "contexto": 0.25,
+        "instrucciones": 0.25,
+        "formato": 0.15
+      },
+      "verifiable_predicates": [
+        "distinct",
+        "bounded",
+        "traceable_to_input"
+      ]
+    },
+    "consultar_dato": {
+      "label": "Consulta directa breve",
+      "keywords": [
+        "cual es la fecha",
+        "cuanto mide",
+        "definicion corta",
+        "dato puntual",
+        "en una linea",
+        "solo el dato",
+        "que significa la sigla",
+        "respuesta directa"
+      ],
+      "prototypes": [
+        "Cuál es la diferencia rápida en una línea entre IVA e Ingresos Brutos",
+        "Qué significa la sigla FEFO en logística en una oración",
+        "Dame solo la fórmula de interés compuesto sin introducción"
+      ],
+      "instructions": [
+        "Responde directamente al dato consultado sobre {TEMA} en máximo 3 líneas.",
+        "Sin introducción ni cierre de cortesía; incluye aclaración solo si existe ambigüedad crítica."
+      ],
+      "rubric_weights": {
+        "rol": 0.05,
+        "objetivo": 0.35,
+        "contexto": 0.15,
+        "instrucciones": 0.25,
+        "formato": 0.2
+      },
+      "verifiable_predicates": [
+        "bounded",
+        "no_new_facts"
+      ]
     }
   },
   "deliverables": {
     "código": {
       "keywords": [
-        "codigo", "script", "funcion", "clase", "query", "consulta sql", "snippet", "programa",
-        "endpoint", "componente", "en python", "en sql", "en javascript", "en html"
+        "codigo",
+        "script",
+        "funcion",
+        "clase",
+        "query",
+        "consulta sql",
+        "snippet",
+        "programa",
+        "endpoint",
+        "componente",
+        "en python",
+        "en sql",
+        "en javascript",
+        "en html"
       ],
       "format_instruction": "Entrega el código dentro de bloques Markdown con el lenguaje especificado, acompañado de una breve explicación de uso."
     },
     "tabla": {
       "keywords": [
-        "tabla", "cuadro", "cuadro comparativo", "matriz", "columnas", "filas", "comparativa en tabla"
+        "tabla",
+        "cuadro",
+        "cuadro comparativo",
+        "matriz",
+        "columnas",
+        "filas",
+        "comparativa en tabla"
       ],
       "format_instruction": "Presenta la información principal en una tabla Markdown bien estructurada con encabezados claros y celdas concisas."
     },
     "lista": {
       "keywords": [
-        "lista", "listado", "viñetas", "bullets", "bullet points", "checklist", "puntos", "items", "enumeracion"
+        "lista",
+        "listado",
+        "viñetas",
+        "bullets",
+        "bullet points",
+        "checklist",
+        "puntos",
+        "items",
+        "enumeracion"
       ],
       "format_instruction": "Organiza la respuesta como una lista con viñetas o checklist accionable, priorizando frases breves y directas."
     },
     "guía paso a paso": {
       "keywords": [
-        "paso a paso", "guia", "tutorial", "instructivo", "manual", "etapas", "fases", "procedimiento"
+        "paso a paso",
+        "guia",
+        "tutorial",
+        "instructivo",
+        "manual",
+        "etapas",
+        "fases",
+        "procedimiento"
       ],
       "format_instruction": "Estructura el resultado como una guía numerada paso a paso, indicando en cada paso qué hacer y qué resultado esperar."
     },
     "email / mensaje": {
       "keywords": [
-        "email", "mail", "correo", "mensaje", "whatsapp", "carta", "nota formal", "respuesta", "asunto"
+        "email",
+        "mail",
+        "correo",
+        "mensaje",
+        "whatsapp",
+        "carta",
+        "nota formal",
+        "respuesta",
+        "asunto"
       ],
       "format_instruction": "Entrega el mensaje listo para copiar y enviar (incluyendo Asunto si es correo), con saludo, cuerpo claro y cierre."
     },
     "informe estructurado": {
       "keywords": [
-        "informe", "reporte", "documento", "analisis completo", "monografia", "articulo", "secciones"
+        "informe",
+        "reporte",
+        "documento",
+        "analisis completo",
+        "monografia",
+        "articulo",
+        "secciones"
       ],
       "format_instruction": "Organiza el contenido como un informe estructurado con títulos en Markdown, desarrollo por secciones y conclusiones."
     },
     "json": {
       "keywords": [
-        "json", "formato json", "objeto json", "schema", "payload", "diccionario estructurado"
+        "json",
+        "formato json",
+        "objeto json",
+        "schema",
+        "payload",
+        "diccionario estructurado"
       ],
       "format_instruction": "Devuelve la salida en formato JSON válido y bien indentado, sin texto extra fuera del bloque JSON salvo que se indique."
     },
     "resumen ejecutivo": {
       "keywords": [
-        "resumen ejecutivo", "sintesis", "resumen", "extracto", "minuta", "brief", "panorama general"
+        "resumen ejecutivo",
+        "sintesis",
+        "resumen",
+        "extracto",
+        "minuta",
+        "brief",
+        "panorama general"
       ],
       "format_instruction": "Presenta un resumen ejecutivo breve con los hallazgos o puntos clave al inicio y recomendaciones concretas al final."
+    },
+    "diálogo interactivo": {
+      "keywords": [
+        "simula",
+        "simular",
+        "turno",
+        "dialogo",
+        "practicar respuesta",
+        "roleplay"
+      ],
+      "format_instruction": "Ejecuta una simulación interactiva turno a turno (1 mensaje breve por turno en personaje) y cierra con devolución estructurada al recibir 'FIN'."
     }
   },
   "entities_lexicon": {
     "tecnologias": [
-      "python", "django", "flask", "fastapi", "javascript", "typescript", "react", "vue", "angular",
-      "node", "nodejs", "html", "css", "bootstrap", "tailwind", "sql", "postgresql", "postgres",
-      "mysql", "sqlite", "mongodb", "redis", "docker", "kubernetes", "git", "github", "linux",
-      "bash", "nginx", "aws", "azure", "gcp", "rest", "graphql", "json", "xml", "yaml", "regex", "pytest"
+      "python",
+      "django",
+      "flask",
+      "fastapi",
+      "javascript",
+      "typescript",
+      "react",
+      "vue",
+      "angular",
+      "node",
+      "nodejs",
+      "html",
+      "css",
+      "bootstrap",
+      "tailwind",
+      "sql",
+      "postgresql",
+      "postgres",
+      "mysql",
+      "sqlite",
+      "mongodb",
+      "redis",
+      "docker",
+      "kubernetes",
+      "git",
+      "github",
+      "linux",
+      "bash",
+      "nginx",
+      "aws",
+      "azure",
+      "gcp",
+      "rest",
+      "graphql",
+      "json",
+      "xml",
+      "yaml",
+      "regex",
+      "pytest"
     ],
     "datos_ml": [
-      "pandas", "numpy", "scipy", "matplotlib", "seaborn", "plotly", "scikit-learn", "sklearn",
-      "tensorflow", "pytorch", "keras", "xgboost", "lightgbm", "statsmodels", "nltk", "spacy",
-      "tf-idf", "kmeans", "k-means", "random forest", "regresion lineal", "regresion logistica",
-      "arbol de decision", "pca", "svd", "clustering", "roc", "auc", "f1-score", "rmse", "mae",
-      "csv", "parquet", "excel", "xlsx", "jupyter", "colab", "power bi", "tableau", "etl", "llm"
+      "pandas",
+      "numpy",
+      "scipy",
+      "matplotlib",
+      "seaborn",
+      "plotly",
+      "scikit-learn",
+      "sklearn",
+      "tensorflow",
+      "pytorch",
+      "keras",
+      "xgboost",
+      "lightgbm",
+      "statsmodels",
+      "nltk",
+      "spacy",
+      "tf-idf",
+      "kmeans",
+      "k-means",
+      "random forest",
+      "regresion lineal",
+      "regresion logistica",
+      "arbol de decision",
+      "pca",
+      "svd",
+      "clustering",
+      "roc",
+      "auc",
+      "f1-score",
+      "rmse",
+      "mae",
+      "csv",
+      "parquet",
+      "excel",
+      "xlsx",
+      "jupyter",
+      "colab",
+      "power bi",
+      "tableau",
+      "etl",
+      "llm"
     ],
     "negocio": [
-      "kpi", "roi", "cac", "ltv", "churn", "mrr", "arr", "margen", "ebitda", "flujo de caja",
-      "presupuesto", "inventario", "stock", "vencimientos", "proveedor", "factura", "afip", "arca",
-      "monotributo", "crm", "erp", "e-commerce", "ecommerce", "embudo", "conversion", "ticket promedio",
-      "fidelizacion", "cotizacion", "contrato", "nda", "propuesta comercial", "foda", "okr", "kanban"
+      "kpi",
+      "roi",
+      "cac",
+      "ltv",
+      "churn",
+      "mrr",
+      "arr",
+      "margen",
+      "ebitda",
+      "flujo de caja",
+      "presupuesto",
+      "inventario",
+      "stock",
+      "vencimientos",
+      "proveedor",
+      "factura",
+      "afip",
+      "arca",
+      "monotributo",
+      "crm",
+      "erp",
+      "e-commerce",
+      "ecommerce",
+      "embudo",
+      "conversion",
+      "ticket promedio",
+      "fidelizacion",
+      "cotizacion",
+      "contrato",
+      "nda",
+      "propuesta comercial",
+      "foda",
+      "okr",
+      "kanban"
     ],
     "academico": [
-      "apa", "ieee", "paper", "tesis", "tesina", "monografia", "hipotesis", "marco teorico",
-      "estado del arte", "metodologia", "muestra", "poblacion", "variable dependiente",
-      "variable independiente", "p-valor", "intervalo de confianza", "correlacion", "varianza",
-      "desviacion estandar", "derivada", "integral", "matriz", "algoritmo", "complejidad", "parcial", "final"
+      "apa",
+      "ieee",
+      "paper",
+      "tesis",
+      "tesina",
+      "monografia",
+      "hipotesis",
+      "marco teorico",
+      "estado del arte",
+      "metodologia",
+      "muestra",
+      "poblacion",
+      "variable dependiente",
+      "variable independiente",
+      "p-valor",
+      "intervalo de confianza",
+      "correlacion",
+      "varianza",
+      "desviacion estandar",
+      "derivada",
+      "integral",
+      "matriz",
+      "algoritmo",
+      "complejidad",
+      "parcial",
+      "final"
     ]
   },
   "slot_catalog": {
@@ -467,14 +1698,23 @@
           "id": "data_shape",
           "question": "¿Qué estructura o tamaño aproximado tiene tu dataset?",
           "impact_pts": 7,
-          "options": ["Tabla CSV/Excel (<10k filas)", "Dataset grande (>100k filas)", "Texto no estructurado", "No tengo datos aún"],
+          "options": [
+            "Tabla CSV/Excel (<10k filas)",
+            "Dataset grande (>100k filas)",
+            "Texto no estructurado",
+            "No tengo datos aún"
+          ],
           "target_block": "Contexto y Parámetros"
         },
         {
           "id": "ml_goal",
           "question": "¿Qué buscas priorizar en el análisis o modelo?",
           "impact_pts": 6,
-          "options": ["Interpretabilidad clara", "Máxima precisión predictiva", "Limpieza y diagnóstico rápido"],
+          "options": [
+            "Interpretabilidad clara",
+            "Máxima precisión predictiva",
+            "Limpieza y diagnóstico rápido"
+          ],
           "target_block": "Objetivo"
         }
       ],
@@ -483,14 +1723,23 @@
           "id": "tech_stack",
           "question": "¿En qué lenguaje, framework o versión estás trabajando?",
           "impact_pts": 8,
-          "options": ["Python / Django", "JavaScript / React", "SQL / Base de datos", "Bash / Linux"],
+          "options": [
+            "Python / Django",
+            "JavaScript / React",
+            "SQL / Base de datos",
+            "Bash / Linux"
+          ],
           "target_block": "Contexto y Parámetros"
         },
         {
           "id": "code_constraints",
           "question": "¿Hay alguna restricción técnica o de entorno?",
           "impact_pts": 5,
-          "options": ["Solo librería estándar", "Compatible con producción", "Código simple para aprender"],
+          "options": [
+            "Solo librería estándar",
+            "Compatible con producción",
+            "Código simple para aprender"
+          ],
           "target_block": "Instrucciones"
         }
       ],
@@ -499,14 +1748,23 @@
           "id": "edu_level",
           "question": "¿Para qué nivel educativo necesitas la explicación o trabajo?",
           "impact_pts": 7,
-          "options": ["Secundaria", "Terciario / Universitario", "Posgrado / Investigación", "Autodidacta desde cero"],
+          "options": [
+            "Secundaria",
+            "Terciario / Universitario",
+            "Posgrado / Investigación",
+            "Autodidacta desde cero"
+          ],
           "target_block": "Contexto y Parámetros"
         },
         {
           "id": "study_focus",
           "question": "¿Cómo prefieres reforzar el aprendizaje?",
           "impact_pts": 5,
-          "options": ["Con analogías simples", "Con ejercicios resueltos", "Con preguntas de examen"],
+          "options": [
+            "Con analogías simples",
+            "Con ejercicios resueltos",
+            "Con preguntas de examen"
+          ],
           "target_block": "Instrucciones"
         }
       ],
@@ -515,14 +1773,23 @@
           "id": "biz_scale",
           "question": "¿Qué tipo o escala de negocio tienes en mente?",
           "impact_pts": 7,
-          "options": ["Comercio minorista / local", "Emprendimiento / PyME", "Servicios B2B", "E-commerce"],
+          "options": [
+            "Comercio minorista / local",
+            "Emprendimiento / PyME",
+            "Servicios B2B",
+            "E-commerce"
+          ],
           "target_block": "Contexto y Parámetros"
         },
         {
           "id": "biz_horizon",
           "question": "¿Cuál es el horizonte o restricción principal?",
           "impact_pts": 5,
-          "options": ["Resultados esta semana", "Plan mensual / trimestral", "Bajo presupuesto"],
+          "options": [
+            "Resultados esta semana",
+            "Plan mensual / trimestral",
+            "Bajo presupuesto"
+          ],
           "target_block": "Contexto y Parámetros"
         }
       ],
@@ -531,14 +1798,24 @@
           "id": "comm_audience",
           "question": "¿Quién es el destinatario y qué relación tienes con él?",
           "impact_pts": 8,
-          "options": ["Cliente o prospecto", "Jefe / Equipo interno", "Proveedor / Institución", "Público en redes"],
+          "options": [
+            "Cliente o prospecto",
+            "Jefe / Equipo interno",
+            "Proveedor / Institución",
+            "Público en redes"
+          ],
           "target_block": "Contexto y Parámetros"
         },
         {
           "id": "comm_tone",
           "question": "¿Qué tono debe transmitir el mensaje?",
           "impact_pts": 6,
-          "options": ["Formal y cordial", "Directo y ejecutivo", "Cercano y persuasivo", "Firme pero respetuoso"],
+          "options": [
+            "Formal y cordial",
+            "Directo y ejecutivo",
+            "Cercano y persuasivo",
+            "Firme pero respetuoso"
+          ],
           "target_block": "Contexto y Parámetros"
         }
       ],
@@ -547,7 +1824,11 @@
           "id": "analysis_criteria",
           "question": "¿Qué criterios son más importantes para evaluar el tema?",
           "impact_pts": 7,
-          "options": ["Costo y viabilidad", "Evidencia técnica y riesgos", "Impacto en el usuario/cliente"],
+          "options": [
+            "Costo y viabilidad",
+            "Evidencia técnica y riesgos",
+            "Impacto en el usuario/cliente"
+          ],
           "target_block": "Instrucciones"
         }
       ],
@@ -556,7 +1837,11 @@
           "id": "doc_jurisdiction",
           "question": "¿Qué nivel de formalidad o contexto institucional aplica?",
           "impact_pts": 7,
-          "options": ["Nota formal administrativa", "Reclamo comercial / consumidor", "Documento laboral / CV"],
+          "options": [
+            "Nota formal administrativa",
+            "Reclamo comercial / consumidor",
+            "Documento laboral / CV"
+          ],
           "target_block": "Contexto y Parámetros"
         }
       ],
@@ -565,7 +1850,11 @@
           "id": "plan_timeframe",
           "question": "¿Con cuánto tiempo o plazo cuentas para ejecutar el plan?",
           "impact_pts": 7,
-          "options": ["Esta semana (7 días)", "Este mes (4 semanas)", "Trimestre (90 días)"],
+          "options": [
+            "Esta semana (7 días)",
+            "Este mes (4 semanas)",
+            "Trimestre (90 días)"
+          ],
           "target_block": "Contexto y Parámetros"
         }
       ],
@@ -574,7 +1863,11 @@
           "id": "decision_priority",
           "question": "¿Qué factor pesa más en tu decisión?",
           "impact_pts": 8,
-          "options": ["Menor costo / riesgo", "Mayor velocidad de resultado", "Impacto a largo plazo"],
+          "options": [
+            "Menor costo / riesgo",
+            "Mayor velocidad de resultado",
+            "Impacto a largo plazo"
+          ],
           "target_block": "Instrucciones"
         }
       ],
@@ -583,7 +1876,11 @@
           "id": "general_audience",
           "question": "¿Para quién o para qué contexto es esta respuesta?",
           "impact_pts": 6,
-          "options": ["Uso personal rápido", "Trabajo profesional", "Estudio / aprendizaje"],
+          "options": [
+            "Uso personal rápido",
+            "Trabajo profesional",
+            "Estudio / aprendizaje"
+          ],
           "target_block": "Contexto y Parámetros"
         }
       ]
@@ -594,7 +1891,11 @@
           "id": "error_context",
           "question": "¿Qué mensaje de error exacto o comportamiento inesperado ves?",
           "impact_pts": 8,
-          "options": ["Tengo el traceback completo", "Devuelve resultado incorrecto", "Falla solo en producción"],
+          "options": [
+            "Tengo el traceback completo",
+            "Devuelve resultado incorrecto",
+            "Falla solo en producción"
+          ],
           "target_block": "Datos de Entrada"
         }
       ],
@@ -603,7 +1904,11 @@
           "id": "code_io",
           "question": "¿Cuál es la entrada esperada y qué debe devolver el código?",
           "impact_pts": 7,
-          "options": ["Procesa archivo / JSON", "Consulta base de datos", "Función pura con parámetros"],
+          "options": [
+            "Procesa archivo / JSON",
+            "Consulta base de datos",
+            "Función pura con parámetros"
+          ],
           "target_block": "Objetivo"
         }
       ],
@@ -612,7 +1917,11 @@
           "id": "data_question",
           "question": "¿Qué pregunta concreta quieres responder con los datos?",
           "impact_pts": 7,
-          "options": ["Detectar anomalías / errores", "Encontrar qué impulsa el resultado", "Resumir indicadores clave"],
+          "options": [
+            "Detectar anomalías / errores",
+            "Encontrar qué impulsa el resultado",
+            "Resumir indicadores clave"
+          ],
           "target_block": "Objetivo"
         }
       ],
@@ -621,7 +1930,11 @@
           "id": "compare_axes",
           "question": "¿Cuántas opciones comparas y qué eje te importa más?",
           "impact_pts": 6,
-          "options": ["2 opciones (A vs B)", "3 o más alternativas", "Priorizar costo vs calidad"],
+          "options": [
+            "2 opciones (A vs B)",
+            "3 o más alternativas",
+            "Priorizar costo vs calidad"
+          ],
           "target_block": "Instrucciones"
         }
       ],
@@ -630,7 +1943,11 @@
           "id": "summary_length",
           "question": "¿Qué extensión máxima prefieres para el resumen?",
           "impact_pts": 6,
-          "options": ["Ultra breve (3-5 puntos)", "Media (100-150 palabras)", "Detallado por secciones"],
+          "options": [
+            "Ultra breve (3-5 puntos)",
+            "Media (100-150 palabras)",
+            "Detallado por secciones"
+          ],
           "target_block": "Formato de Salida"
         }
       ],
@@ -639,7 +1956,11 @@
           "id": "plan_granularity",
           "question": "¿Qué nivel de detalle necesitas en cada paso?",
           "impact_pts": 6,
-          "options": ["Checklist rápido accionable", "Fases con responsables y tiempos", "Guía detallada paso a paso"],
+          "options": [
+            "Checklist rápido accionable",
+            "Fases con responsables y tiempos",
+            "Guía detallada paso a paso"
+          ],
           "target_block": "Formato de Salida"
         }
       ],
@@ -648,7 +1969,11 @@
           "id": "draft_cta",
           "question": "¿Qué acción quieres que tome quien lea el mensaje?",
           "impact_pts": 6,
-          "options": ["Responder / confirmar reunión", "Aprobar propuesta o presupuesto", "Solo informar con claridad"],
+          "options": [
+            "Responder / confirmar reunión",
+            "Aprobar propuesta o presupuesto",
+            "Solo informar con claridad"
+          ],
           "target_block": "Objetivo"
         }
       ],
@@ -657,10 +1982,1662 @@
           "id": "explain_depth",
           "question": "¿Con qué profundidad prefieres la explicación?",
           "impact_pts": 6,
-          "options": ["Intuitiva desde cero", "Técnica con ejemplos prácticos", "Con preguntas de repaso"],
+          "options": [
+            "Intuitiva desde cero",
+            "Técnica con ejemplos prácticos",
+            "Con preguntas de repaso"
+          ],
           "target_block": "Contexto y Parámetros"
         }
+      ],
+      "transformar_formato": [
+        {
+          "id": "target_schema",
+          "question": "¿Qué campos exactos querés en la salida?",
+          "impact_pts": 7,
+          "options": [
+            "nombre, precio, categoría",
+            "fecha, concepto, monto",
+            "clave y valor simple"
+          ],
+          "target_block": "Formato"
+        }
+      ],
+      "auditar_criticar": [
+        {
+          "id": "audit_role",
+          "question": "¿Desde qué rol o interés querés revisar el texto?",
+          "impact_pts": 8,
+          "options": [
+            "Inquilino / Consumidor",
+            "Cliente / Comprador",
+            "Empleador / Empresa"
+          ],
+          "target_block": "Contexto"
+        }
+      ],
+      "simular_practicar": [
+        {
+          "id": "sim_channel",
+          "question": "¿Por qué canal ocurre la conversación que querés practicar?",
+          "impact_pts": 7,
+          "options": [
+            "WhatsApp",
+            "Llamada / Presencial",
+            "Correo / Entrevista"
+          ],
+          "target_block": "Contexto"
+        }
+      ],
+      "calcular_modelar": [
+        {
+          "id": "margin_base",
+          "question": "¿El porcentaje de margen lo calculás sobre venta o sobre costo?",
+          "impact_pts": 8,
+          "options": [
+            "Sobre precio de venta",
+            "Sobre costo",
+            "Mostrar ambos comparados"
+          ],
+          "target_block": "Contexto"
+        }
+      ],
+      "idear_alternativas": [
+        {
+          "id": "idea_channel",
+          "question": "¿Para qué plataforma y público son las ideas?",
+          "impact_pts": 7,
+          "options": [
+            "Instagram (Reels / Carrusel)",
+            "LinkedIn / Blog",
+            "WhatsApp / Email"
+          ],
+          "target_block": "Contexto"
+        }
       ]
+    }
+  },
+  "abbreviations_map": {
+    "q": "que",
+    "xq": "porque",
+    "pq": "porque",
+    "tmb": "también",
+    "tb": "también",
+    "pa": "para",
+    "xfa": "por favor",
+    "info": "información",
+    "bd": "base de datos",
+    "df": "dataframe",
+    "ej": "ejemplo",
+    "msj": "mensaje",
+    "nro": "número"
+  },
+  "subintents": {
+    "analizar_datos": {
+      "exploracion": {
+        "keywords": [
+          "eda",
+          "exploratorio",
+          "inspeccion",
+          "resumen",
+          "estadisticas",
+          "descriptivas",
+          "primer vistazo"
+        ],
+        "regex": [
+          "\\b(?:info|describe|head|resumir datos|inspeccionar)\\b"
+        ]
+      },
+      "limpieza": {
+        "keywords": [
+          "nulos",
+          "na",
+          "nan",
+          "duplicados",
+          "limpiar",
+          "limpieza",
+          "outliers",
+          "atipicos",
+          "faltantes"
+        ],
+        "regex": [
+          "\\b(?:valores?\\s+(?:nulos|faltantes|atipicos)|limpi(?:ar|eza)|duplicados)\\b"
+        ]
+      },
+      "correlacion": {
+        "keywords": [
+          "relacion",
+          "correlacion",
+          "asociacion",
+          "pearson",
+          "spearman",
+          "depende",
+          "influye",
+          "impacta"
+        ],
+        "regex": [
+          "\\b(?:hay\\s+relacion|relacion\\s+entre|correlacion|influye\\s+en)\\b"
+        ]
+      },
+      "modelado_predictivo": {
+        "keywords": [
+          "predecir",
+          "prediccion",
+          "modelo",
+          "entrenar",
+          "regresion",
+          "clasificacion",
+          "sklearn",
+          "random forest",
+          "xgboost"
+        ],
+        "regex": [
+          "\\b(?:entrenar|predecir|modelo\\s+predictivo|cross[- ]?validation|roc|auc|f1)\\b"
+        ]
+      },
+      "inferencia": {
+        "keywords": [
+          "hipotesis",
+          "p-valor",
+          "significancia",
+          "t-test",
+          "anova",
+          "chi cuadrado",
+          "intervalo de confianza"
+        ],
+        "regex": [
+          "\\b(?:p[- ]?valor|prueba\\s+de\\s+hipotesis|significativo|intervalo\\s+de\\s+confianza)\\b"
+        ]
+      }
+    },
+    "depurar_error": {
+      "traceback": {
+        "keywords": [
+          "traceback",
+          "stacktrace",
+          "line",
+          "file",
+          "excepcion",
+          "typeerror",
+          "valueerror",
+          "attributeerror"
+        ],
+        "regex": [
+          "\\b(?:Traceback|File\\s+\\\"|TypeError|ValueError|AttributeError|IndexError)\\b"
+        ]
+      },
+      "keyerror": {
+        "keywords": [
+          "keyerror",
+          "clave",
+          "columna",
+          "no existe la columna"
+        ],
+        "regex": [
+          "\\bKeyError\\b"
+        ]
+      },
+      "rendimiento": {
+        "keywords": [
+          "lento",
+          "tarda",
+          "timeout",
+          "memoria",
+          "ram",
+          "n+1",
+          "optimizar",
+          "cuello de botella"
+        ],
+        "regex": [
+          "\\b(?:muy\\s+lento|tarda\\s+mucho|out\\s+of\\s+memory|timeout|n\\+1)\\b"
+        ]
+      },
+      "error_sql": {
+        "keywords": [
+          "sql",
+          "query",
+          "syntax error",
+          "join",
+          "foreign key",
+          "constraint",
+          "operationalerror"
+        ],
+        "regex": [
+          "\\b(?:OperationalError|IntegrityError|SQL|JOIN|GROUP\\s+BY)\\b"
+        ]
+      },
+      "logica_incorrecta": {
+        "keywords": [
+          "devuelve mal",
+          "resultado incorrecto",
+          "vacio",
+          "no hace lo que",
+          "da distinto",
+          "calcula mal"
+        ],
+        "regex": [
+          "\\b(?:devuelve\\s+(?:vacio|mal|incorrecto)|calcula\\s+mal|no\\s+filtra)\\b"
+        ]
+      }
+    },
+    "generar_codigo": {
+      "script": {
+        "keywords": [
+          "script",
+          "programa",
+          "archivo",
+          "leer csv",
+          "procesar"
+        ],
+        "regex": [
+          "\\b(?:script|programa\\s+en)\\b"
+        ]
+      },
+      "funcion": {
+        "keywords": [
+          "funcion",
+          "def",
+          "metodo",
+          "clase",
+          "reutilizable"
+        ],
+        "regex": [
+          "\\b(?:funcion|metodo|clase)\\b"
+        ]
+      },
+      "consulta_sql": {
+        "keywords": [
+          "query",
+          "consulta",
+          "select",
+          "sql",
+          "join",
+          "group by"
+        ],
+        "regex": [
+          "\\b(?:consulta\\s+sql|query|select\\b)\\b"
+        ]
+      },
+      "api_vista": {
+        "keywords": [
+          "api",
+          "endpoint",
+          "rest",
+          "vista",
+          "view",
+          "django",
+          "fastapi",
+          "flask",
+          "json"
+        ],
+        "regex": [
+          "\\b(?:endpoint|api\\s+rest|vista\\s+django|serializer)\\b"
+        ]
+      },
+      "automatizacion": {
+        "keywords": [
+          "automatizar",
+          "cron",
+          "diario",
+          "batch",
+          "bot",
+          "scraper",
+          "reporte automatico"
+        ],
+        "regex": [
+          "\\b(?:automatiz(?:ar|acion)|todos\\s+los\\s+dias|cron)\\b"
+        ]
+      }
+    },
+    "redactar_contenido": {
+      "email_formal": {
+        "keywords": [
+          "email",
+          "mail",
+          "correo",
+          "asunto",
+          "jefe",
+          "cliente",
+          "gerencia"
+        ],
+        "regex": [
+          "\\b(?:correo|e?mail|asunto)\\b"
+        ]
+      },
+      "reclamo": {
+        "keywords": [
+          "reclamo",
+          "queja",
+          "demora",
+          "incumplimiento",
+          "defensa del consumidor",
+          "devolucion"
+        ],
+        "regex": [
+          "\\b(?:reclam(?:o|ar)|queja|demora|incumplimiento)\\b"
+        ]
+      },
+      "nota_formal": {
+        "keywords": [
+          "nota formal",
+          "licencia",
+          "solicitud",
+          "empleador",
+          "certificado",
+          "permiso",
+          "descargo"
+        ],
+        "regex": [
+          "\\b(?:nota\\s+formal|licencia|empleador|solicitud\\s+formal|descargo)\\b"
+        ]
+      },
+      "publicacion": {
+        "keywords": [
+          "post",
+          "linkedin",
+          "instagram",
+          "redes",
+          "tweet",
+          "hilo",
+          "anuncio"
+        ],
+        "regex": [
+          "\\b(?:post|linkedin|instagram|publicacion|hilo)\\b"
+        ]
+      },
+      "carta_presentacion": {
+        "keywords": [
+          "carta de presentacion",
+          "postulacion",
+          "puesto",
+          "cv",
+          "curriculum",
+          "entrevista"
+        ],
+        "regex": [
+          "\\b(?:carta\\s+de\\s+presentacion|postul(?:ar|acion)|puesto\\s+de)\\b"
+        ]
+      }
+    },
+    "planificar_pasos": {
+      "proyecto": {
+        "keywords": [
+          "proyecto",
+          "lanzar",
+          "app",
+          "aplicacion",
+          "roadmap",
+          "hitos",
+          "sprint"
+        ],
+        "regex": [
+          "\\b(?:proyecto|roadmap|hitos|lanzamiento)\\b"
+        ]
+      },
+      "estudio": {
+        "keywords": [
+          "estudiar",
+          "parcial",
+          "final",
+          "examen",
+          "materias",
+          "repaso"
+        ],
+        "regex": [
+          "\\b(?:estudiar|parcial|final|examen|rendir)\\b"
+        ]
+      },
+      "tramite": {
+        "keywords": [
+          "tramite",
+          "requisitos",
+          "turno",
+          "habilitacion",
+          "afip",
+          "arca",
+          "anses",
+          "monotributo"
+        ],
+        "regex": [
+          "\\b(?:tramite|requisitos|habilitacion|afip|arca|anses)\\b"
+        ]
+      },
+      "rutina_negocio": {
+        "keywords": [
+          "negocio",
+          "comercio",
+          "local",
+          "tienda",
+          "ventas",
+          "stock",
+          "vencimientos",
+          "rutina"
+        ],
+        "regex": [
+          "\\b(?:negocio|comercio|local|stock|vencimientos|ventas)\\b"
+        ]
+      }
+    },
+    "explicar_concepto": {
+      "definicion": {
+        "keywords": [
+          "que es",
+          "definicion",
+          "significa",
+          "concepto",
+          "como funciona",
+          "desde cero"
+        ],
+        "regex": [
+          "\\b(?:que\\s+es|como\\s+funciona|definicion|desde\\s+cero)\\b"
+        ]
+      },
+      "comparacion": {
+        "keywords": [
+          "diferencia",
+          "diferencias",
+          "vs",
+          "versus",
+          "comparar",
+          "distingue"
+        ],
+        "regex": [
+          "\\b(?:diferencia(?:s)?\\s+entre|vs\\.?|versus)\\b"
+        ]
+      },
+      "preparacion_examen": {
+        "keywords": [
+          "parcial",
+          "final",
+          "examen",
+          "autoevaluacion",
+          "preguntas",
+          "catedra"
+        ],
+        "regex": [
+          "\\b(?:parcial|final|examen|autoevaluacion)\\b"
+        ]
+      }
+    }
+  },
+  "verb_classes": {
+    "gestion": {
+      "verbs": [
+        "controlar",
+        "administrar",
+        "organizar",
+        "llevar",
+        "gestionar",
+        "ordenar"
+      ],
+      "template": "Diseñar un método práctico para {inf} y hacer seguimiento de {obj}"
+    },
+    "produccion": {
+      "verbs": [
+        "hacer",
+        "crear",
+        "armar",
+        "preparar",
+        "escribir",
+        "redactar"
+      ],
+      "by_deliverable": {
+        "código": "Desarrollar {obj}",
+        "email / mensaje": "Redactar {obj}",
+        "guía paso a paso": "Elaborar una guía paso a paso sobre {obj}",
+        "tabla": "Elaborar una tabla comparativa sobre {obj}",
+        "lista": "Elaborar una lista accionable sobre {obj}"
+      },
+      "default_template": "Elaborar {obj}"
+    },
+    "decision": {
+      "verbs": [
+        "elegir",
+        "decidir",
+        "optar"
+      ],
+      "template": "Comparar opciones y recomendar cómo {inf} {obj}"
+    },
+    "analisis": {
+      "verbs": [
+        "analizar",
+        "revisar",
+        "evaluar",
+        "medir",
+        "ver si hay relacion"
+      ],
+      "template": "Determinar y analizar {obj}"
+    },
+    "aprendizaje": {
+      "verbs": [
+        "entender",
+        "aprender",
+        "estudiar",
+        "explicar"
+      ],
+      "template": "Explicar con claridad {obj}"
+    }
+  },
+  "request_frames": [
+    "^(?:hola|buenas|che|disculpa|por favor)[,!.\\s]+",
+    "^(?:necesito\\s+saber\\s+c[oó]mo|necesito\\s+que\\s+me\\s+ayudes\\s+a|necesito\\s+ayuda\\s+para)\\s+",
+    "^(?:quiero\\s+que\\s+me\\s+ayudes\\s+a|quiero\\s+saber\\s+c[oó]mo|quiero)\\s+",
+    "^(?:c[oó]mo\\s+puedo\\s+hacer\\s+para|c[oó]mo\\s+hago\\s+para)\\s+",
+    "^(?:ayudame\\s+a|ay[uú]dame\\s+a|me\\s+ayudas\\s+a)\\s+",
+    "^(?:necesito\\s+escribir|necesito\\s+redactar|necesito\\s+armar|necesito\\s+hacer)\\s+",
+    "^(?:me\\s+(?:da|tira|sale)\\s+(?:un\\s+)?error)\\s*"
+  ],
+  "object_ontology": {
+    "ventas": {
+      "aliases": [
+        "venta",
+        "ventas",
+        "facturacion",
+        "ingresos"
+      ],
+      "deliverables": [
+        "qué datos registrar en cada venta",
+        "cómo obtener totales por día y por mes",
+        "cómo comparar contra el período anterior"
+      ],
+      "facets": [
+        "obj:ventas"
+      ]
+    },
+    "vencimientos": {
+      "aliases": [
+        "vencimiento",
+        "vencimientos",
+        "caducidad",
+        "lotes",
+        "fefo"
+      ],
+      "deliverables": [
+        "cómo registrar la fecha de vencimiento por producto o lote",
+        "cómo aplicar salida primero al que vence antes (FEFO)",
+        "con cuántos días de anticipación avisar"
+      ],
+      "facets": [
+        "obj:vencimientos"
+      ]
+    },
+    "stock": {
+      "aliases": [
+        "stock",
+        "inventario",
+        "mercaderia",
+        "existencias"
+      ],
+      "deliverables": [
+        "existencias actuales por producto",
+        "punto crítico de reposición",
+        "control de diferencias contra recuento físico"
+      ],
+      "facets": [
+        "obj:stock"
+      ]
+    },
+    "precios": {
+      "aliases": [
+        "precio",
+        "precios",
+        "margen",
+        "costos",
+        "rentabilidad"
+      ],
+      "deliverables": [
+        "cálculo de precio (costo + margen)",
+        "actualización ante cambios de proveedor",
+        "punto de equilibrio"
+      ],
+      "facets": [
+        "obj:precios"
+      ]
+    },
+    "dataset": {
+      "aliases": [
+        "dataset",
+        "csv",
+        "dataframe",
+        "tabla de datos",
+        "xlsx"
+      ],
+      "deliverables": [
+        "inspección de tipos y valores nulos",
+        "estadísticos descriptivos de columnas clave",
+        "conclusión basada en evidencia numérica"
+      ],
+      "facets": [
+        "obj:dataset"
+      ]
+    },
+    "parcial": {
+      "aliases": [
+        "parcial",
+        "examen",
+        "final",
+        "recuperatorio"
+      ],
+      "deliverables": [
+        "definiciones claras en una oración",
+        "tabla comparativa de conceptos",
+        "5 preguntas de autoevaluación con respuestas"
+      ],
+      "facets": [
+        "obj:parcial"
+      ]
+    },
+    "licencia": {
+      "aliases": [
+        "licencia",
+        "nota formal",
+        "permiso",
+        "inasistencia"
+      ],
+      "deliverables": [
+        "encabezado con lugar, fecha, destinatario y asunto",
+        "cuerpo en 3 párrafos (pedido, motivo y comprobante)",
+        "cierre formal con firma y datos entre corchetes [COMPLETAR]"
+      ],
+      "facets": [
+        "obj:licencia"
+      ]
+    }
+  },
+  "directives": [
+    {
+      "id": "pandas.inspeccion",
+      "when": {
+        "any": [
+          "entity:pandas",
+          "entity:csv",
+          "obj:dataset"
+        ],
+        "all": [
+          "action:analizar_datos"
+        ]
+      },
+      "when_not": [],
+      "phase": "preparar",
+      "priority": 85,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Inspecciona primero el archivo con `df.info()`, `df.shape` y `df.isna().sum()` para verificar tipos de datos, separador y valores faltantes.",
+      "text_short": "Inspecciona tipos y nulos con `df.info()` y `df.isna().sum()`.",
+      "verifiable": "Menciona columnas, tipos y conteo de nulos antes de analizar.",
+      "edge_cases": "Archivo con separador `;` o encoding UTF-8/Latin-1 distinto al estándar."
+    },
+    {
+      "id": "pandas.limpieza",
+      "when": {
+        "any": [
+          "sub:limpieza",
+          "entity:pandas"
+        ]
+      },
+      "when_not": [
+        "sub:correlacion"
+      ],
+      "phase": "preparar",
+      "priority": 75,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Detecta filas duplicadas (`df.duplicated().sum()`) y define una estrategia explícita para nulos (imputación o descarte justificado).",
+      "text_short": "Reporta duplicados y cómo tratar valores nulos.",
+      "verifiable": "Indica cantidad exacta de duplicados y criterio aplicado a nulos.",
+      "edge_cases": "Columnas numéricas leídas como texto por símbolos de moneda o comas decimales."
+    },
+    {
+      "id": "pandas.correlacion_regresion",
+      "when": {
+        "all": [
+          "sub:correlacion",
+          "action:analizar_datos"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 90,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Calcula tanto la correlación lineal de Pearson como la de Spearman (no paramétrica) y ajusta una regresión lineal simple reportando pendiente, R² y p-valor, aclarando que correlación no implica causalidad.",
+      "text_short": "Calcula Pearson, Spearman y regresión lineal (pendiente, R², p-valor) sin asumir causalidad.",
+      "verifiable": "Incluye coeficientes Pearson, Spearman, R² y advertencia explícita de no causalidad.",
+      "edge_cases": "Relación no lineal o variables con varianza cero."
+    },
+    {
+      "id": "pandas.outliers_iqr",
+      "when": {
+        "any": [
+          "sub:correlacion",
+          "sub:limpieza",
+          "entity:pandas"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 80,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Detecta valores atípicos (outliers) mediante el criterio IQR (Q1 - 1.5*IQR, Q3 + 1.5*IQR) y verifica si alteran el resultado comparando métricas con y sin outliers.",
+      "text_short": "Detecta outliers con IQR y compara métricas con y sin ellos.",
+      "verifiable": "Reporta umbral IQR y sensibilidad de los resultados frente a outliers.",
+      "edge_cases": "Precios o cantidades negativas o iguales a cero."
+    },
+    {
+      "id": "pandas.reproducible",
+      "when": {
+        "any": [
+          "entity:pandas",
+          "entity:csv"
+        ]
+      },
+      "when_not": [],
+      "phase": "entregar",
+      "priority": 70,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Entrega el código Python completo y reproducible usando únicamente Pandas/NumPy/SciPy (sin rutas absolutas hardcodeadas).",
+      "text_short": "Entrega código Python reproducible con rutas relativas.",
+      "verifiable": "El código corre de principio a fin recibiendo la ruta del archivo.",
+      "edge_cases": "Nombres de columnas con espacios o mayúsculas inconsistentes."
+    },
+    {
+      "id": "sql.joins",
+      "when": {
+        "any": [
+          "entity:sql",
+          "entity:postgresql",
+          "entity:mysql",
+          "entity:sqlite",
+          "sub:consulta_sql",
+          "sub:error_sql"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 80,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Usa `JOIN` explícitos (`INNER JOIN` o `LEFT JOIN` según corresponda) con alias claros de tabla y evita `SELECT *` listando solo las columnas necesarias.",
+      "text_short": "Usa JOIN explícitos con alias y selecciona solo columnas necesarias.",
+      "verifiable": "La consulta no usa `SELECT *` ni joins implícitos en el `WHERE`.",
+      "edge_cases": "Registros huérfanos o valores `NULL` en claves foráneas."
+    },
+    {
+      "id": "sql.rendimiento",
+      "when": {
+        "any": [
+          "sub:rendimiento",
+          "entity:sql"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 72,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Indica qué índices conviene crear en columnas de filtrado/JOIN y sugiere revisar el plan de ejecución (`EXPLAIN`).",
+      "text_short": "Sugiere índices clave y revisión con EXPLAIN.",
+      "verifiable": "Menciona al menos una columna candidata a índice y `EXPLAIN`.",
+      "edge_cases": "Tablas con millones de filas sin índice en fecha o clave foránea."
+    },
+    {
+      "id": "sql.verificacion",
+      "when": {
+        "any": [
+          "entity:sql",
+          "sub:consulta_sql"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 68,
+      "levels": [
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Incluye una consulta de comprobación para validar que no haya duplicación de filas tras los JOIN ni diferencias en totales.",
+      "text_short": "Agrega consulta de control de duplicados y totales.",
+      "verifiable": "Incluye query de verificación con `COUNT(*)`.",
+      "edge_cases": "Relación 1:N que multiplica importes en un SUM."
+    },
+    {
+      "id": "excel.formulas",
+      "when": {
+        "any": [
+          "entity:excel",
+          "entity:xlsx"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 78,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Proporciona fórmulas exactas listas para copiar en Excel (ej. `SUMAR.SI.CONJUNTO`, `BUSCARX`/`INDICE-COINCIDIR`) aclarando el separador de argumentos.",
+      "text_short": "Entrega fórmulas de Excel listas para copiar.",
+      "verifiable": "Cada fórmula incluye nombre de función y rango de ejemplo.",
+      "edge_cases": "Diferencia de idioma entre Excel en español (`SUMAR.SI`) e inglés (`SUMIF`)."
+    },
+    {
+      "id": "excel.estructura",
+      "when": {
+        "any": [
+          "entity:excel",
+          "entity:xlsx"
+        ]
+      },
+      "when_not": [],
+      "phase": "preparar",
+      "priority": 72,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Define las columnas exactas de la planilla (nombre, tipo de dato y ejemplo de fila) separando datos crudos de resúmenes.",
+      "text_short": "Define columnas, tipos y ejemplo de fila separando datos de resúmenes.",
+      "verifiable": "Lista columnas con tipo de dato y al menos una fila de ejemplo.",
+      "edge_cases": "Celdas combinadas que rompen filtros y tablas dinámicas."
+    },
+    {
+      "id": "sklearn.base",
+      "when": {
+        "any": [
+          "entity:scikit-learn",
+          "entity:sklearn",
+          "sub:modelado_predictivo"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 82,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Divide los datos en train/test antes de cualquier escalado o imputación (`Pipeline` de scikit-learn) para evitar data leakage y evalúa con validación cruzada.",
+      "text_short": "Usa `train_test_split` + `Pipeline` para evitar data leakage.",
+      "verifiable": "El preprocesamiento ocurre dentro de `Pipeline` después del split.",
+      "edge_cases": "Clases desbalanceadas o fuga temporal en series de tiempo."
+    },
+    {
+      "id": "regresion.supuestos",
+      "when": {
+        "any": [
+          "entity:regresion lineal",
+          "sub:correlacion",
+          "sub:inferencia"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 70,
+      "levels": [
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Verifica los supuestos de la regresión (linealidad, homocedasticidad, normalidad de residuos) antes de interpretar intervalos o p-valores.",
+      "text_short": "Valida linealidad y distribución de residuos.",
+      "verifiable": "Comprueba residuos y linealidad.",
+      "edge_cases": "Heterocedasticidad severa en datos económicos o de precios."
+    },
+    {
+      "id": "debug.traceback",
+      "when": {
+        "any": [
+          "sub:traceback",
+          "action:depurar_error"
+        ]
+      },
+      "when_not": [
+        "sub:keyerror"
+      ],
+      "phase": "entender",
+      "priority": 84,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Lee el traceback de abajo hacia arriba para ubicar la línea exacta y el tipo de excepción antes de proponer cambios.",
+      "text_short": "Ubica la línea exacta y tipo de excepción en el traceback.",
+      "verifiable": "Señala línea, variable y causa raíz exacta.",
+      "edge_cases": "El error se origina en una línea anterior que devuelve `None`."
+    },
+    {
+      "id": "debug.keyerror",
+      "when": {
+        "any": [
+          "sub:keyerror"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 92,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Enumera las causas probables de `KeyError` en DataFrames o diccionarios: espacios ocultos en encabezados, diferencias de mayúsculas/minúsculas, separador CSV incorrecto (`;` en lugar de `,`) o columna renombrada/eliminada; incluye `print(df.columns.tolist())` y solución defensiva (`df.columns = df.columns.str.strip()`).",
+      "text_short": "Revisa espacios, mayúsculas y separador CSV con `print(df.columns.tolist())`.",
+      "verifiable": "Incluye `print(df.columns.tolist())` y al menos 3 causas concretas de `KeyError`.",
+      "edge_cases": "BOM UTF-8 (`\\ufeffprecio`) al inicio del primer encabezado."
+    },
+    {
+      "id": "debug.sin_traceback",
+      "when": {
+        "all": [
+          "action:depurar_error"
+        ],
+        "any": [
+          "sub:logica_incorrecta"
+        ]
+      },
+      "when_not": [
+        "sub:traceback"
+      ],
+      "phase": "validar",
+      "priority": 78,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Propone un caso mínimo reproducible y un test o `assert` ejecutable para comprobar que la corrección resuelve el problema.",
+      "text_short": "Incluye un caso mínimo y un `assert` de verificación.",
+      "verifiable": "Contiene código de prueba o comando ejecutable para verificar el fix.",
+      "edge_cases": "Condiciones de borde con listas vacías o valores cero."
+    },
+    {
+      "id": "django.orm",
+      "when": {
+        "any": [
+          "entity:django"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 76,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Usa el ORM de Django de forma segura (`select_related`/`prefetch_related` para evitar consultas N+1, `get_object_or_404` y validación en formularios/modelos).",
+      "text_short": "Evita N+1 con `select_related`/`prefetch_related` en Django ORM.",
+      "verifiable": "No ejecuta queries dentro de bucles sin prefetch.",
+      "edge_cases": "Objetos inexistentes (`DoesNotExist`) o peticiones sin CSRF."
+    },
+    {
+      "id": "estudio.principiante",
+      "when": {
+        "any": [
+          "audience:principiante",
+          "domain:Estudio y academia"
+        ]
+      },
+      "when_not": [
+        "audience:avanzado"
+      ],
+      "phase": "entender",
+      "priority": 84,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Comienza con una definición simple en una oración cotidiana y una analogía clara antes de introducir vocabulario técnico.",
+      "text_short": "Empieza con una definición simple en una oración y una analogía.",
+      "verifiable": "Tiene definición en 1 oración y 1 analogía sin jerga.",
+      "edge_cases": "Confundir términos parecidos por falta de base previa."
+    },
+    {
+      "id": "estudio.parcial",
+      "when": {
+        "any": [
+          "sub:preparacion_examen",
+          "obj:parcial"
+        ]
+      },
+      "when_not": [
+        "sub:nota_formal",
+        "domain:Redacción y comunicación",
+        "domain:Trámites y documentos"
+      ],
+      "phase": "entregar",
+      "priority": 88,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Cierra con 5 preguntas tipo examen de autoevaluación (multiple choice o desarrollo breve) acompañadas de sus respuestas correctas explicadas.",
+      "text_short": "Incluye 5 preguntas de autoevaluación con respuestas.",
+      "verifiable": "Contiene exactamente 5 preguntas con su clave de respuesta.",
+      "edge_cases": "Preguntas capciosas frecuentes en parciales."
+    },
+    {
+      "id": "estudio.errores_comunes",
+      "when": {
+        "any": [
+          "domain:Estudio y academia",
+          "action:explicar_concepto"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 78,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Incluye una sección breve de 'Errores comunes en exámenes' señalando confusiones frecuentes sobre el tema.",
+      "text_short": "Señala los errores comunes o confusiones típicas.",
+      "verifiable": "Lista al menos 2 errores frecuentes concretos.",
+      "edge_cases": "Mezclar definiciones de conceptos opuestos o complementarios."
+    },
+    {
+      "id": "estudio.comparar",
+      "when": {
+        "any": [
+          "sub:comparacion",
+          "action:comparar_evaluar",
+          "deliv:tabla"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 86,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Presenta una tabla comparativa en Markdown con al menos 5 criterios explícitos y comparables lado a lado.",
+      "text_short": "Arma una tabla comparativa con al menos 5 criterios claros.",
+      "verifiable": "Tabla Markdown con >= 5 filas de criterios.",
+      "edge_cases": "Comparar características no equivalentes entre conceptos."
+    },
+    {
+      "id": "estudio.resumen",
+      "when": {
+        "any": [
+          "action:resumir_sintetizar",
+          "domain:Estudio y academia"
+        ]
+      },
+      "when_not": [],
+      "phase": "entregar",
+      "priority": 65,
+      "levels": [
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Agrega una ficha de repaso rápido ('en 60 segundos') con las ideas clave memorizables.",
+      "text_short": "Incluye ficha de repaso rápido.",
+      "verifiable": "Resumen final en <= 5 viñetas.",
+      "edge_cases": "Omitir excepciones importantes por sintetizar demasiado."
+    },
+    {
+      "id": "neg.stock",
+      "when": {
+        "any": [
+          "obj:stock",
+          "entity:stock",
+          "entity:inventario"
+        ]
+      },
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación"
+      ],
+      "phase": "ejecutar",
+      "priority": 82,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Define el control de stock con existencias actuales por producto, punto crítico de reposición (stock mínimo) y conciliación contra recuento físico.",
+      "text_short": "Controla stock actual, punto mínimo de reposición y recuento físico.",
+      "verifiable": "Incluye stock mínimo y conteo físico periódico.",
+      "edge_cases": "Merma, roturas o ventas no registradas en el sistema."
+    },
+    {
+      "id": "neg.vencimientos",
+      "when": {
+        "any": [
+          "obj:vencimientos",
+          "entity:vencimientos"
+        ]
+      },
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación"
+      ],
+      "phase": "ejecutar",
+      "priority": 88,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Implementa control de vencimientos por producto o lote aplicando regla FEFO (Primero en Vencer, Primero en Salir) y alertas con días de anticipación (ej. 30, 15 y 7 días).",
+      "text_short": "Aplica regla FEFO por lote y alertas anticipadas (30/15/7 días).",
+      "verifiable": "Menciona FEFO y umbrales concretos en días.",
+      "edge_cases": "Mismo producto con múltiples lotes y fechas distintas en góndola."
+    },
+    {
+      "id": "neg.ventas",
+      "when": {
+        "any": [
+          "obj:ventas",
+          "sub:rutina_negocio"
+        ]
+      },
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación"
+      ],
+      "phase": "ejecutar",
+      "priority": 85,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Detalla qué datos registrar en cada venta (fecha, producto/lote, cantidad, precio unitario, medio de pago), cómo obtener totales diarios/mensuales y cómo comparar contra el período anterior.",
+      "text_short": "Define campos por venta, totales diarios/mensuales y comparación intermensual.",
+      "verifiable": "Lista campos de registro, totales y comparativa contra período previo.",
+      "edge_cases": "Devoluciones, descuentos o ventas fiadas/en cuenta corriente."
+    },
+    {
+      "id": "neg.cruce_ventas_vencimientos",
+      "when": {
+        "all": [
+          "obj:ventas",
+          "obj:vencimientos"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 90,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Cruza rotación de ventas contra fechas de vencimiento para detectar productos de baja rotación próximos a vencer y activar promociones, combos o reducción de reposición antes de perder mercadería.",
+      "text_short": "Cruza baja rotación con vencimiento próximo para liquidar antes de perder.",
+      "verifiable": "Define regla de cruce rotación vs. días al vencimiento.",
+      "edge_cases": "Comprar por volumen con descuento un producto que vence antes de venderse."
+    },
+    {
+      "id": "neg.precios",
+      "when": {
+        "any": [
+          "obj:precios",
+          "entity:margen"
+        ]
+      },
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación"
+      ],
+      "phase": "ejecutar",
+      "priority": 78,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Especifica la fórmula de precio (costo + margen sobre venta o sobre costo), cómo actualizar ante subas de proveedor y el cálculo del punto de equilibrio.",
+      "text_short": "Define cálculo costo + margen, actualización y punto de equilibrio.",
+      "verifiable": "Muestra fórmula explícita de margen y punto de equilibrio.",
+      "edge_cases": "Confundir margen sobre costo (markup) con margen sobre venta."
+    },
+    {
+      "id": "neg.rutina",
+      "when": {
+        "any": [
+          "domain:Negocios y comercio",
+          "sub:rutina_negocio"
+        ]
+      },
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación"
+      ],
+      "phase": "entregar",
+      "priority": 76,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Propone una rutina operativa concreta (tareas diarias de 10 minutos, revisión semanal y cierre mensual) con responsables claros.",
+      "text_short": "Define rutina diaria, semanal y mensual.",
+      "verifiable": "Incluye frecuencias diaria, semanal y mensual.",
+      "edge_cases": "Falta de tiempo en horarios pico de atención al público."
+    },
+    {
+      "id": "neg.herramienta",
+      "when": {
+        "any": [
+          "domain:Negocios y comercio",
+          "sub:rutina_negocio"
+        ]
+      },
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación"
+      ],
+      "phase": "preparar",
+      "priority": 74,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Incluye la estructura exacta de columnas de una planilla simple (Excel / Google Sheets) con semáforo de estado para empezar hoy sin software complejo.",
+      "text_short": "Propone estructura de planilla simple con columnas exactas.",
+      "verifiable": "Lista encabezados de planilla listos para copiar.",
+      "edge_cases": "Carga manual duplicada entre caja y planilla."
+    },
+    {
+      "id": "red.email",
+      "when": {
+        "any": [
+          "sub:email_formal",
+          "deliv:email / mensaje"
+        ]
+      },
+      "when_not": [
+        "sub:nota_formal"
+      ],
+      "phase": "ejecutar",
+      "priority": 80,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Incluye Asunto específico, saludo acorde al destinatario, cuerpo conciso en 2-3 párrafos con pedido concreto y cierre con llamado a la acción.",
+      "text_short": "Incluye Asunto, saludo, cuerpo breve y cierre con acción clara.",
+      "verifiable": "Contiene línea de Asunto y llamado a la acción.",
+      "edge_cases": "Correos demasiado largos que ocultan el pedido principal."
+    },
+    {
+      "id": "red.reclamo",
+      "when": {
+        "any": [
+          "sub:reclamo"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 84,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Expone los hechos cronológicamente (fecha, número de pedido/servicio, incumplimiento), tono firme y respetuoso, y plazo concreto de respuesta esperada.",
+      "text_short": "Detalla hechos, comprobante, tono firme y plazo de respuesta.",
+      "verifiable": "Incluye hechos, referencia de operación y plazo solicitado.",
+      "edge_cases": "Falta de número de gestión o comprobante adjunto."
+    },
+    {
+      "id": "red.nota_formal",
+      "when": {
+        "any": [
+          "sub:nota_formal",
+          "obj:licencia"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 88,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Estructura la nota formal con: 1) Encabezado (lugar, fecha, destinatario, asunto), 2) Cuerpo en 3 párrafos (solicitud concreta con fechas, motivo y ofrecimiento de comprobante/constancia), 3) Cierre formal con firma.",
+      "text_short": "Usa encabezado formal, cuerpo en 3 párrafos (pedido, motivo, comprobante) y cierre.",
+      "verifiable": "Contiene encabezado, 3 párrafos diferenciados y bloque de firma.",
+      "edge_cases": "Omitir mención de entrega de certificado posterior al examen."
+    },
+    {
+      "id": "tram.no_inventar",
+      "when": {
+        "any": [
+          "domain:Trámites y documentos",
+          "sub:nota_formal",
+          "obj:licencia",
+          "sub:reclamo"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 92,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Prohibición estricta de inventar datos personales, nombres de empresa, cargos, números de legajo o artículos de leyes/convenios no provistos; usa marcadores explícitos `[COMPLETAR: ...]` para todo dato faltante.",
+      "text_short": "No inventes datos ni leyes; marca lo faltante con `[COMPLETAR: ...]`.",
+      "verifiable": "Cero leyes o datos inventados; usa `[COMPLETAR: ...]` en campos faltantes.",
+      "edge_cases": "Convenio colectivo o reglamento interno específico no informado."
+    },
+    {
+      "id": "tram.checklist",
+      "when": {
+        "any": [
+          "domain:Trámites y documentos",
+          "sub:tramite",
+          "sub:nota_formal"
+        ]
+      },
+      "when_not": [],
+      "phase": "entregar",
+      "priority": 74,
+      "levels": [
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Agrega al final un checklist breve con los datos entre `[COMPLETAR: ...]` que el usuario debe reemplazar y documentación adjunta sugerida antes de enviar.",
+      "text_short": "Cierra con checklist de campos a completar y adjuntos.",
+      "verifiable": "Lista cada `[COMPLETAR: ...]` usado en el documento.",
+      "edge_cases": "Enviar la nota olvidando reemplazar un corchete."
+    },
+    {
+      "id": "neg.sin_graficos",
+      "when": {
+        "any": [
+          "neg:sin_graficos"
+        ]
+      },
+      "when_not": [],
+      "phase": "validar",
+      "priority": 95,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Prohibido generar gráficos, código de matplotlib/seaborn/plotly o visualizaciones; presenta todos los resultados en texto y tablas numéricas.",
+      "text_short": "Sin gráficos ni matplotlib/seaborn; solo tablas y texto.",
+      "verifiable": "Ausencia total de `plt.`, `sns.`, `plot(` o gráficos.",
+      "edge_cases": "Librerías de análisis que grafican por defecto."
+    },
+    {
+      "id": "neg.sin_tecnicismos",
+      "when": {
+        "any": [
+          "neg:sin_tecnicismos"
+        ]
+      },
+      "when_not": [],
+      "phase": "entender",
+      "priority": 95,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Evita tecnicismos innecesarios; si un término técnico es indispensable, explícalo entre paréntesis en palabras cotidianas.",
+      "text_short": "Sin tecnicismos; traduce cualquier término indispensable.",
+      "verifiable": "Lenguaje accesible sin jerga sin explicar.",
+      "edge_cases": "Siglas asumidas sin definición."
+    },
+    {
+      "id": "neg.sin_librerias",
+      "when": {
+        "any": [
+          "neg:sin_librerias"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 95,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Usa exclusivamente la librería estándar del lenguaje; prohibido importar paquetes externos que requieran instalación adicional.",
+      "text_short": "Usa solo librería estándar, sin paquetes externos.",
+      "verifiable": "Solo imports de librería estándar.",
+      "edge_cases": "Funciones convenientes de terceros que deben escribirse en Python puro."
+    },
+    {
+      "id": "neg.sin_ejemplos",
+      "when": {
+        "any": [
+          "neg:sin_ejemplos"
+        ]
+      },
+      "when_not": [],
+      "phase": "entregar",
+      "priority": 95,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "No incluyas ejemplos ilustrativos ni casos ficticios; ve directo a las reglas, definiciones o código solicitado.",
+      "text_short": "Sin ejemplos; ve directo al punto.",
+      "verifiable": "Ausencia de secciones de ejemplo.",
+      "edge_cases": "Conflicto si la técnica seleccionada pide ejemplos."
+    },
+    {
+      "id": "neg.espanol",
+      "when": {
+        "any": [
+          "lang:espanol"
+        ]
+      },
+      "when_not": [],
+      "phase": "entregar",
+      "priority": 95,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [],
+      "text": "Redacta íntegramente en español claro y natural (manteniendo nombres técnicos de código o funciones cuando corresponda).",
+      "text_short": "Responde íntegramente en español.",
+      "verifiable": "Todo el texto explicativo está en español.",
+      "edge_cases": "Mezclar frases en inglés innecesariamente."
+    }
+  ],
+  "success_criteria": {
+    "by_action": {
+      "analizar_datos": "Los hallazgos citan métricas numéricas calculadas sobre las columnas reales del archivo, reportan calidad de datos (nulos/outliers) y evitan afirmar causalidad sin evidencia experimental.",
+      "depurar_error": "Identifica la causa raíz verificable, incluye comando o prueba de diagnóstico y entrega el código corregido listo para ejecutar sin errores.",
+      "generar_codigo": "El código es sintácticamente válido, maneja casos borde/errores de entrada e incluye un ejemplo mínimo de ejecución.",
+      "comparar_evaluar": "Compara todas las alternativas bajo los mismos criterios explícitos en tabla y cierra con una recomendación justificada.",
+      "resumir_sintetizar": "Conserva hechos, cifras y decisiones críticas del texto original sin agregar información externa ni superar la extensión pedida.",
+      "planificar_pasos": "Cada etapa define acción concreta, frecuencia o plazo y criterio claro para pasar al siguiente paso.",
+      "redactar_contenido": "El texto está listo para copiar y enviar con el tono adecuado, sin datos inventados y con todo dato faltante marcado entre `[COMPLETAR: ...]`.",
+      "explicar_concepto": "Un lector del nivel indicado comprende la definición en una lectura, distingue diferencias clave y puede responder la autoevaluación.",
+      "transformar_formato": "Cantidad de elementos igual al insumo, campos solicitados completos y valores numéricos verificados.",
+      "extraer_informacion": "Cada dato extraído coincide con el texto origen y los faltantes figuran como 'NO CONSTA'.",
+      "clasificar_categorizar": "Todos los ítems clasificados en categorías definidas con conteo total consistente.",
+      "traducir_adaptar": "Conserva el 100% de los datos y cifras originales adaptando tono y léxico al destinatario.",
+      "reescribir_mejorar": "Texto más directo y libre de clichés conservando todos los hechos clave.",
+      "auditar_criticar": "Incluye tabla de riesgos con frase literal, gravedad y cambio sugerido más advertencia de revisión profesional.",
+      "simular_practicar": "Mantiene el personaje por turno respetando el límite de oraciones y entrega devolución citando frases tras 'FIN'.",
+      "idear_alternativas": "Entrega exactamente N ideas distintas con todos los campos obligatorios, límite honesto y cero promesas sin fuente.",
+      "calcular_modelar": "Muestra fórmula, supuestos explícitos, tabla de escenarios y coincide con todos los valores de control calculados.",
+      "razonar_resolver": "Expone premisas, deducción paso a paso y verificación de condiciones.",
+      "decidir_recomendar": "Evalúa opciones bajo criterios ponderados homogéneos y justifica cuándo cambiaría la recomendación.",
+      "diagnosticar_resolver": "Ordena hipótesis por probabilidad e indica cómo verificar o descartar cada una.",
+      "consultar_dato": "Responde el dato exacto en 3 líneas o menos sin relleno."
+    },
+    "by_deliverable": {
+      "código": "Incluye bloque Markdown con lenguaje especificado, sin dependencias fantasma ni placeholders sin explicar.",
+      "tabla": "Tabla Markdown válida con columnas homogéneas y celdas breves.",
+      "lista": "Lista accionable donde cada ítem inicia con verbo o dato verificable.",
+      "guía paso a paso": "Pasos numerados en orden secuencial con resultado esperado en cada uno.",
+      "email / mensaje": "Listo para enviar (Asunto si aplica, saludo, cuerpo directo y cierre).",
+      "informe estructurado": "Secciones con títulos claros en Markdown, datos concretos y cierre accionable.",
+      "json": "Objeto JSON sintácticamente válido sin texto suelto fuera de especificación.",
+      "resumen ejecutivo": "Puntos clave al inicio y recomendaciones concretas al cierre."
+    }
+  },
+  "lint_rules": {
+    "banned_patterns": [
+      "respuesta\\s+(?:clara|precisa|completa|detallada|bien\\s+estructurada)",
+      "ten(?:e|é|er)\\s+en\\s+cuenta\\s+todos\\s+los\\s+aspectos",
+      "de\\s+(?:manera|forma)\\s+(?:clara|detallada|exhaustiva|profesional)",
+      "\\bmejores\\s+pr[aá]cticas\\b(?![:\\s]+(?:de|en|para)\\s+[a-z0-9]+)",
+      "sin\\s+relleno\\s+innecesario",
+      "comprende\\s+el\\s+problema\\s+e\\s+identifica\\s+los\\s+datos\\s+clave",
+      "revisa\\s+todos\\s+los\\s+requisitos\\s+antes\\s+de\\s+redactar"
+    ],
+    "adjective_translations": {
+      "clara": "usa oraciones de máximo 20 palabras y define cualquier sigla la primera vez",
+      "precisa": "cita cifras exactas, nombres de columnas/funciones y supuestos explícitos",
+      "completa": "cubre todas las sub-preguntas pedidas y señala explícitamente qué datos faltan",
+      "ordenada": "organiza con encabezados Markdown y viñetas numeradas por orden de ejecución",
+      "eficiente": "evita operaciones redundantes o bucles innecesarios y justifica la complejidad",
+      "robusta": "valida entradas nulas, vacías o fuera de rango antes de procesar",
+      "profesional": "mantiene registro formal, directo, sin clichés ni exclamaciones"
+    }
+  },
+  "macros": {
+    "preparar_entrevista": {
+      "label": "Preparar entrevista laboral",
+      "steps": [
+        "idear_alternativas",
+        "simular_practicar",
+        "auditar_criticar"
+      ],
+      "description": "Genera preguntas probables, simula entrevista turno a turno y audita puntos débiles del CV/respuestas."
+    },
+    "lanzar_campana": {
+      "label": "Lanzar campaña de contenido",
+      "steps": [
+        "idear_alternativas",
+        "redactar_contenido",
+        "auditar_criticar"
+      ],
+      "description": "Propone ángulos de contenido, redacta piezas por canal y revisa promesas o riesgos."
+    },
+    "limpiar_y_analizar": {
+      "label": "Estructurar y analizar datos",
+      "steps": [
+        "transformar_formato",
+        "analizar_datos"
+      ],
+      "description": "Normaliza insumos desordenados a formato limpio y ejecuta análisis cuantitativo."
+    },
+    "diagnostico_comercial": {
+      "label": "Diagnóstico financiero y operativo",
+      "steps": [
+        "calcular_modelar",
+        "diagnosticar_resolver",
+        "planificar_pasos"
+      ],
+      "description": "Calcula punto de equilibrio, diagnostica fugas y planifica rutina operativa."
+    }
+  },
+  "verifiable_predicates": {
+    "count_eq": {
+      "label": "Cantidad exacta",
+      "hint": "Verifica que la salida contenga exactamente N elementos o filas."
+    },
+    "contains_all": {
+      "label": "Inclusión obligatoria",
+      "hint": "Todos los valores o campos requeridos deben aparecer explícitamente."
+    },
+    "contains_none": {
+      "label": "Exclusión estricta",
+      "hint": "Ausencia total de términos, librerías o promesas prohibidas."
+    },
+    "format_valid": {
+      "label": "Formato válido",
+      "hint": "Sintaxis JSON/Markdown/Tabla válida y parseable."
+    },
+    "traceable_to_input": {
+      "label": "Trazable al insumo",
+      "hint": "Cada afirmación o registro remite a un dato del texto original."
+    },
+    "no_new_facts": {
+      "label": "Cero hechos inventados",
+      "hint": "Sin cifras, leyes o datos externos inventados."
+    },
+    "value_check": {
+      "label": "Control numérico",
+      "hint": "Los valores calculados o extraídos coinciden con los valores de control."
+    },
+    "bounded": {
+      "label": "Límite de extensión",
+      "hint": "Respeta límites de oraciones, palabras o turnos."
+    },
+    "distinct": {
+      "label": "Elementos distintos",
+      "hint": "Sin ideas o criterios repetidos ni superpuestos."
+    },
+    "closure_event": {
+      "label": "Condición de cierre",
+      "hint": "Define evento explícito de finalización (ej. palabra clave 'FIN' o checklist)."
     }
   }
 }
