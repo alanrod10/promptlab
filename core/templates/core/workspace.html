@@ -1,289 +1,406 @@
 {% extends 'core/base.html' %}
+{% load static %}
 {% block content %}
-<div class="container-fluid h-100 p-0">
-    <div class="row g-0 h-100">
-        <!-- Lienzo Central -->
-        <div class="col-md-8 d-flex flex-column p-4 h-100 overflow-auto">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
-                <div>
-                    <h3 class="mb-1 fw-bold pl-text-primary" style="letter-spacing: -0.02em;">Espacio de Trabajo</h3>
-                    <small class="pl-text-secondary">Escribe tu idea simple y obtén un prompt estructurado, trazable y evaluado al instante (<code>Ctrl + Enter</code>).</small>
+<div id="workspace-csrf-holder" class="d-none">{% csrf_token %}</div>
+
+<div id="workspace-root"
+     class="pl-workspace-shell"
+     data-mode="{% if loaded_prompt %}{% if loaded_prompt.improvement_level == 'Ligera' %}express{% elif loaded_prompt.improvement_level == 'Profunda' %}pro{% else %}guiado{% endif %}{% elif preset_data %}guiado{% else %}express{% endif %}">
+
+    <!-- Cabecera y Selector Segmentado de 3 Modos -->
+    <div class="d-flex flex-column gap-3 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+            <div>
+                <h3 class="mb-1 fw-bold pl-text-primary" style="letter-spacing: -0.02em;">Espacio de Trabajo</h3>
+                <p class="pl-text-secondary small mb-0">
+                    Contá tu idea en lenguaje natural y elegí cuánta profundidad necesitás (<code>Ctrl + Enter</code>).
+                </p>
+            </div>
+            <!-- Select sincronizado oculto para compatibilidad de niveles -->
+            <select id="improvement-level" class="d-none" aria-hidden="true">
+                <option value="Ligera" {% if loaded_prompt and loaded_prompt.improvement_level == 'Ligera' %}selected{% elif preset_data.level == 'Ligera' %}selected{% endif %}>Breve (Directo)</option>
+                <option value="Completa" {% if loaded_prompt and loaded_prompt.improvement_level == 'Completa' %}selected{% elif preset_data.level == 'Completa' %}selected{% elif not loaded_prompt and not preset_data %}selected{% endif %}>Por Secciones (Recomendado)</option>
+                <option value="Profunda" {% if loaded_prompt and loaded_prompt.improvement_level == 'Profunda' %}selected{% elif preset_data.level == 'Profunda' %}selected{% endif %}>Máximo Detalle (Con Casos Borde)</option>
+            </select>
+        </div>
+
+        <div class="pl-mode-switcher" role="group" aria-label="Modo del Espacio de Trabajo">
+            <button type="button" id="mode-btn-express" class="pl-mode-btn" data-mode="express" aria-pressed="true">
+                <span class="pl-mode-title">⚡ Express</span>
+                <span class="pl-mode-sub">Breve (Directo)</span>
+            </button>
+            <button type="button" id="mode-btn-guiado" class="pl-mode-btn" data-mode="guiado" aria-pressed="false">
+                <span class="pl-mode-title">🎯 Guiado</span>
+                <span class="pl-mode-sub">Por Secciones (Recomendado)</span>
+            </button>
+            <button type="button" id="mode-btn-pro" class="pl-mode-btn" data-mode="pro" aria-pressed="false">
+                <span class="pl-mode-title">🧪 Estudio Pro</span>
+                <span class="pl-mode-sub">Máximo Detalle (Con Casos Borde)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Alertas Globales (activas en los 3 modos) -->
+    <div id="ui-alert-banner" class="alert alert-warning border-0 rounded-3 py-2 px-3 small d-none mb-3">
+        <i class="bi bi-exclamation-circle me-1"></i> <span id="ui-alert-text"></span>
+    </div>
+
+    <div id="pii-alert-banner" class="pl-alert-soft-danger rounded-3 py-2 px-3 small d-none mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <i class="bi bi-shield-exclamation text-danger me-1"></i>
+                <strong>Datos sensibles detectados:</strong> <span id="pii-alert-details"></span>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="mask-pii-checkbox" checked>
+                <label class="form-check-label fw-medium" for="mask-pii-checkbox">
+                    Anonimizar datos sensibles antes de guardar en la base de datos
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div id="contradiction-banner" class="pl-alert-soft-warning rounded-3 py-2 px-3 small d-none mb-3">
+        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+        <strong>Contradicción detectada:</strong> <span id="contradiction-text"></span>
+    </div>
+
+    <div class="row g-4 align-items-start">
+        <!-- Columna Principal (1 columna centrada en Express / 8 cols en Guiado y Estudio Pro) -->
+        <div class="col-lg-8 pl-workspace-main d-flex flex-column gap-4">
+
+            <!-- Tarjeta de Entrada Única (NUNCA se sobrescribe) -->
+            <section class="pl-input-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label for="prompt-input" class="form-label fw-bold pl-text-primary small text-uppercase mb-0">
+                        <i class="bi bi-chat-left-text text-primary me-1"></i>Tu idea o pedido
+                    </label>
+                    <span class="small pl-text-secondary">Se mantiene intacta al generar</span>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <button id="btn-compare" class="btn btn-sm btn-pl-secondary px-3 py-2 {% if not loaded_prompt %}d-none{% endif %}" data-bs-toggle="modal" data-bs-target="#compareModal" onclick="abrirComparador()">
-                        <i class="bi bi-layout-split me-1"></i> Comparar Antes vs. Después
+
+                <textarea id="prompt-input"
+                          class="form-control border-0 p-0 pl-editor-textarea"
+                          rows="5"
+                          placeholder="Contame qué necesitás pedirle a la IA (podés pegar listas, código o textos abajo)..."
+                          style="min-height: 130px; resize: vertical; outline: none; box-shadow: none;">{% if loaded_prompt %}{{ loaded_prompt.original_text }}{% elif preset_data %}{{ preset_data.text }}{% endif %}</textarea>
+
+                <!-- 3 Ejemplos rápidos clicables (Modo Express) -->
+                <div id="express-examples" class="pl-only-express mt-3 pt-3 pl-border-top">
+                    <div class="small pl-text-secondary mb-2">¿Querés probar rápido? Elegí un ejemplo:</div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="pl-example-pill" data-example="Necesito saber cómo controlar las ventas y vencimientos de mi negocio">
+                            <i class="bi bi-shop text-primary"></i> Controlar ventas y vencimientos
+                        </button>
+                        <button type="button" class="pl-example-pill" data-example="Analizame el archivo ventas.csv con pandas y decime si hay relación entre precio y cantidad vendida, sin gráficos">
+                            <i class="bi bi-table text-info"></i> Analizar CSV con Pandas
+                        </button>
+                        <button type="button" class="pl-example-pill" data-example="Tengo $1.200.000 de gastos fijos mensuales y vendo con margen promedio del 30%. Calculame cuánto tengo que vender por mes, por semana y por día para empatar y qué pasa si quiero ganar $360.000 netos.">
+                            <i class="bi bi-calculator text-success"></i> Calcular cuánto vender por día
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Desambiguación rápida / Caminos sugeridos -->
+                <div id="disambiguation-card" class="pl-disamb-card mt-3 d-none">
+                    <div class="small fw-semibold pl-text-primary mb-2">
+                        <i class="bi bi-signpost-split text-primary me-1"></i>
+                        <span id="disambiguation-title"></span>
+                    </div>
+                    <div id="disambiguation-options-list"></div>
+                </div>
+
+                <!-- Barra de Detección en Vivo (desbloqueada en Modo Estudio Pro) -->
+                <div id="live-detection-bar" class="pl-live-bar pl-only-pro mt-3 d-none">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <span class="small fw-bold pl-text-secondary">
+                            <i class="bi bi-activity text-primary me-1"></i>Detección en vivo (tocá una etiqueta para corregirla):
+                        </span>
+                        <span id="live-confidence-msg" class="small fw-semibold text-primary"></span>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <!-- Chip Dominio + botón X individual -->
+                        <div class="dropdown d-inline-flex align-items-center">
+                            <button type="button" id="chip-domain" class="pl-live-chip dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-folder2-open text-primary"></i>
+                                <span class="pl-text-secondary">Dominio:</span>
+                                <strong id="chip-domain-val">Otro / General</strong>
+                            </button>
+                            <button type="button" id="chip-domain-reset" class="pl-chip-reset d-none" title="Revertir corrección de dominio" aria-label="Revertir dominio">&times;</button>
+                            <ul class="dropdown-menu shadow-sm" id="dropdown-domain-menu"></ul>
+                        </div>
+
+                        <!-- Chip Acción + botón X individual -->
+                        <div class="dropdown d-inline-flex align-items-center">
+                            <button type="button" id="chip-action" class="pl-live-chip dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-lightning-charge text-warning"></i>
+                                <span class="pl-text-secondary">Acción:</span>
+                                <strong id="chip-action-val">Explicar concepto</strong>
+                            </button>
+                            <button type="button" id="chip-action-reset" class="pl-chip-reset d-none" title="Revertir corrección de acción" aria-label="Revertir acción">&times;</button>
+                            <ul class="dropdown-menu shadow-sm" id="dropdown-action-menu"></ul>
+                        </div>
+
+                        <!-- Chip Entregable + botón X individual -->
+                        <div class="dropdown d-inline-flex align-items-center">
+                            <button type="button" id="chip-deliverable" class="pl-live-chip dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-file-earmark-text text-info"></i>
+                                <span class="pl-text-secondary">Entregable:</span>
+                                <strong id="chip-deliverable-val">informe estructurado</strong>
+                            </button>
+                            <button type="button" id="chip-deliverable-reset" class="pl-chip-reset d-none" title="Revertir corrección de entregable" aria-label="Revertir entregable">&times;</button>
+                            <ul class="dropdown-menu shadow-sm" id="dropdown-deliverable-menu"></ul>
+                        </div>
+
+                        <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
+                            <span id="live-confidence-badge" class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">Seguridad: 0%</span>
+                            <span id="live-entities-badge" class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1">Datos clave: 0</span>
+                            <span id="live-payload-badge" class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1 d-none">Insumo: ninguno</span>
+                            <span id="live-calc-badge" class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1 d-none">Valores de control calculados</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones de entrada -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 pl-border-top">
+                    <button type="button" id="btn-clear-all" class="btn btn-sm btn-pl-secondary px-3">
+                        <i class="bi bi-eraser me-1"></i> Limpiar
                     </button>
-                    <span id="score-badge-top" class="pl-score-pill {% if not loaded_prompt %}d-none{% endif %} fs-6">
-                        <i class="bi bi-award-fill me-1"></i> Calidad: <strong id="score-top-val">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}95/100{% endif %}</strong>
-                    </span>
+                    <button type="button" id="btn-improve-main" class="btn btn-brand px-4 py-2 fw-semibold">
+                        Mejorar mi prompt <i class="bi bi-magic ms-1"></i>
+                    </button>
                 </div>
-            </div>
+            </section>
 
-            <!-- Banner de aviso amigable -->
-            <div id="ui-alert-banner" class="alert alert-warning border-0 rounded-3 py-2 px-3 small d-none mb-3">
-                <i class="bi bi-exclamation-circle me-1"></i> <span id="ui-alert-text"></span>
-            </div>
-
-            <!-- Banner de Privacidad (PII) -->
-            <div id="pii-alert-banner" class="pl-alert-soft-danger rounded-3 py-2 px-3 small d-none mb-3">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <i class="bi bi-shield-exclamation text-danger me-1"></i>
-                        <strong>Datos sensibles detectados:</strong> <span id="pii-alert-details"></span>
-                    </div>
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="mask-pii-checkbox" checked>
-                        <label class="form-check-label fw-medium" for="mask-pii-checkbox">
-                            Anonimizar datos sensibles antes de guardar en la base de datos
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Banner de Contradicciones -->
-            <div id="contradiction-banner" class="pl-alert-soft-warning rounded-3 py-2 px-3 small d-none mb-3">
-                <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
-                <strong>Contradicción detectada:</strong> <span id="contradiction-text"></span>
-            </div>
-
-            <div class="pl-card flex-grow-1 d-flex flex-column" style="min-height: 400px;">
-                <div class="card-body d-flex flex-column p-4 h-100">
-                    <!-- Pestañas de Vista de Salida -->
-                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                        <ul class="nav nav-pills nav-fill gap-1 p-1 rounded-pill" style="background-color: var(--pl-surface-soft); font-size: 0.82rem;">
-                            <li class="nav-item">
-                                <button type="button" id="tab-btn-editor" class="nav-link active rounded-pill py-1 px-3" onclick="switchOutputTab('editor')">
-                                    <i class="bi bi-pencil-square me-1"></i>Prompt Listo para Usar
-                                </button>
-                            </li>
-                            <li class="nav-item">
-                                <button type="button" id="tab-btn-origin" class="nav-link rounded-pill py-1 px-3" onclick="switchOutputTab('origin')">
-                                    <i class="bi bi-diagram-3 me-1"></i>De dónde sale cada frase
-                                </button>
-                            </li>
-                        </ul>
-                        <button type="button" id="btn-fill-placeholders" class="btn btn-sm btn-outline-warning rounded-pill px-3 d-none" onclick="enfocarDatosPendientes()">
+            <!-- Tarjeta de Resultado Independiente (#output-card) -->
+            <section id="output-card" class="pl-output-card p-4 {% if not loaded_prompt %}d-none{% endif %}">
+                <!-- Barra superior de acciones del resultado -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 pl-border-bottom">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span id="output-score-pill" class="pl-score-pill small">
+                            <i class="bi bi-award-fill me-1"></i>
+                            <strong id="output-score-val">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}0/100{% endif %}</strong>
+                            <span class="mx-1">&middot;</span>
+                            <span id="output-score-band">{% if loaded_prompt %}{% if loaded_prompt.final_score >= 80 %}Muy bueno{% elif loaded_prompt.final_score >= 60 %}Bueno{% elif loaded_prompt.final_score >= 40 %}Aceptable{% else %}Para mejorar{% endif %}{% else %}Muy bueno{% endif %}</span>
+                        </span>
+                        <button type="button" id="btn-fill-placeholders" class="btn btn-sm btn-outline-warning rounded-pill px-3 d-none">
                             <i class="bi bi-input-cursor-text me-1"></i> Completar datos pendientes
                         </button>
                     </div>
 
-                    <!-- Vista 1: Editor -->
-                    <div id="view-editor-pane" class="flex-grow-1 d-flex flex-column">
-                        <textarea id="main-prompt-editor" class="form-control flex-grow-1 border-0 p-0 pl-editor-textarea" placeholder="Escribe tu idea aquí (ej: Armame un script en Python con Pandas para analizar ventas.csv sin usar librerías externas)... o usa el Asistente Guiado a la derecha." style="min-height: 210px; resize: vertical; outline: none; box-shadow: none;">{% if loaded_prompt %}{{ loaded_prompt.improved_text }}{% elif preset_data %}{{ preset_data.text }}{% endif %}</textarea>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" id="btn-copy" class="btn btn-sm btn-brand px-3 fw-medium">
+                            <i class="bi bi-clipboard me-1"></i> Copiar
+                        </button>
+                        <button type="button" id="btn-favorite" class="btn btn-sm btn-pl-secondary px-3 {% if loaded_prompt and loaded_prompt.is_favorite %}btn-fav-active{% endif %}" title="Guardar en favoritos">
+                            <i class="bi {% if loaded_prompt and loaded_prompt.is_favorite %}bi-star-fill{% else %}bi-star{% endif %}"></i>
+                        </button>
+                        <button type="button" id="btn-compare" class="btn btn-sm btn-pl-secondary px-3" data-bs-toggle="modal" data-bs-target="#compareModal">
+                            <i class="bi bi-layout-split me-1"></i> Comparar Antes vs. Después
+                        </button>
+                        <button type="button" id="btn-export-md" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" title="Descargar en formato Markdown (.md)">
+                            <i class="bi bi-markdown me-1"></i> .MD
+                        </button>
+                        <button type="button" id="btn-export-json" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" title="Descargar especificación en JSON (.json)">
+                            <i class="bi bi-filetype-json me-1"></i> .JSON
+                        </button>
                     </div>
+                </div>
 
-                    <!-- Vista 2: De dónde sale cada frase -->
-                    <div id="view-origin-pane" class="flex-grow-1 d-none overflow-auto" style="min-height: 210px; max-height: 440px;">
-                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3 small">
-                            <span class="d-inline-flex align-items-center gap-1"><span class="px-2 py-1 rounded origin-user">Tus palabras</span></span>
-                            <span class="d-inline-flex align-items-center gap-1"><span class="px-2 py-1 rounded origin-inferred">Deducido por PromptLab</span></span>
-                            <span class="d-inline-flex align-items-center gap-1"><span class="px-2 py-1 rounded origin-scaffold">Estructura agregada</span></span>
-                            <span id="origin-rule-inspector" class="ms-auto badge bg-primary bg-opacity-10 text-primary">Tocá cualquier bloque para ver por qué se agregó</span>
-                        </div>
-                        <div id="origin-segments-container">
-                            <p class="pl-text-secondary small">Genera o mejora un prompt para visualizar el mapa de origen y las reglas disparadas.</p>
-                        </div>
-                        <div id="trace-container" class="mt-3 pt-3 pl-border-top d-none">
-                            <h6 class="fw-bold pl-text-primary small text-uppercase mb-2"><i class="bi bi-cpu me-1 text-primary"></i>Trazabilidad del Motor NLP</h6>
-                            <ul id="trace-list" class="small pl-text-secondary mb-0" style="padding-left: 1.2rem;"></ul>
-                        </div>
+                <!-- Pestañas de Salida (visibles en Estudio Pro) -->
+                <div class="pl-only-pro mb-3">
+                    <ul class="nav nav-pills gap-1 p-1 rounded-pill d-inline-flex" style="background-color: var(--pl-surface-soft); font-size: 0.82rem;">
+                        <li class="nav-item">
+                            <button type="button" id="tab-btn-editor" class="nav-link active rounded-pill py-1 px-3">
+                                <i class="bi bi-pencil-square me-1"></i>Prompt Listo para Usar
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" id="tab-btn-origin" class="nav-link rounded-pill py-1 px-3">
+                                <i class="bi bi-diagram-3 me-1"></i>De dónde sale cada frase
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Vista 1: Prompt resultante editable -->
+                <div id="view-editor-pane">
+                    <textarea id="generated-prompt-output"
+                              class="form-control pl-output-textarea"
+                              rows="10"
+                              style="min-height: 220px; resize: vertical;">{% if loaded_prompt %}{{ loaded_prompt.improved_text }}{% endif %}</textarea>
+                </div>
+
+                <!-- Vista 2: Mapa de Origen Caja Blanca (Estudio Pro) -->
+                <div id="view-origin-pane" class="d-none overflow-auto" style="min-height: 220px; max-height: 460px;">
+                    <div class="d-flex flex-wrap align-items-center gap-3 mb-3 small">
+                        <span class="px-2 py-1 rounded origin-user">Tus palabras</span>
+                        <span class="px-2 py-1 rounded origin-inferred">Deducido por PromptLab</span>
+                        <span class="px-2 py-1 rounded origin-scaffold">Estructura agregada</span>
+                        <span id="origin-rule-inspector" class="ms-auto badge bg-primary bg-opacity-10 text-primary">Tocá cualquier bloque para ver por qué se agregó</span>
                     </div>
-
-                    <!-- Barra de Detección en Vivo -->
-                    <div id="live-detection-bar" class="pl-live-bar mt-3 d-none">
-                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-                            <span class="small fw-bold pl-text-secondary"><i class="bi bi-activity text-primary me-1"></i>Lo que entendimos de tu pedido (tocá cualquier etiqueta para corregirla):</span>
-                            <span id="live-confidence-msg" class="small fw-semibold text-primary"></span>
-                        </div>
-                        <div class="d-flex flex-wrap align-items-center gap-2">
-
-                            <!-- Chip Dominio -->
-                            <div class="dropdown">
-                                <button type="button" id="chip-domain" class="pl-live-chip dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-folder2-open text-primary"></i>
-                                    <span class="pl-text-secondary">Dominio:</span>
-                                    <strong id="chip-domain-val">Otro / General</strong>
-                                </button>
-                                <ul class="dropdown-menu shadow-sm" id="dropdown-domain-menu"></ul>
-                            </div>
-
-                            <!-- Chip Acción -->
-                            <div class="dropdown">
-                                <button type="button" id="chip-action" class="pl-live-chip dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-lightning-charge text-warning"></i>
-                                    <span class="pl-text-secondary">Acción:</span>
-                                    <strong id="chip-action-val">Explicar concepto</strong>
-                                </button>
-                                <ul class="dropdown-menu shadow-sm" id="dropdown-action-menu"></ul>
-                            </div>
-
-                            <!-- Chip Entregable -->
-                            <div class="dropdown">
-                                <button type="button" id="chip-deliverable" class="pl-live-chip dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-file-earmark-text text-info"></i>
-                                    <span class="pl-text-secondary">Entregable:</span>
-                                    <strong id="chip-deliverable-val">informe estructurado</strong>
-                                </button>
-                                <ul class="dropdown-menu shadow-sm" id="dropdown-deliverable-menu"></ul>
-                            </div>
-
-                            <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
-                                <span id="live-confidence-badge" class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1" title="intent_confidence: seguridad de detección">Seguridad: 0%</span>
-                                <span id="live-entities-badge" class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1" title="n_entities: términos clave detectados">Datos clave: 0</span>
-                                <span id="live-payload-badge" class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1 d-none" title="payload_kind: insumo detectado">Insumo: ninguno</span>
-                                <span id="live-calc-badge" class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1 d-none" title="has_calculation: valores de control calculados">Valores de control calculados</span>
-                            </div>
-                        </div>
-                        <div id="vague-suggestions-box" class="mt-2 pt-2 pl-border-top d-none">
-                            <div class="small pl-text-secondary mb-1">Elegí un camino rápido para completar tu idea:</div>
-                            <div id="vague-suggestions-list" class="d-flex flex-wrap gap-2"></div>
-                        </div>
+                    <div id="origin-segments-container">
+                        <p class="pl-text-secondary small">Genera o mejora un prompt para visualizar el mapa de origen y las reglas disparadas.</p>
                     </div>
+                    <div id="trace-container" class="mt-3 pt-3 pl-border-top d-none">
+                        <h6 class="fw-bold pl-text-primary small text-uppercase mb-2"><i class="bi bi-cpu me-1 text-primary"></i>Trazabilidad del Motor NLP</h6>
+                        <ul id="trace-list" class="small pl-text-secondary mb-0" style="padding-left: 1.2rem;"></ul>
+                    </div>
+                </div>
 
-                    <!-- Panel de Evaluación de Calidad (Rúbrica v2 No Circular) y Análisis -->
-                    <div id="analysis-panel" class="mt-4 p-4 pl-analysis-box {% if not loaded_prompt %}d-none{% endif %}">
-                        <div class="row g-4 align-items-center">
-                            <div class="col-lg-5">
-                                <div class="pl-card p-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="fw-bold pl-text-primary mb-0" title="Rúbrica v2 No Circular"><i class="bi bi-speedometer2 text-primary me-1"></i>Evaluación de Calidad</h6>
-                                        <span id="gain-badge" class="badge bg-primary rounded-pill">{% if loaded_prompt %}+{{ loaded_prompt.quality_gain }} pts{% else %}+65 pts{% endif %}</span>
-                                    </div>
-                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small">
-                                        <span class="pl-text-secondary" title="user_score: calidad del texto original">Puntaje de tu pedido: <strong id="init-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}{% else %}25{% endif %}</strong>/100</span>
-                                        <span class="pl-impact-badge" id="info-gain-lbl" title="information_gain: puntos aportados con respuestas y restricciones">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts sumados</span>
-                                        <span class="text-success fw-bold ms-auto" title="final_score: evaluación estructural ponderada">Puntaje final: <span id="final-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}92{% endif %}</span>/100 <small id="score-band-lbl" class="fw-normal">(Muy bueno)</small></span>
-                                    </div>
-                                    <div id="rubric-bars" class="small"></div>
-                                    <div class="mt-2 pt-2 pl-border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small">
-                                        <span class="pl-text-secondary" title="anchor_coverage: proporción de líneas con datos reales">Datos útiles: <strong id="anchor-coverage-badge" class="text-primary">{% if loaded_prompt %}{% widthratio loaded_prompt.anchor_coverage 1 100 %}{% else %}95{% endif %}%</strong></span>
-                                        <span class="pl-text-secondary" title="noise_ratio: proporción de texto sin ancla (<10% es óptimo)">Texto de relleno: <strong id="noise-ratio-badge" class="text-success">{% if loaded_prompt %}{% widthratio loaded_prompt.noise_ratio 1 100 %}{% else %}4{% endif %}%</strong></span>
-                                        <span id="density-badge" class="badge bg-secondary bg-opacity-10 pl-text-primary d-none">{% if loaded_prompt %}{{ loaded_prompt.info_density }}{% else %}0.0{% endif %}</span>
-                                    </div>
+                <!-- Barra visual limpia de puntaje (Modo Guiado) -->
+                <div id="guiado-score-strip" class="pl-score-strip pl-only-guiado mt-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 small mb-2">
+                        <span class="pl-text-secondary">Tu pedido: <strong id="guiado-init-score" class="pl-text-primary">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}/100{% else %}0/100{% endif %}</strong></span>
+                        <span class="pl-impact-badge" id="guiado-info-gain">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts</span>
+                        <span class="text-success fw-bold">Puntaje final: <span id="guiado-final-score">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}0/100{% endif %}</span></span>
+                    </div>
+                    <div class="pl-progress">
+                        <div id="guiado-score-bar" class="pl-progress-bar h-100" style="width: {% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}0{% endif %}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Panel Completo de Rúbrica v2 (Modo Estudio Pro) -->
+                <div id="analysis-panel" class="mt-4 p-4 pl-analysis-box pl-only-pro">
+                    <div class="row g-4 align-items-center">
+                        <div class="col-lg-5">
+                            <div class="pl-card p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold pl-text-primary mb-0" title="Rúbrica v2 No Circular"><i class="bi bi-speedometer2 text-primary me-1"></i>Evaluación de Calidad</h6>
+                                    <span id="gain-badge" class="badge bg-primary rounded-pill">{% if loaded_prompt %}+{{ loaded_prompt.quality_gain }} pts{% else %}+0 pts{% endif %}</span>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small">
+                                    <span class="pl-text-secondary">Puntaje inicial: <strong id="init-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}{% else %}0{% endif %}</strong>/100</span>
+                                    <span class="pl-impact-badge" id="info-gain-lbl">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts sumados</span>
+                                    <span class="text-success fw-bold ms-auto">Final: <span id="final-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}0{% endif %}</span>/100 <small id="score-band-lbl" class="fw-normal"></small></span>
+                                </div>
+                                <div id="rubric-bars" class="small"></div>
+                                <div class="mt-2 pt-2 pl-border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small">
+                                    <span class="pl-text-secondary">Datos útiles: <strong id="anchor-coverage-badge" class="text-primary">{% if loaded_prompt %}{% widthratio loaded_prompt.anchor_coverage 1 100 %}{% else %}95{% endif %}%</strong></span>
+                                    <span class="pl-text-secondary">Texto de relleno: <strong id="noise-ratio-badge" class="text-success">{% if loaded_prompt %}{% widthratio loaded_prompt.noise_ratio 1 100 %}{% else %}4{% endif %}%</strong></span>
                                 </div>
                             </div>
-                            <div class="col-lg-7">
-                                <h6 class="fw-bold text-primary mb-2"><i class="bi bi-check2-circle me-1"></i>Diagnóstico y Mejoras Aplicadas</h6>
-                                <ul id="analysis-list" class="mb-0 small pl-text-secondary" style="padding-left: 1.2rem; line-height: 1.6;">
-                                    {% if loaded_prompt %}
-                                    <li class="mb-1">Prompt cargado desde tu historial (Dominio: {{ loaded_prompt.category|default:"General" }}, Acción: {{ loaded_prompt.detected_action }}, Técnica: {{ loaded_prompt.technique|default:"Estándar" }}).</li>
-                                    {% endif %}
-                                </ul>
-                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-check2-circle me-1"></i>Diagnóstico y Mejoras Aplicadas</h6>
+                            <ul id="analysis-list" class="mb-0 small pl-text-secondary" style="padding-left: 1.2rem; line-height: 1.6;">
+                                {% if loaded_prompt %}
+                                <li class="mb-1">Prompt cargado desde tu historial (Dominio: {{ loaded_prompt.category|default:"General" }}, Acción: {{ loaded_prompt.detected_action }}, Técnica: {{ loaded_prompt.technique|default:"Estándar" }}).</li>
+                                {% endif %}
+                            </ul>
                         </div>
                     </div>
+                </div>
+            </section>
 
-                    <!-- Barra de controles inferior -->
-                    <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 pt-3 pl-border-top gap-3">
-                        <div class="d-flex flex-wrap align-items-center gap-3">
-                            <div class="d-flex align-items-center">
-                                <span class="pl-text-secondary small me-2"><i class="bi bi-layers-fill text-primary me-1"></i>Nivel:</span>
-                                <select id="improvement-level" class="form-select form-select-sm pl-input fw-medium" style="width: 220px;">
-                                    <option value="Ligera" {% if loaded_prompt and loaded_prompt.improvement_level == 'Ligera' %}selected{% elif preset_data.level == 'Ligera' %}selected{% endif %}>Breve (Directo)</option>
-                                    <option value="Completa" {% if loaded_prompt and loaded_prompt.improvement_level == 'Completa' %}selected{% elif not loaded_prompt and not preset_data %}selected{% elif not loaded_prompt and preset_data.level == 'Completa' %}selected{% endif %}>Por Secciones (Recomendado)</option>
-                                    <option value="Profunda" {% if loaded_prompt and loaded_prompt.improvement_level == 'Profunda' %}selected{% elif preset_data.level == 'Profunda' %}selected{% endif %}>Máximo Detalle (Con Casos Borde)</option>
-                                </select>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <span class="pl-text-secondary small me-2"><i class="bi bi-sliders text-warning me-1"></i>Técnica:</span>
-                                <select id="technique-select" class="form-select form-select-sm pl-input fw-medium" style="width: 215px;">
-                                    <option value="Estándar" {% if loaded_prompt and loaded_prompt.technique == 'Estándar' %}selected{% elif not loaded_prompt and not preset_data %}selected{% elif not loaded_prompt and preset_data.technique == 'Estándar' %}selected{% endif %}>Estándar</option>
-                                    <option value="Paso a Paso" {% if loaded_prompt and loaded_prompt.technique == 'Paso a Paso' %}selected{% elif preset_data.technique == 'Paso a Paso' %}selected{% endif %}>Paso a Paso</option>
-                                    <option value="Con Ejemplos" {% if loaded_prompt and loaded_prompt.technique == 'Con Ejemplos' %}selected{% elif preset_data.technique == 'Con Ejemplos' %}selected{% endif %}>Con Ejemplos Prácticos</option>
-                                    <option value="Pedagógico" {% if loaded_prompt and loaded_prompt.technique == 'Pedagógico' %}selected{% elif preset_data.technique == 'Pedagógico' %}selected{% endif %}>Para Aprender / Estudiar</option>
-                                    <option value="Verificación" {% if loaded_prompt and loaded_prompt.technique == 'Verificación' %}selected{% elif preset_data.technique == 'Verificación' %}selected{% endif %}>Con Control de Calidad</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="d-flex flex-wrap align-items-center gap-2">
-                            <button class="btn btn-sm btn-pl-secondary px-3" onclick="limpiarEditor()">Limpiar</button>
-                            <button id="btn-copy" class="btn btn-sm btn-outline-primary rounded-pill px-3 {% if not loaded_prompt %}d-none{% endif %}" onclick="copiarAlPortapapeles()"><i class="bi bi-clipboard me-1"></i> Copiar</button>
-                            <button id="btn-export-md" class="btn btn-sm btn-pl-secondary px-3 {% if not loaded_prompt %}d-none{% endif %}" onclick="descargarArchivo('md')" title="Descargar en formato Markdown (.md)"><i class="bi bi-markdown me-1"></i> .MD</button>
-                            <button id="btn-export-json" class="btn btn-sm btn-pl-secondary px-3 {% if not loaded_prompt %}d-none{% endif %}" onclick="descargarArchivo('json')" title="Descargar especificación en JSON (.json)"><i class="bi bi-filetype-json me-1"></i> .JSON</button>
-                            <button id="btn-improve-main" class="btn btn-brand px-4 py-2 fw-medium" onclick="mejorarPrompt()">Mejorar Prompt <i class="bi bi-magic ms-1"></i></button>
-                        </div>
+            <!-- Puente progresivo Express -> Guiado (visible tras generar en Express) -->
+            <div id="express-bridge-banner" class="pl-bridge-banner pl-only-express d-none">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="small">
+                        <i class="bi bi-stars text-primary me-1"></i>
+                        ¿Querés afinarlo respondiendo <strong id="bridge-slots-count">3</strong> preguntas rápidas
+                        (<span id="bridge-slots-pts" class="fw-bold text-success">+18 pts</span>)?
                     </div>
+                    <button type="button" id="btn-bridge-to-guiado" class="btn btn-sm btn-brand px-3 fw-medium">
+                        Pasar a Modo Guiado <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Panel Asistente Guiado v4.0 -->
-        <div class="col-md-4 pl-assistant-pane p-4 h-100 overflow-auto">
-            <h5 class="mb-1 fw-bold pl-text-primary"><i class="bi bi-compass me-2 text-primary"></i>Asistente Guiado</h5>
-            <p class="pl-text-secondary small mb-3">Aporta contexto real con 1 clic para elevar tu puntaje y evitar ambigüedades.</p>
+        <!-- Columna Derecha: Panel de Afinado Progresivo (visible en Guiado y Estudio Pro) -->
+        <aside class="col-lg-4 pl-workspace-aside pl-guiado-pro">
+            <div class="pl-aside-card p-4">
+                <h5 class="mb-1 fw-bold pl-text-primary"><i class="bi bi-compass me-2 text-primary"></i>Asistente Guiado</h5>
+                <p class="pl-text-secondary small mb-3">Aportá contexto real con 1 clic sin reescribir tu pedido.</p>
 
-            <form id="assistant-form">
-                <div class="mb-3">
-                    <label class="form-label fw-bold pl-text-primary small text-uppercase">Dominio Especializado</label>
-                    <select id="category-select" class="form-select pl-input fw-medium">
-                        <option value="">Detectar automáticamente...</option>
-                        <option value="Ciencia de Datos e IA" {% if loaded_prompt and loaded_prompt.category == 'Ciencia de Datos e IA' %}selected{% elif preset_data.category == 'Ciencia de Datos e IA' %}selected{% endif %}>Ciencia de Datos e IA</option>
-                        <option value="Tecnología y programación" {% if loaded_prompt and loaded_prompt.category == 'Tecnología y programación' %}selected{% elif preset_data.category == 'Tecnología y programación' %}selected{% endif %}>Tecnología y programación</option>
-                        <option value="Estudio y academia" {% if loaded_prompt and loaded_prompt.category == 'Estudio y academia' %}selected{% elif preset_data.category == 'Estudio y academia' %}selected{% endif %}>Estudio y academia</option>
-                        <option value="Negocios y comercio" {% if loaded_prompt and loaded_prompt.category == 'Negocios y comercio' %}selected{% elif preset_data.category == 'Negocios y comercio' %}selected{% endif %}>Negocios y comercio</option>
-                        <option value="Redacción y comunicación" {% if loaded_prompt and loaded_prompt.category == 'Redacción y comunicación' %}selected{% elif preset_data.category == 'Redacción y comunicación' %}selected{% endif %}>Redacción y comunicación</option>
-                        <option value="Investigar y analizar" {% if loaded_prompt and loaded_prompt.category == 'Investigar y analizar' %}selected{% elif preset_data.category == 'Investigar y analizar' %}selected{% endif %}>Investigar y analizar</option>
-                        <option value="Trámites y documentos" {% if loaded_prompt and loaded_prompt.category == 'Trámites y documentos' %}selected{% elif preset_data.category == 'Trámites y documentos' %}selected{% endif %}>Trámites y documentos</option>
-                        <option value="Planificación y productividad" {% if loaded_prompt and loaded_prompt.category == 'Planificación y productividad' %}selected{% elif preset_data.category == 'Planificación y productividad' %}selected{% endif %}>Planificación y productividad</option>
-                        <option value="Toma de decisiones" {% if loaded_prompt and loaded_prompt.category == 'Toma de decisiones' %}selected{% elif preset_data.category == 'Toma de decisiones' %}selected{% endif %}>Toma de decisiones</option>
-                        <option value="Otro / General" {% if loaded_prompt and loaded_prompt.category == 'Otro / General' %}selected{% elif preset_data.category == 'Otro / General' %}selected{% endif %}>Otro / General</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold pl-text-primary small text-uppercase">Objetivo Específico</label>
-                    <textarea id="main-objective" class="form-control pl-input" rows="3" placeholder="¿Qué tarea puntual quieres resolver?">{% if loaded_prompt %}{{ loaded_prompt.original_text }}{% elif preset_data %}{{ preset_data.text }}{% endif %}</textarea>
-                </div>
-
-                <!-- Datos que faltan para mejorar tu resultado (Smart Slots) -->
-                <div id="smart-slots-container" class="mb-3">
-                    <div class="pl-analysis-box p-3 small">
-                        <i class="bi bi-stars text-primary me-1"></i>
-                        <strong class="pl-text-primary">Datos que faltan para mejorar tu resultado:</strong>
-                        <span class="pl-text-secondary">Empezá a escribir tu pedido para ver preguntas simples que suman puntos reales.</span>
+                <form id="assistant-form" onsubmit="return false;">
+                    <!-- 1. Smart Slots -->
+                    <div id="smart-slots-container" class="mb-3">
+                        <div class="pl-analysis-box p-3 small">
+                            <i class="bi bi-stars text-primary me-1"></i>
+                            <strong class="pl-text-primary">Datos que faltan para mejorar tu resultado:</strong>
+                            <span class="pl-text-secondary">Empezá a escribir tu pedido para ver preguntas simples que suman puntos reales.</span>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Chips de Reglas Rápidas (1 clic) -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold pl-text-primary small text-uppercase">Reglas Rápidas (1 clic)</label>
-                    <div class="d-flex flex-wrap gap-2" id="quick-rules-container">
-                        <button type="button" class="pl-quick-option" data-rule="Incluir tabla comparativa" onclick="toggleQuickRule(this)">Incluir tabla comparativa</button>
-                        <button type="button" class="pl-quick-option" data-rule="Agregar ejemplos reales" onclick="toggleQuickRule(this)">Agregar ejemplos reales</button>
-                        <button type="button" class="pl-quick-option" data-rule="Explicar sin tecnicismos" onclick="toggleQuickRule(this)">Explicar sin tecnicismos</button>
-                        <button type="button" class="pl-quick-option" data-rule="Incluir casos borde y errores" onclick="toggleQuickRule(this)">Incluir casos borde y errores</button>
-                        <button type="button" class="pl-quick-option" data-rule="Evitar relleno" onclick="toggleQuickRule(this)">Evitar relleno</button>
+                    <!-- 2. Reglas rápidas (1 clic) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold pl-text-primary small text-uppercase">Reglas rápidas (1 clic)</label>
+                        <div class="d-flex flex-wrap gap-2" id="quick-rules-container">
+                            <button type="button" class="pl-quick-option" data-rule="Incluir tabla comparativa">Incluir tabla comparativa</button>
+                            <button type="button" class="pl-quick-option" data-rule="Agregar ejemplos reales">Agregar ejemplos reales</button>
+                            <button type="button" class="pl-quick-option" data-rule="Explicar sin tecnicismos">Explicar sin tecnicismos</button>
+                            <button type="button" class="pl-quick-option" data-rule="Incluir casos borde y errores">Incluir casos borde y errores</button>
+                            <button type="button" class="pl-quick-option" data-rule="Evitar relleno">Evitar relleno</button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Acordeón Contexto Extra, Restricciones y Ejemplo -->
-                <div class="accordion accordion-flush mb-3" id="extraContextAccordion">
-                    <div class="accordion-item bg-transparent border rounded-3" style="border-color: var(--pl-border) !important;">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed bg-transparent pl-text-primary small fw-bold py-2 px-3 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExtraContext">
-                                <i class="bi bi-sliders2 me-2 text-primary"></i>Contexto Extra, Restricciones y Ejemplo
-                            </button>
-                        </h2>
-                        <div id="collapseExtraContext" class="accordion-collapse collapse">
-                            <div class="accordion-body pt-1 pb-3 px-3">
-                                <div class="mb-3">
-                                    <label class="form-label small fw-bold pl-text-primary">¿Qué querés evitar en la respuesta?</label>
-                                    <input type="text" id="negative-constraints-input" class="form-control form-control-sm pl-input" placeholder="Ej: Sin gráficos, sin tecnicismos, no uses librerías externas">
-                                </div>
-                                <div>
-                                    <label class="form-label small fw-bold pl-text-primary">Ejemplo de cómo querés el resultado (opcional)</label>
-                                    <textarea id="user-example-input" class="form-control form-control-sm pl-input" rows="2" placeholder="Ej: Entrada: ventas.csv → Salida: tabla resumen con nulos"></textarea>
+                    <!-- 3. Selector simple de Dominio (opcional, compacto) -->
+                    <div class="mb-3">
+                        <label for="category-select" class="form-label fw-bold pl-text-primary small text-uppercase">Dominio (opcional)</label>
+                        <select id="category-select" class="form-select form-select-sm pl-input fw-medium">
+                            <option value="">Detectar automáticamente...</option>
+                            <option value="Ciencia de Datos e IA" {% if loaded_prompt and loaded_prompt.category == 'Ciencia de Datos e IA' %}selected{% elif preset_data.category == 'Ciencia de Datos e IA' %}selected{% endif %}>Ciencia de Datos e IA</option>
+                            <option value="Tecnología y programación" {% if loaded_prompt and loaded_prompt.category == 'Tecnología y programación' %}selected{% elif preset_data.category == 'Tecnología y programación' %}selected{% endif %}>Tecnología y programación</option>
+                            <option value="Estudio y academia" {% if loaded_prompt and loaded_prompt.category == 'Estudio y academia' %}selected{% elif preset_data.category == 'Estudio y academia' %}selected{% endif %}>Estudio y academia</option>
+                            <option value="Negocios y comercio" {% if loaded_prompt and loaded_prompt.category == 'Negocios y comercio' %}selected{% elif preset_data.category == 'Negocios y comercio' %}selected{% endif %}>Negocios y comercio</option>
+                            <option value="Redacción y comunicación" {% if loaded_prompt and loaded_prompt.category == 'Redacción y comunicación' %}selected{% elif preset_data.category == 'Redacción y comunicación' %}selected{% endif %}>Redacción y comunicación</option>
+                            <option value="Investigar y analizar" {% if loaded_prompt and loaded_prompt.category == 'Investigar y analizar' %}selected{% elif preset_data.category == 'Investigar y analizar' %}selected{% endif %}>Investigar y analizar</option>
+                            <option value="Trámites y documentos" {% if loaded_prompt and loaded_prompt.category == 'Trámites y documentos' %}selected{% elif preset_data.category == 'Trámites y documentos' %}selected{% endif %}>Trámites y documentos</option>
+                            <option value="Planificación y productividad" {% if loaded_prompt and loaded_prompt.category == 'Planificación y productividad' %}selected{% elif preset_data.category == 'Planificación y productividad' %}selected{% endif %}>Planificación y productividad</option>
+                            <option value="Toma de decisiones" {% if loaded_prompt and loaded_prompt.category == 'Toma de decisiones' %}selected{% elif preset_data.category == 'Toma de decisiones' %}selected{% endif %}>Toma de decisiones</option>
+                            <option value="Otro / General" {% if loaded_prompt and loaded_prompt.category == 'Otro / General' %}selected{% elif preset_data.category == 'Otro / General' %}selected{% endif %}>Otro / General</option>
+                        </select>
+                    </div>
+
+                    <!-- Controles Avanzados (solo Estudio Pro) -->
+                    <div class="pl-only-pro">
+                        <div class="mb-3">
+                            <label for="technique-select" class="form-label fw-bold pl-text-primary small text-uppercase">
+                                <i class="bi bi-sliders text-warning me-1"></i>Técnica de Prompting
+                            </label>
+                            <select id="technique-select" class="form-select form-select-sm pl-input fw-medium">
+                                <option value="Estándar" {% if loaded_prompt and loaded_prompt.technique == 'Estándar' %}selected{% elif not loaded_prompt and not preset_data %}selected{% elif not loaded_prompt and preset_data.technique == 'Estándar' %}selected{% endif %}>Estándar</option>
+                                <option value="Paso a Paso" {% if loaded_prompt and loaded_prompt.technique == 'Paso a Paso' %}selected{% elif preset_data.technique == 'Paso a Paso' %}selected{% endif %}>Paso a Paso</option>
+                                <option value="Con Ejemplos" {% if loaded_prompt and loaded_prompt.technique == 'Con Ejemplos' %}selected{% elif preset_data.technique == 'Con Ejemplos' %}selected{% endif %}>Con Ejemplos Prácticos</option>
+                                <option value="Pedagógico" {% if loaded_prompt and loaded_prompt.technique == 'Pedagógico' %}selected{% elif preset_data.technique == 'Pedagógico' %}selected{% endif %}>Para Aprender / Estudiar</option>
+                                <option value="Verificación" {% if loaded_prompt and loaded_prompt.technique == 'Verificación' %}selected{% elif preset_data.technique == 'Verificación' %}selected{% endif %}>Con Control de Calidad</option>
+                            </select>
+                        </div>
+
+                        <div class="accordion accordion-flush mb-3" id="extraContextAccordion">
+                            <div class="accordion-item bg-transparent border rounded-3" style="border-color: var(--pl-border) !important;">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed bg-transparent pl-text-primary small fw-bold py-2 px-3 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExtraContext">
+                                        <i class="bi bi-sliders2 me-2 text-primary"></i>Restricciones Negativas y Ejemplo
+                                    </button>
+                                </h2>
+                                <div id="collapseExtraContext" class="accordion-collapse collapse">
+                                    <div class="accordion-body pt-1 pb-3 px-3">
+                                        <div class="mb-3">
+                                            <label for="negative-constraints-input" class="form-label small fw-bold pl-text-primary">¿Qué querés evitar en la respuesta?</label>
+                                            <input type="text" id="negative-constraints-input" class="form-control form-control-sm pl-input" placeholder="Ej: Sin gráficos, sin tecnicismos, no uses librerías externas">
+                                        </div>
+                                        <div>
+                                            <label for="user-example-input" class="form-label small fw-bold pl-text-primary">Ejemplo Few-Shot (opcional)</label>
+                                            <textarea id="user-example-input" class="form-control form-control-sm pl-input" rows="2" placeholder="Ej: Entrada: ventas.csv → Salida: tabla resumen con nulos"></textarea>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="d-grid mt-3">
-                    <button type="button" id="btn-improve-assistant" class="btn btn-brand py-2 fw-medium" onclick="mejorarPrompt()">Generar Prompt Estructurado <i class="bi bi-arrow-left-circle ms-1"></i></button>
-                </div>
-            </form>
-        </div>
+                    <div class="d-grid mt-3">
+                        <button type="button" id="btn-improve-assistant" class="btn btn-brand py-2 fw-semibold">
+                            <span id="btn-improve-assistant-label">Aplicar y Mejorar Prompt</span>
+                            <span id="pending-changes-badge" class="pl-pending-badge d-none">0</span>
+                            <i class="bi bi-magic ms-1"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </aside>
     </div>
 </div>
 
@@ -323,637 +440,6 @@
     </div>
 </div>
 
-<script>
-const ALL_DOMAINS = [
-    "Ciencia de Datos e IA", "Tecnología y programación", "Estudio y academia",
-    "Negocios y comercio", "Redacción y comunicación", "Investigar y analizar",
-    "Trámites y documentos", "Planificación y productividad", "Toma de decisiones", "Otro / General"
-];
-
-const ALL_ACTIONS = [
-    { key: "depurar_error", label: "Depurar error" },
-    { key: "generar_codigo", label: "Generar código" },
-    { key: "analizar_datos", label: "Analizar datos" },
-    { key: "comparar_evaluar", label: "Comparar y evaluar" },
-    { key: "resumir_sintetizar", label: "Resumir y sintetizar" },
-    { key: "planificar_pasos", label: "Planificar pasos" },
-    { key: "redactar_contenido", label: "Redactar contenido" },
-    { key: "explicar_concepto", label: "Explicar concepto" },
-    { key: "transformar_formato", label: "Transformar o estructurar datos" },
-    { key: "extraer_informacion", label: "Extraer datos puntuales" },
-    { key: "clasificar_categorizar", label: "Clasificar o etiquetar" },
-    { key: "traducir_adaptar", label: "Traducir o adaptar tono" },
-    { key: "reescribir_mejorar", label: "Pulir o mejorar redacción" },
-    { key: "auditar_criticar", label: "Revisar riesgos o cláusulas" },
-    { key: "simular_practicar", label: "Simular diálogo o entrenamiento" },
-    { key: "idear_alternativas", label: "Generar ideas o alternativas" },
-    { key: "calcular_modelar", label: "Calcular números o escenarios" },
-    { key: "razonar_resolver", label: "Resolver problema lógico" },
-    { key: "decidir_recomendar", label: "Evaluar opciones y recomendar" },
-    { key: "diagnosticar_resolver", label: "Diagnosticar fallas generales" },
-    { key: "consultar_dato", label: "Consulta directa breve" }
-];
-
-const ALL_DELIVERABLES = [
-    "código", "tabla", "lista", "guía paso a paso",
-    "email / mensaje", "informe estructurado", "json", "resumen ejecutivo",
-    "diálogo interactivo"
-];
-
-let lastResultData = null;
-let activeSource = 'editor';
-let liveDebounceTimer = null;
-let overrideDomain = '';
-let overrideAction = '';
-let overrideDeliverable = '';
-let slotAnswers = {};
-let activeQuickRules = new Set();
-
-function mostrarAviso(mensaje) {
-    const banner = document.getElementById('ui-alert-banner');
-    const textEl = document.getElementById('ui-alert-text');
-    textEl.innerText = mensaje;
-    banner.classList.remove('d-none');
-    setTimeout(() => banner.classList.add('d-none'), 4000);
-}
-
-function switchOutputTab(tab) {
-    const editorPane = document.getElementById('view-editor-pane');
-    const originPane = document.getElementById('view-origin-pane');
-    const btnEditor = document.getElementById('tab-btn-editor');
-    const btnOrigin = document.getElementById('tab-btn-origin');
-
-    if (tab === 'origin') {
-        editorPane.classList.add('d-none');
-        originPane.classList.remove('d-none');
-        btnEditor.classList.remove('active');
-        btnOrigin.classList.add('active');
-    } else {
-        originPane.classList.add('d-none');
-        editorPane.classList.remove('d-none');
-        btnOrigin.classList.remove('active');
-        btnEditor.classList.add('active');
-    }
-}
-
-function enfocarDatosPendientes() {
-    switchOutputTab('editor');
-    const editor = document.getElementById('main-prompt-editor');
-    const val = editor.value;
-    let idx = val.indexOf('[PEGA AQUÍ');
-    if (idx === -1) idx = val.indexOf('[COMPLETAR');
-    if (idx !== -1) {
-        const end = val.indexOf(']', idx);
-        editor.focus();
-        editor.setSelectionRange(idx, end !== -1 ? end + 1 : idx + 10);
-    } else {
-        editor.focus();
-    }
-}
-
-function populateChipDropdowns() {
-    const domMenu = document.getElementById('dropdown-domain-menu');
-    const actMenu = document.getElementById('dropdown-action-menu');
-    const delMenu = document.getElementById('dropdown-deliverable-menu');
-
-    domMenu.innerHTML = ALL_DOMAINS.map(d =>
-        `<li><button type="button" class="dropdown-item small" onclick="selectOverride('domain', '${d}')">${d}</button></li>`
-    ).join('');
-
-    actMenu.innerHTML = ALL_ACTIONS.map(a =>
-        `<li><button type="button" class="dropdown-item small" onclick="selectOverride('action', '${a.key}', '${a.label}')">${a.label}</button></li>`
-    ).join('');
-
-    delMenu.innerHTML = ALL_DELIVERABLES.map(del =>
-        `<li><button type="button" class="dropdown-item small" onclick="selectOverride('deliverable', '${del}')">${del}</button></li>`
-    ).join('');
-}
-
-function selectOverride(type, value, label) {
-    if (type === 'domain') {
-        overrideDomain = value;
-        document.getElementById('chip-domain-val').innerText = value;
-        document.getElementById('chip-domain').classList.add('corrected');
-    } else if (type === 'action') {
-        overrideAction = value;
-        document.getElementById('chip-action-val').innerText = label || value;
-        document.getElementById('chip-action').classList.add('corrected');
-    } else if (type === 'deliverable') {
-        overrideDeliverable = value;
-        document.getElementById('chip-deliverable-val').innerText = value;
-        document.getElementById('chip-deliverable').classList.add('corrected');
-    }
-    triggerLiveAnalyze();
-}
-
-function toggleQuickRule(btn) {
-    const rule = btn.getAttribute('data-rule');
-    if (activeQuickRules.has(rule)) {
-        activeQuickRules.delete(rule);
-        btn.classList.remove('active');
-    } else {
-        activeQuickRules.add(rule);
-        btn.classList.add('active');
-    }
-}
-
-function selectSlotOption(slotId, optionText, btnEl) {
-    const group = btnEl.closest('.slot-options-group');
-    if (slotAnswers[slotId] === optionText) {
-        delete slotAnswers[slotId];
-        btnEl.classList.remove('active');
-    } else {
-        slotAnswers[slotId] = optionText;
-        group.querySelectorAll('.pl-quick-option').forEach(b => b.classList.remove('active'));
-        btnEl.classList.add('active');
-    }
-}
-
-function renderSmartSlots(slots) {
-    const container = document.getElementById('smart-slots-container');
-    if (!slots || slots.length === 0) {
-        return;
-    }
-    let html = '<div class="d-flex justify-content-between align-items-center mb-2"><label class="form-label fw-bold pl-text-primary small text-uppercase mb-0">Datos que faltan para mejorar tu resultado</label></div>';
-    slots.forEach(slot => {
-        const currentAns = slotAnswers[slot.id] || '';
-        html += `
-        <div class="pl-analysis-box p-3 mb-2">
-            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                <span class="small fw-semibold pl-text-primary">${slot.question}</span>
-                <span class="pl-impact-badge flex-shrink-0">+${slot.impact_pts} pts</span>
-            </div>
-            <div class="d-flex flex-wrap gap-1 slot-options-group">
-                ${(slot.options || []).map(opt => {
-                    const isActive = currentAns === opt ? 'active' : '';
-                    return `<button type="button" class="pl-quick-option ${isActive}" onclick="selectSlotOption('${slot.id}', '${opt.replace(/'/g, "\\'")}', this)">${opt}</button>`;
-                }).join('')}
-            </div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function renderRubricBars(breakdown) {
-    const rubricBars = document.getElementById('rubric-bars');
-    if (!rubricBars || !breakdown) return;
-    rubricBars.innerHTML = '';
-    Object.entries(breakdown).forEach(([crit, val]) => {
-        const pct = (val / 20) * 100;
-        rubricBars.innerHTML += `
-            <div class="mb-2">
-                <div class="d-flex justify-content-between pl-text-primary" style="font-size: 0.76rem;">
-                    <span>${crit}</span>
-                    <span class="fw-bold">${val}/20</span>
-                </div>
-                <div class="pl-progress mt-1">
-                    <div class="pl-progress-bar h-100" style="width: ${pct}%"></div>
-                </div>
-            </div>`;
-    });
-}
-
-function renderOriginSegments(segments, trace) {
-    const segContainer = document.getElementById('origin-segments-container');
-    const traceContainer = document.getElementById('trace-container');
-    const traceList = document.getElementById('trace-list');
-    const inspector = document.getElementById('origin-rule-inspector');
-
-    if (!segments || segments.length === 0) {
-        segContainer.innerHTML = '<p class="pl-text-secondary small">No hay segmentos disponibles para este prompt.</p>';
-        return;
-    }
-
-    segContainer.innerHTML = '';
-    segments.forEach(seg => {
-        const cls = seg.source === 'user' ? 'origin-user' : (seg.source === 'inferred' ? 'origin-inferred' : 'origin-scaffold');
-        const div = document.createElement('div');
-        div.className = `origin-block ${cls}`;
-        div.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <strong class="small text-uppercase">${seg.block}</strong>
-                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary" style="font-size: 0.7rem;">${seg.source}</span>
-            </div>
-            <div class="small" style="white-space: pre-wrap;">${seg.text}</div>`;
-        div.addEventListener('click', () => {
-            inspector.innerText = seg.rule_plain ? `Por qué se agregó: ${seg.rule_plain} (${seg.rule})` : `Regla: ${seg.rule}`;
-        });
-        segContainer.appendChild(div);
-    });
-
-    if (trace && trace.length > 0) {
-        traceList.innerHTML = trace.map(t =>
-            `<li><strong>${t.stage}:</strong> ${t.rule || (t.domain + ' / ' + t.action + ' (conf: ' + Math.round((t.confidence || 0) * 100) + '%)')}</li>`
-        ).join('');
-        traceContainer.classList.remove('d-none');
-    }
-}
-
-function getActiveText() {
-    const editor = document.getElementById('main-prompt-editor');
-    const objective = document.getElementById('main-objective');
-    if (activeSource === 'editor' && editor.value.trim() !== '') {
-        return editor.value.trim();
-    } else if (objective.value.trim() !== '') {
-        return objective.value.trim();
-    }
-    return editor.value.trim();
-}
-
-function collectFormData() {
-    const formData = { ...slotAnswers };
-    if (activeQuickRules.size > 0) {
-        formData["Reglas Rápidas"] = Array.from(activeQuickRules).join(", ");
-    }
-    return formData;
-}
-
-function triggerLiveAnalyze() {
-    clearTimeout(liveDebounceTimer);
-    liveDebounceTimer = setTimeout(async () => {
-        const text = getActiveText();
-        if (!text || text.length < 3) {
-            document.getElementById('live-detection-bar').classList.add('d-none');
-            document.getElementById('pii-alert-banner').classList.add('d-none');
-            document.getElementById('contradiction-banner').classList.add('d-none');
-            const pb = document.getElementById('live-payload-badge');
-            const cb = document.getElementById('live-calc-badge');
-            if (pb) pb.classList.add('d-none');
-            if (cb) cb.classList.add('d-none');
-            return;
-        }
-        try {
-            const resp = await fetch('/api/analyze-live/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text: text,
-                    category: document.getElementById('category-select').value,
-                    form_data: collectFormData(),
-                    technique: document.getElementById('technique-select').value,
-                    override_domain: overrideDomain,
-                    override_action: overrideAction,
-                    override_deliverable: overrideDeliverable,
-                    negative_constraints: getNegativeConstraintsList()
-                })
-            });
-            if (!resp.ok) return;
-            const data = await resp.json();
-
-            document.getElementById('live-detection-bar').classList.remove('d-none');
-            document.getElementById('chip-domain-val').innerText = overrideDomain || data.domain;
-            document.getElementById('chip-action-val').innerText = overrideAction ? (ALL_ACTIONS.find(a => a.key === overrideAction)?.label || overrideAction) : data.action_label;
-            document.getElementById('chip-deliverable-val').innerText = overrideDeliverable || data.deliverable;
-            const confPct = Math.round((data.confidence || 0) * 100);
-            document.getElementById('live-confidence-badge').innerText = `Seguridad: ${confPct}%`;
-            document.getElementById('live-entities-badge').innerText = `Datos clave: ${(data.entities || []).length}`;
-            const payloadBadge = document.getElementById('live-payload-badge');
-            if (payloadBadge) {
-                if (data.payload_kind && data.payload_kind !== 'sin_insumo') {
-                    payloadBadge.innerText = `Insumo: ${data.payload_summary || data.payload_kind}`;
-                    payloadBadge.classList.remove('d-none');
-                } else {
-                    payloadBadge.classList.add('d-none');
-                }
-            }
-            const calcBadge = document.getElementById('live-calc-badge');
-            if (calcBadge) {
-                calcBadge.classList.toggle('d-none', !data.has_calculation);
-            }
-
-            const confMsgEl = document.getElementById('live-confidence-msg');
-            const vagueBox = document.getElementById('vague-suggestions-box');
-            const vagueList = document.getElementById('vague-suggestions-list');
-            if ((data.confidence || 0) >= 0.75 && !data.is_vague) {
-                confMsgEl.innerText = 'Entendimos tu pedido con claridad';
-                confMsgEl.className = 'small fw-semibold text-success';
-                vagueBox.classList.add('d-none');
-            } else if ((data.confidence || 0) >= 0.50 && !data.is_vague) {
-                confMsgEl.innerText = 'Creemos que buscás esto (revisá si es correcto)';
-                confMsgEl.className = 'small fw-semibold text-primary';
-                vagueBox.classList.add('d-none');
-            } else {
-                confMsgEl.innerText = 'Tu pedido es breve o abierto — podés elegir una opción abajo';
-                confMsgEl.className = 'small fw-semibold text-warning';
-                if (data.suggested_paths && data.suggested_paths.length > 0) {
-                    vagueList.innerHTML = data.suggested_paths.map(sp =>
-                        `<button type="button" class="pl-quick-option" onclick="applySuggestedPath('${sp.prompt.replace(/'/g, "\\'")}')">${sp.label}</button>`
-                    ).join('');
-                    vagueBox.classList.remove('d-none');
-                } else {
-                    vagueBox.classList.add('d-none');
-                }
-            }
-
-            // PII
-            const piiBanner = document.getElementById('pii-alert-banner');
-            if (data.pii_warnings && data.pii_warnings.length > 0) {
-                document.getElementById('pii-alert-details').innerText = data.pii_warnings.map(w => `${w.label} (${w.count})`).join(', ');
-                piiBanner.classList.remove('d-none');
-            } else {
-                piiBanner.classList.add('d-none');
-            }
-
-            // Contradicciones
-            const contraBanner = document.getElementById('contradiction-banner');
-            if (data.contradictions && data.contradictions.length > 0) {
-                document.getElementById('contradiction-text').innerText = data.contradictions.join(' ');
-                contraBanner.classList.remove('d-none');
-            } else {
-                contraBanner.classList.add('d-none');
-            }
-
-            // Smart Slots
-            if (data.suggested_slots && data.suggested_slots.length > 0) {
-                renderSmartSlots(data.suggested_slots);
-            }
-        } catch (err) {
-            console.error('Error en live analyze:', err);
-        }
-    }, 350);
-}
-
-function applySuggestedPath(promptText) {
-    const editor = document.getElementById('main-prompt-editor');
-    const objective = document.getElementById('main-objective');
-    if (activeSource === 'objective' && objective) {
-        objective.value = promptText;
-    } else if (editor) {
-        editor.value = promptText;
-    }
-    triggerLiveAnalyze();
-}
-
-function getScoreBandLabel(score) {
-    if (score >= 80) return '(Muy bueno)';
-    if (score >= 60) return '(Bueno)';
-    if (score >= 40) return '(Aceptable)';
-    return '(Para mejorar)';
-}
-
-function getNegativeConstraintsList() {
-    const raw = (document.getElementById('negative-constraints-input').value || '').trim();
-    if (!raw) return [];
-    return raw.split(/[;\n,]+/).map(s => s.trim()).filter(Boolean);
-}
-
-document.addEventListener("DOMContentLoaded", function() {
-    populateChipDropdowns();
-
-    const editorEl = document.getElementById('main-prompt-editor');
-    const objectiveEl = document.getElementById('main-objective');
-    const catSelect = document.getElementById('category-select');
-    const techSelect = document.getElementById('technique-select');
-
-    if (editorEl) {
-        editorEl.addEventListener('input', () => { activeSource = 'editor'; triggerLiveAnalyze(); });
-        editorEl.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                mejorarPrompt();
-            }
-        });
-    }
-    if (objectiveEl) {
-        objectiveEl.addEventListener('input', () => { activeSource = 'objective'; triggerLiveAnalyze(); });
-        objectiveEl.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                mejorarPrompt();
-            }
-        });
-        {% if preset_data %}
-        activeSource = 'objective';
-        triggerLiveAnalyze();
-        {% endif %}
-    }
-    if (catSelect) catSelect.addEventListener('change', triggerLiveAnalyze);
-    if (techSelect) techSelect.addEventListener('change', triggerLiveAnalyze);
-
-    {% if loaded_prompt %}
-    const loadedBreakdown = {{ loaded_rubric_json|safe }};
-    if (loadedBreakdown) {
-        renderRubricBars(loadedBreakdown);
-    }
-    lastResultData = {
-        raw_objective: objectiveEl ? objectiveEl.value : "",
-        improved_prompt: editorEl ? editorEl.value : "",
-        category: "{{ loaded_prompt.category|default:'General'|escapejs }}",
-        level: "{{ loaded_prompt.improvement_level|default:'Completa'|escapejs }}",
-        technique: "{{ loaded_prompt.technique|default:'Estándar'|escapejs }}",
-        initial_score: {{ loaded_prompt.initial_score }},
-        final_score: {{ loaded_prompt.final_score }},
-        quality_gain: {{ loaded_prompt.quality_gain }},
-        rubric_breakdown: loadedBreakdown
-    };
-    activeSource = 'editor';
-    {% endif %}
-});
-
-function calcularMetricasTexto(texto) {
-    const clean = (texto || '').trim();
-    const words = clean ? clean.split(/\s+/).length : 0;
-    const chars = clean.length;
-    const tokens = Math.ceil(words * 1.3);
-    return { words, chars, tokens };
-}
-
-function abrirComparador() {
-    const editor = document.getElementById('main-prompt-editor');
-    const objective = document.getElementById('main-objective');
-    const origText = (lastResultData && lastResultData.raw_objective) ? lastResultData.raw_objective : (objective.value.trim() || editor.value.trim());
-    const impText = editor.value.trim();
-
-    const mOrig = calcularMetricasTexto(origText);
-    const mImp = calcularMetricasTexto(impText);
-
-    document.getElementById('cmp-orig-text').innerText = origText;
-    document.getElementById('cmp-imp-text').innerText = impText;
-    document.getElementById('cmp-orig-metrics').innerText = `${mOrig.words} palabras • ${mOrig.chars} chars • ~${mOrig.tokens} tokens`;
-    document.getElementById('cmp-imp-metrics').innerText = `${mImp.words} palabras • ${mImp.chars} chars • ~${mImp.tokens} tokens`;
-}
-
-function limpiarEditor() {
-    document.getElementById('main-prompt-editor').value = '';
-    document.getElementById('main-objective').value = '';
-    document.getElementById('category-select').value = '';
-    document.getElementById('negative-constraints-input').value = '';
-    document.getElementById('user-example-input').value = '';
-    overrideDomain = '';
-    overrideAction = '';
-    overrideDeliverable = '';
-    slotAnswers = {};
-    activeQuickRules.clear();
-    document.querySelectorAll('#quick-rules-container .pl-quick-option').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.pl-live-chip').forEach(c => c.classList.remove('corrected'));
-
-    document.getElementById('live-detection-bar').classList.add('d-none');
-    document.getElementById('pii-alert-banner').classList.add('d-none');
-    document.getElementById('contradiction-banner').classList.add('d-none');
-    document.getElementById('analysis-panel').classList.add('d-none');
-    document.getElementById('score-badge-top').classList.add('d-none');
-    document.getElementById('btn-copy').classList.add('d-none');
-    document.getElementById('btn-export-md').classList.add('d-none');
-    document.getElementById('btn-export-json').classList.add('d-none');
-    document.getElementById('btn-compare').classList.add('d-none');
-    document.getElementById('btn-fill-placeholders').classList.add('d-none');
-    switchOutputTab('editor');
-    lastResultData = null;
-    activeSource = 'editor';
-}
-
-function copiarAlPortapapeles() {
-    const editor = document.getElementById('main-prompt-editor');
-    navigator.clipboard.writeText(editor.value).then(() => {
-        const btnCopy = document.getElementById('btn-copy');
-        const originalHtml = btnCopy.innerHTML;
-        btnCopy.innerHTML = '<i class="bi bi-check2 me-1"></i> ¡Copiado!';
-        btnCopy.classList.replace('btn-outline-primary', 'btn-success');
-        setTimeout(() => {
-            btnCopy.innerHTML = originalHtml;
-            btnCopy.classList.replace('btn-success', 'btn-outline-primary');
-        }, 2000);
-    });
-}
-
-function descargarArchivo(formato) {
-    const content = document.getElementById('main-prompt-editor').value;
-    if (!content) return;
-
-    let blob, filename;
-    if (formato === 'md') {
-        blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-        filename = 'prompt_estructurado.md';
-    } else {
-        const payload = lastResultData || {
-            improved_prompt: content,
-            level: document.getElementById('improvement-level').value,
-            technique: document.getElementById('technique-select').value
-        };
-        blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-        filename = 'prompt_especificacion.json';
-    }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-async function mejorarPrompt() {
-    const editor = document.getElementById('main-prompt-editor');
-    const objective = document.getElementById('main-objective');
-    const category = document.getElementById('category-select').value;
-    const level = document.getElementById('improvement-level').value;
-    const technique = document.getElementById('technique-select').value;
-    const analysisPanel = document.getElementById('analysis-panel');
-    const analysisList = document.getElementById('analysis-list');
-    const btnMain = document.getElementById('btn-improve-main');
-    const btnAssist = document.getElementById('btn-improve-assistant');
-
-    const text = getActiveText();
-    if (!text || text.length < 3) {
-        mostrarAviso("Por favor, escribe tu idea en el editor central o en el objetivo del asistente.");
-        return;
-    }
-
-    const origMainHtml = btnMain.innerHTML;
-    const origAssistHtml = btnAssist.innerHTML;
-    btnMain.disabled = true;
-    btnAssist.disabled = true;
-    btnMain.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Procesando...';
-    btnAssist.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generando...';
-
-    try {
-        const response = await fetch('/api/improve/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: text,
-                category: category || "Ninguna especificada",
-                form_data: collectFormData(),
-                level: level,
-                technique: technique,
-                override_domain: overrideDomain,
-                override_action: overrideAction,
-                override_deliverable: overrideDeliverable,
-                negative_constraints: getNegativeConstraintsList(),
-                user_example: (document.getElementById('user-example-input').value || '').trim(),
-                mask_pii: document.getElementById('mask-pii-checkbox').checked
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            mostrarAviso(data.error);
-        } else {
-            lastResultData = data;
-            editor.value = data.improved_prompt;
-            if (data.raw_objective && objective.value.trim() === '') {
-                objective.value = data.raw_objective;
-            }
-            activeSource = 'editor';
-
-            document.getElementById('btn-copy').classList.remove('d-none');
-            document.getElementById('btn-export-md').classList.remove('d-none');
-            document.getElementById('btn-export-json').classList.remove('d-none');
-            document.getElementById('btn-compare').classList.remove('d-none');
-
-            const fillBtn = document.getElementById('btn-fill-placeholders');
-            if (data.improved_prompt.includes('<datos_entrada>') || data.improved_prompt.includes('[COMPLETAR')) {
-                fillBtn.classList.remove('d-none');
-            } else {
-                fillBtn.classList.add('d-none');
-            }
-
-            // Rúbrica v2 + Cero Relleno v5.0
-            document.getElementById('init-score-lbl').innerText = data.user_score ?? data.initial_score;
-            document.getElementById('info-gain-lbl').innerText = `+${data.information_gain ?? 0} pts sumados`;
-            document.getElementById('final-score-lbl').innerText = data.final_score;
-            document.getElementById('score-band-lbl').innerText = getScoreBandLabel(data.final_score);
-            document.getElementById('gain-badge').innerText = '+' + data.quality_gain + ' pts';
-            document.getElementById('score-top-val').innerText = data.final_score + '/100';
-            document.getElementById('density-badge').innerText = data.info_density ?? 0.0;
-
-            const anchorPct = Math.round((data.anchor_coverage ?? 0.95) * 100);
-            const noisePct = Math.round((data.noise_ratio ?? 0.04) * 100);
-            document.getElementById('anchor-coverage-badge').innerText = `${anchorPct}%`;
-            const noiseEl = document.getElementById('noise-ratio-badge');
-            noiseEl.innerText = `${noisePct}%`;
-            noiseEl.className = noisePct < 10 ? 'text-success' : 'text-warning';
-
-            document.getElementById('score-badge-top').classList.remove('d-none');
-
-            if (data.rubric_breakdown) {
-                renderRubricBars(data.rubric_breakdown);
-            }
-            renderOriginSegments(data.segments, data.trace);
-
-            if (data.analysis && data.analysis.length > 0) {
-                analysisList.innerHTML = '';
-                data.analysis.forEach(item => {
-                    let li = document.createElement('li');
-                    li.innerText = item;
-                    li.classList.add('mb-1');
-                    analysisList.appendChild(li);
-                });
-            }
-            analysisPanel.classList.remove('d-none');
-        }
-    } catch (error) {
-        mostrarAviso("Error de conexión con el servidor local.");
-        console.error(error);
-    } finally {
-        btnMain.disabled = false;
-        btnAssist.disabled = false;
-        btnMain.innerHTML = origMainHtml;
-        btnAssist.innerHTML = origAssistHtml;
-    }
-}
-</script>
+<script id="workspace-boot-data" type="application/json">{{ workspace_boot_json|safe }}</script>
+<script src="{% static 'js/workspace.js' %}"></script>
 {% endblock %}

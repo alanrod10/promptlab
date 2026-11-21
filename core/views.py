@@ -7,7 +7,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth.models import User
 from django.db.models import Count
-from .services import get_gemini_response, calculate_rubric_score, analyze_live_preview
+from .services import (
+    get_gemini_response,
+    calculate_rubric_score,
+    analyze_live_preview,
+    invalidate_learned_boosts_cache,
+)
 from .universal_engine import mine_long_tail_candidates
 from .models import Prompt
 
@@ -85,18 +90,37 @@ def workspace(request):
     preset_data = None
     loaded_rubric_json = 'null'
 
+    loaded_rubric = None
     if prompt_id:
         loaded_prompt = Prompt.objects.filter(id=prompt_id).first()
         if loaded_prompt:
             rubric = calculate_rubric_score(loaded_prompt.improved_text)
-            loaded_rubric_json = json.dumps(rubric['breakdown'])
+            loaded_rubric = rubric['breakdown']
+            loaded_rubric_json = json.dumps(loaded_rubric)
     elif preset_slug and preset_slug in TEMPLATES_CATALOG:
         preset_data = TEMPLATES_CATALOG[preset_slug]
+
+    boot_payload = {
+        'loaded_prompt': {
+            'id': loaded_prompt.id,
+            'category': loaded_prompt.category or 'General',
+            'level': loaded_prompt.improvement_level or 'Completa',
+            'technique': loaded_prompt.technique or 'Estándar',
+            'initial_score': loaded_prompt.initial_score,
+            'information_gain': loaded_prompt.information_gain,
+            'final_score': loaded_prompt.final_score,
+            'quality_gain': loaded_prompt.quality_gain,
+            'is_favorite': loaded_prompt.is_favorite,
+        } if loaded_prompt else None,
+        'loaded_rubric': loaded_rubric,
+        'preset_data': preset_data,
+    }
 
     return render(request, 'core/workspace.html', {
         'loaded_prompt': loaded_prompt,
         'preset_data': preset_data,
         'loaded_rubric_json': loaded_rubric_json,
+        'workspace_boot_json': json.dumps(boot_payload, ensure_ascii=False).replace('</', '<\\/'),
     })
 
 def history(request):
@@ -126,6 +150,11 @@ def toggle_favorite(request, prompt_id):
     prompt = get_object_or_404(Prompt, id=prompt_id)
     prompt.is_favorite = not prompt.is_favorite
     prompt.save()
+    if (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in request.headers.get('Accept', '')
+    ):
+        return JsonResponse({'id': prompt.id, 'is_favorite': prompt.is_favorite})
     next_url = request.POST.get('next') or request.GET.get('next') or 'history'
     if next_url not in ('history', 'favorites'):
         next_url = 'history'
@@ -236,7 +265,7 @@ def improve_prompt_api(request):
 
                 resolved_cat = result.get('category') or category or 'General'
                 raw_orig = result.get('raw_objective') or user_text
-                Prompt.objects.create(
+                created_prompt = Prompt.objects.create(
                     user=user,
                     original_text=raw_orig,
                     improved_text=result['improved_prompt'],
@@ -246,7 +275,7 @@ def improve_prompt_api(request):
                     subintent=result.get('subintent', 'general'),
                     improvement_level=level,
                     technique=result.get('technique', technique),
-                    engine_version=result.get('engine_version', 'v6.0'),
+                    engine_version=result.get('engine_version', 'v7.0'),
                     initial_score=result.get('initial_score', 25),
                     information_gain=result.get('information_gain', 0),
                     final_score=result.get('final_score', 90),
@@ -266,6 +295,10 @@ def improve_prompt_api(request):
                     user_corrected=result.get('user_corrected', False),
                     has_pii_masked=result.get('has_pii_masked', False),
                 )
+                if created_prompt.user_corrected:
+                    invalidate_learned_boosts_cache()
+                result['prompt_id'] = created_prompt.id
+                result['is_favorite'] = created_prompt.is_favorite
 
             return JsonResponse(result)
         except json.JSONDecodeError:

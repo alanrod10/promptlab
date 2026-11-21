@@ -1,6 +1,7 @@
 import json
 import math
 import re
+import time
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
@@ -15,7 +16,7 @@ from .universal_engine import (
     synthesize_universal_directives,
 )
 
-ENGINE_VERSION = "v6.0"
+ENGINE_VERSION = "v7.0"
 
 KB_PATH = Path(__file__).resolve().parent / "rules" / "knowledge_base.json"
 
@@ -142,8 +143,9 @@ CLITIC_STEM_MAP = {
     "depurame": "depurar",
     "planificame": "planificar",
     "organizame": "organizar",
-    "enseñame": "enseñar",
-    "ensenamelo": "enseñar",
+    "ensename": "ensenar",
+    "ensenamelo": "ensenar",
+    "ensenar": "ensenar",
     "solucioname": "solucionar",
     "ayudame": "ayudar",
     "calculame": "calcular",
@@ -171,8 +173,165 @@ SPANISH_STOPWORDS = {
     "a", "en", "con", "por", "para", "sobre", "entre", "hacia", "desde",
     "y", "o", "u", "e", "que", "como", "cual", "este", "esta", "estos", "estas",
     "ese", "esa", "mi", "tu", "su", "me", "te", "se", "nos", "lo", "le", "les",
-    "es", "son", "ser", "esta", "estan", "muy", "mas", "menos", "pero", "si",
+    "es", "son", "ser", "estan", "muy", "mas", "menos", "pero", "si",
 }
+
+# v7.0: muletillas de pedido que no aportan señal semántica al clasificador.
+REQUEST_FILLERS = {
+    "necesito", "necesitaria", "quiero", "quisiera", "puedo", "podes", "podrias",
+    "dame", "ayuda", "ayudar", "hacer", "favor", "hola", "porfa", "porfavor",
+    "gracias", "che", "buenas", "please", "algo",
+}
+
+# v7.0: léxico de verbos (infinitivos sin tilde) que habilita el recorte de clíticos.
+VERB_LEXICON = set(CLITIC_STEM_MAP.values()) | {
+    "armar", "explicar", "pasar", "decir", "hacer", "resumir", "comparar", "analizar",
+    "escribir", "redactar", "corregir", "arreglar", "depurar", "planificar", "organizar",
+    "ensenar", "solucionar", "ayudar", "calcular", "evaluar", "sintetizar", "refactorizar",
+    "optimizar", "predecir", "convertir", "revisar", "simular", "auditar", "extraer",
+    "clasificar", "traducir", "pulir", "recomendar", "dar", "mostrar", "contar", "mandar",
+    "enviar", "generar", "crear", "preparar", "buscar", "listar", "ordenar", "agrupar",
+    "sacar", "poner", "dejar", "traer", "leer", "mirar", "chequear", "controlar", "proponer",
+    "sugerir", "detallar", "aclarar", "definir", "guiar", "indicar", "marcar", "corregir",
+    "reescribir", "mejorar", "acortar", "adaptar", "transformar", "estructurar", "formatear",
+    "categorizar", "etiquetar", "decidir", "elegir", "diagnosticar", "resolver", "deducir",
+    "demostrar", "practicar", "entrenar", "idear", "proyectar", "modelar", "inventar",
+    "pensar", "averiguar", "investigar", "completar", "llenar", "anotar", "tomar",
+}
+
+# v7.0: vocabulario protegido (sustantivos, adjetivos y términos técnicos que terminan
+# en me/te/lo/la/le/nos pero NO son verbos con clítico).
+PROTECTED_WORDS = {
+    "clausula", "sqlite", "dataframe", "modelo", "cliente", "principiante", "tramite",
+    "informe", "reporte", "articulo", "modulo", "componente", "calculo", "calcula",
+    "terminos", "termino", "cuello", "botella", "dependiente", "independiente", "escuela",
+    "regla", "tabla", "lista", "planilla", "ejemplo", "titulo", "capitulo", "estado",
+    "resultado", "dato", "texto", "proyecto", "archivo", "producto", "negocio", "comercio",
+    "contrato", "alquiler", "presupuesto", "formato", "objeto", "criterio", "estilo",
+    "nivel", "perfil", "detalle", "parte", "fuente", "limite", "soporte", "paquete",
+    "variable", "constante", "siguiente", "diferente", "importante", "excelente", "urgente",
+    "frecuente", "docente", "estudiante", "ambiente", "sistema", "problema", "esquema",
+    "tema", "programa", "idioma", "norma", "forma", "plataforma", "columna", "pagina",
+    "rutina", "oficina", "venta", "cuenta", "nota", "carta", "propuesta", "respuesta",
+    "consulta", "pregunta", "alerta", "oferta", "meta", "fecha", "etiqueta", "carpeta",
+    "receta", "planeta", "dieta", "simple", "pequeno", "chiquito", "puntaje", "mensaje",
+    "correo", "intervalo", "titulo", "vehiculo", "pueblo", "ciclo", "calendario", "vale",
+    "simula", "revisa", "audita", "formula", "molecula", "celula", "pelicula", "escala",
+    "sala", "mala", "bola", "escuela", "vela", "pantalla", "ventana", "semana", "persona",
+}
+
+
+def _strip_accents(text: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in nfkd if not unicodedata.combining(ch))
+
+
+def _build_protected_vocabulary() -> set:
+    vocab = set(PROTECTED_WORDS)
+    for terms in KNOWLEDGE_BASE.get("entities_lexicon", {}).values():
+        for term in terms:
+            vocab.update(re.findall(r"[a-z0-9_+#.-]+", _strip_accents(term.lower())))
+    for section in ("domains", "actions", "deliverables"):
+        for cfg in KNOWLEDGE_BASE.get(section, {}).values():
+            for kw in cfg.get("keywords", []):
+                for tok in re.findall(r"[a-z0-9_+#.-]+", _strip_accents(kw.lower())):
+                    if tok not in CLITIC_STEM_MAP:
+                        vocab.add(tok)
+    for cfg in KNOWLEDGE_BASE.get("object_ontology", {}).values():
+        for alias in cfg.get("aliases", []):
+            vocab.update(re.findall(r"[a-z0-9_+#.-]+", _strip_accents(alias.lower())))
+    return vocab
+
+
+PROTECTED_VOCAB = _build_protected_vocabulary()
+
+_CLITIC_SUFFIXES = (
+    "noslo", "nosla", "melos", "melas", "selos", "selas", "telos", "telas",
+    "melo", "mela", "selo", "sela", "telo", "tela", "nos", "les", "los", "las",
+    "me", "te", "lo", "la", "le", "se",
+)
+
+
+def _strip_clitic(token: str) -> Optional[str]:
+    """
+    Devuelve el infinitivo si `token` es un verbo (imperativo voseante o infinitivo)
+    con pronombre enclítico. Nunca recorta sustantivos/términos protegidos.
+    """
+    if token in PROTECTED_VOCAB or len(token) < 5:
+        return None
+    for suf in _CLITIC_SUFFIXES:
+        if not token.endswith(suf):
+            continue
+        root = token[: -len(suf)]
+        if len(root) < 3:
+            continue
+        # Infinitivo + clítico ("explicarme", "pasarlo")
+        if root in VERB_LEXICON:
+            return root
+        # Imperativo voseante + clítico ("armame" -> arma -> armar, "decime" -> deci -> decir)
+        if root[-1] in "aei" and (root + "r") in VERB_LEXICON:
+            return root + "r"
+    return None
+
+
+_VERB_SUFFIXES = (
+    "aciones", "iciones", "amiento", "imiento", "ieron", "aron", "iendo", "mente",
+    "ando", "aste", "iste", "emos", "imos", "aba", "iba", "ado", "ido",
+    "ar", "er", "ir", "an", "en",
+)
+
+
+def _light_stem(token: str) -> str:
+    if len(token) <= 4 or token in PROTECTED_WORDS and len(token) <= 5:
+        return token
+    for suffix in _VERB_SUFFIXES:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+            return token[: -len(suffix)]
+    if token.endswith("es") and len(token) > 5:
+        return token[:-2]
+    if token.endswith("s") and len(token) > 4 and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
+def normalize_and_lemmatize(text: str) -> Tuple[str, List[str], List[str]]:
+    cleaned = re.sub(r"\s+", " ", text or "").strip()
+    lowered = _strip_accents(cleaned.lower())
+
+    abbr_map = KNOWLEDGE_BASE.get("abbreviations_map", {})
+    raw_tokens = re.findall(r"[a-z0-9_+#.-]+", lowered)
+    normalized_tokens: List[str] = []
+    lemmas: List[str] = []
+
+    for tok in raw_tokens:
+        expanded = _strip_accents(abbr_map.get(tok, tok).lower())
+        for sub_tok in expanded.split():
+            base = CLITIC_STEM_MAP.get(sub_tok) or _strip_clitic(sub_tok) or sub_tok
+            normalized_tokens.append(base)
+            lemmas.append(_light_stem(base))
+
+    normalized_text = " ".join(normalized_tokens)
+    return normalized_text, normalized_tokens, lemmas
+
+
+_KW_NORM_CACHE: Dict[str, str] = {}
+
+
+def _norm_kw(kw: str) -> str:
+    """Normaliza una keyword del KB con el mismo pipeline que el texto del usuario
+    (así 'armame un plan' -> 'armar un plan' y deja de ser código muerto)."""
+    cached = _KW_NORM_CACHE.get(kw)
+    if cached is None:
+        cached = normalize_and_lemmatize(kw)[0]
+        _KW_NORM_CACHE[kw] = cached
+    return cached
+
+
+def _kw_in(kw: str, normalized_text: str) -> bool:
+    kw_norm = _norm_kw(kw)
+    if not kw_norm:
+        return False
+    return bool(re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text))
 
 SEGMENT_CONNECTORS_RE = re.compile(
     r"\s*(?:;|(?:\by\s+(?:además|ademas|también|tambien))|(?:\bpor otro lado\b)|(?:\bluego\b))\s*",
@@ -220,9 +379,13 @@ class ParsedRequest:
     confidence: float = 0.0
     margin: float = 0.0
     needs_disambiguation: bool = False
+    disambiguation_options: List[Dict[str, str]] = field(default_factory=list)
     is_vague: bool = False
     suggested_paths: List[Dict[str, str]] = field(default_factory=list)
     suggested_slots: List[Dict[str, Any]] = field(default_factory=list)
+    active_slot_ids: List[str] = field(default_factory=list)
+    topic_anchor: str = ""
+    is_conceptual_no_data: bool = False
     needs_placeholder: bool = False
     placeholder_label: str = "DATOS O TEXTO"
     placeholder_custom: str = ""
@@ -241,49 +404,6 @@ class ParsedRequest:
 # ---------------------------------------------------------------------------
 # ETAPA 1: Normalización, Abreviaturas, Voseo y Lematización Ligera
 # ---------------------------------------------------------------------------
-
-def _strip_accents(text: str) -> str:
-    nfkd = unicodedata.normalize("NFKD", text)
-    return "".join(ch for ch in nfkd if not unicodedata.combining(ch))
-
-
-def _light_stem(token: str) -> str:
-    if len(token) <= 4:
-        return token
-    for suffix in ("aciones", "iciones", "mente", "ando", "iendo", "ar", "er", "ir"):
-        if token.endswith(suffix) and len(token) - len(suffix) >= 3:
-            return token[: -len(suffix)]
-    if token.endswith("es") and len(token) > 5:
-        return token[:-2]
-    if token.endswith("s") and len(token) > 4 and not token.endswith("ss"):
-        return token[:-1]
-    return token
-
-
-def normalize_and_lemmatize(text: str) -> Tuple[str, List[str], List[str]]:
-    cleaned = re.sub(r"\s+", " ", text or "").strip()
-    lowered = _strip_accents(cleaned.lower())
-
-    abbr_map = KNOWLEDGE_BASE.get("abbreviations_map", {})
-    raw_tokens = re.findall(r"[a-z0-9_+#.-]+", lowered)
-    normalized_tokens: List[str] = []
-    lemmas: List[str] = []
-
-    for tok in raw_tokens:
-        expanded = _strip_accents(abbr_map.get(tok, tok).lower())
-        for sub_tok in expanded.split():
-            base = CLITIC_STEM_MAP.get(sub_tok)
-            if not base:
-                m = re.match(r"^([a-z]{4,})(?:melo|mela|melos|melas|noslo|me|te|lo|la|nos)$", sub_tok)
-                if m and len(m.group(1)) >= 4:
-                    base = m.group(1)
-                else:
-                    base = sub_tok
-            normalized_tokens.append(base)
-            lemmas.append(_light_stem(base))
-
-    normalized_text = " ".join(normalized_tokens)
-    return normalized_text, normalized_tokens, lemmas
 
 
 # ---------------------------------------------------------------------------
@@ -364,9 +484,67 @@ _RE_QUANT_CONSTRAINT = re.compile(
 )
 
 
+def _detect_contradictions(
+    constr_norm: str,
+    neg_constraints: List[str],
+    technique: str,
+    form_data: Optional[Dict[str, Any]] = None,
+) -> List[str]:
+    """Detecta contradicciones entre texto, restricciones negativas, técnica y opciones de slots/reglas."""
+    form_data = form_data or {}
+    contradictions: List[str] = []
+
+    has_short = any(w in constr_norm for w in ("breve", "corto", "corta", "resumido", "conciso", "ultra breve"))
+    has_long = any(w in constr_norm for w in ("exhaustivo", "exhaustiva", "detallado", "detallada", "extenso", "profundo"))
+    if has_short and has_long:
+        contradictions.append("Se pide extensión breve/resumida y al mismo tiempo exhaustiva/detallada.")
+
+    if any("ejemplo" in _strip_accents(nc.lower()) for nc in neg_constraints) and technique == "Con Ejemplos":
+        contradictions.append("Restricción negativa 'sin ejemplos' entra en conflicto con la técnica 'Con Ejemplos'.")
+
+    if any("codigo" in _strip_accents(nc.lower()) for nc in neg_constraints) and any(
+        w in constr_norm for w in ("generar codigo", "script", "funcion", "programa")
+    ):
+        contradictions.append("Se solicita generar código pero existe una restricción negativa sobre usar código.")
+
+    # v7.1: Conflicto entre "Explicar sin tecnicismos" y profundidad/enfoque "Técnica..."
+    quick_rules_norm = _strip_accents(str(form_data.get("Reglas Rápidas", "")).lower())
+    wants_no_jargon = (
+        "sin tecnicismos" in quick_rules_norm
+        or "sin tecnicismos" in constr_norm
+        or any("tecnicismo" in _strip_accents(nc.lower()) or "jerga" in _strip_accents(nc.lower()) for nc in neg_constraints)
+    )
+    tech_slot_val = ""
+    for k, v in form_data.items():
+        if k == "Reglas Rápidas" or not isinstance(v, str) or not v.strip():
+            continue
+        v_norm = _strip_accents(v.lower())
+        if re.search(r"\b(?:tecnic[ao]|posgrado|nivel\s+avanzado)\b", v_norm):
+            tech_slot_val = v.strip()
+            break
+    if wants_no_jargon and tech_slot_val:
+        contradictions.append(
+            f"Se combinó 'Explicar sin tecnicismos' con una opción técnica ('{tech_slot_val}'). "
+            "Aclará si preferís lenguaje cotidiano o enfoque técnico."
+        )
+
+    return contradictions
+
+
 def _extract_entities_and_constraints(
-    raw_text: str, normalized_text: str, technique: str
+    raw_text: str,
+    normalized_text: str,
+    technique: str,
+    constraint_text: Optional[str] = None,
+    form_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    """
+    v7.0/v7.1: las entidades se buscan en todo el texto (pedido + insumo), pero las
+    restricciones negativas/cuantitativas y contradicciones SOLO en el pedido
+    (`constraint_text`), para que frases dentro del insumo pegado no contaminen el prompt.
+    """
+    constr_src = raw_text if constraint_text is None else constraint_text
+    constr_norm = normalized_text if constraint_text is None else normalize_and_lemmatize(constraint_text)[0]
     entities: List[str] = []
     seen_ent = set()
 
@@ -385,31 +563,19 @@ def _extract_entities_and_constraints(
         code_snippets = ["inline_code_fragment"]
 
     neg_constraints: List[str] = []
-    for kw, phrase in _RE_NEG_CONSTRAINT.findall(raw_text):
+    for kw, phrase in _RE_NEG_CONSTRAINT.findall(constr_src):
         clean_phrase = re.split(r"[,.;\n]", phrase)[0].strip()
         words = clean_phrase.split()[:6]
         if words:
             neg_constraints.append(f"{kw.lower()} {' '.join(words)}")
 
     quant_constraints: List[str] = []
-    for match in _RE_QUANT_CONSTRAINT.findall(raw_text):
+    for match in _RE_QUANT_CONSTRAINT.findall(constr_src):
         clean_q = re.split(r"[,.;\n]", match)[0].strip()
         if clean_q:
             quant_constraints.append(clean_q)
 
-    contradictions: List[str] = []
-    has_short = any(w in normalized_text for w in ("breve", "corto", "corta", "resumido", "conciso", "ultra breve"))
-    has_long = any(w in normalized_text for w in ("exhaustivo", "exhaustiva", "detallado", "detallada", "extenso", "profundo"))
-    if has_short and has_long:
-        contradictions.append("Se pide extensión breve/resumida y al mismo tiempo exhaustiva/detallada.")
-
-    if any("ejemplo" in nc for nc in neg_constraints) and technique == "Con Ejemplos":
-        contradictions.append("Restricción negativa 'sin ejemplos' entra en conflicto con la técnica 'Con Ejemplos'.")
-
-    if any("codigo" in _strip_accents(nc) for nc in neg_constraints) and any(
-        w in normalized_text for w in ("generar codigo", "script", "funcion", "programa")
-    ):
-        contradictions.append("Se solicita generar código pero existe una restricción negativa sobre usar código.")
+    contradictions = _detect_contradictions(constr_norm, neg_constraints, technique, form_data=form_data)
 
     return {
         "entities": entities,
@@ -427,11 +593,36 @@ def _extract_entities_and_constraints(
 # ETAPA 4: Clasificación Ortogonal (21 Arquetipos) + Sub-intenciones + Ontología
 # ---------------------------------------------------------------------------
 
+_TFIDF_IGNORE = SPANISH_STOPWORDS | REQUEST_FILLERS
+
+
 def _tokenize_for_tfidf(text: str) -> List[str]:
+    """
+    v7.0: Tokenización para TF-IDF sin duplicar tokens inalterados por el stemmer,
+    filtrando muletillas de pedido y añadiendo bigramas útiles (`t1_t2`).
+    """
     _, tokens, lemmas = normalize_and_lemmatize(text)
-    filtered = [t for t in tokens if t not in SPANISH_STOPWORDS and len(t) > 1]
-    filtered_lemmas = [l for l in lemmas if l not in SPANISH_STOPWORDS and len(l) > 1]
-    return filtered + filtered_lemmas
+    features: List[str] = []
+    useful_toks: List[str] = []
+    useful_lems: List[str] = []
+
+    for tok, lem in zip(tokens, lemmas):
+        if len(tok) <= 1 or tok in _TFIDF_IGNORE:
+            continue
+        features.append(tok)
+        useful_toks.append(tok)
+        useful_lems.append(lem)
+        if lem != tok and len(lem) > 2 and lem not in _TFIDF_IGNORE:
+            features.append(lem)
+
+    for i in range(len(useful_toks) - 1):
+        bg_tok = f"{useful_toks[i]}_{useful_toks[i + 1]}"
+        features.append(bg_tok)
+        bg_lem = f"{useful_lems[i]}_{useful_lems[i + 1]}"
+        if bg_lem != bg_tok:
+            features.append(bg_lem)
+
+    return features
 
 
 class _ActionTfIdfIndex:
@@ -489,37 +680,285 @@ class _ActionTfIdfIndex:
         q_vec = self._to_tfidf(Counter(_tokenize_for_tfidf(text)))
         scores: Dict[str, float] = {}
         for action_key, vecs in self.action_vectors.items():
-            sims = [self._cosine(q_vec, pv) for pv in vecs]
-            scores[action_key] = max(sims) if sims else 0.0
+            sims = sorted((self._cosine(q_vec, pv) for pv in vecs), reverse=True)
+            if not sims:
+                scores[action_key] = 0.0
+            elif len(sims) >= 2 and sims[1] > 0.0:
+                scores[action_key] = 0.80 * sims[0] + 0.20 * sims[1]
+            else:
+                scores[action_key] = sims[0]
         return scores
 
 
 _TFIDF_INDEX = _ActionTfIdfIndex(KNOWLEDGE_BASE.get("actions", {}))
 
 
-def _score_actions(text: str, normalized_text: str) -> Dict[str, float]:
+# ---------------------------------------------------------------------------
+# Aprendizaje Activo Local desde SQLite (v7.0 — 100% Offline)
+# ---------------------------------------------------------------------------
+
+_LEARNED_BOOSTS_CACHE: Dict[str, Any] = {
+    "ts": 0.0,
+    "db_key": None,
+    "data": {"actions": {}, "domains": {}},
+}
+_LEARNED_CACHE_TTL = 60.0
+
+
+def invalidate_learned_boosts_cache() -> None:
+    """Invalida la caché de refuerzos aprendidos (llamar tras guardar correcciones)."""
+    _LEARNED_BOOSTS_CACHE["ts"] = 0.0
+    _LEARNED_BOOSTS_CACHE["db_key"] = None
+
+
+def _get_learned_correction_boosts() -> Dict[str, Dict[str, Dict[str, float]]]:
+    """
+    Consulta `Prompt.objects.filter(user_corrected=True)` en SQLite y calcula
+    refuerzos controlados (máx. +0.12) para tokens significativos repetidos (>= 2 veces)
+    en pedidos corregidos hacia una acción o dominio concreto.
+    Seguro si la BD aún no existe o corre fuera de Django.
+    """
+    try:
+        from .models import Prompt  # import local para evitar ciclo en carga inicial
+
+        qs = Prompt.objects.filter(user_corrected=True)
+        count = qs.count()
+        if count == 0:
+            empty = {"actions": {}, "domains": {}}
+            _LEARNED_BOOSTS_CACHE.update({"ts": time.monotonic(), "db_key": (0, None), "data": empty})
+            return empty
+
+        last_id = qs.order_by("-id").values_list("id", flat=True).first()
+        db_key = (count, last_id)
+        now = time.monotonic()
+        if (
+            _LEARNED_BOOSTS_CACHE["db_key"] == db_key
+            and (now - _LEARNED_BOOSTS_CACHE["ts"]) < _LEARNED_CACHE_TTL
+        ):
+            return _LEARNED_BOOSTS_CACHE["data"]
+
+        action_votes: Dict[str, Counter] = {}
+        domain_votes: Dict[str, Counter] = {}
+
+        for orig_text, cat, act in qs.values_list("original_text", "category", "detected_action"):
+            _, toks, _ = normalize_and_lemmatize(orig_text or "")
+            sig_toks = {
+                t for t in toks
+                if len(t) >= 3 and t not in _TFIDF_IGNORE and not t.isdigit()
+            }
+            for tok in sig_toks:
+                if act:
+                    action_votes.setdefault(tok, Counter())[act] += 1
+                if cat and cat != "Otro / General":
+                    domain_votes.setdefault(tok, Counter())[cat] += 1
+
+        action_boosts: Dict[str, Dict[str, float]] = {}
+        for tok, ctr in action_votes.items():
+            for act, cnt in ctr.items():
+                if cnt >= 2:
+                    action_boosts.setdefault(tok, {})[act] = min(0.06 + 0.02 * (cnt - 2), 0.12)
+
+        domain_boosts: Dict[str, Dict[str, float]] = {}
+        for tok, ctr in domain_votes.items():
+            for dom, cnt in ctr.items():
+                if cnt >= 2:
+                    domain_boosts.setdefault(tok, {})[dom] = min(0.06 + 0.02 * (cnt - 2), 0.12)
+
+        data = {"actions": action_boosts, "domains": domain_boosts}
+        _LEARNED_BOOSTS_CACHE.update({"ts": now, "db_key": db_key, "data": data})
+        return data
+    except Exception:
+        return {"actions": {}, "domains": {}}
+
+
+def _lookup_token_boosts(tokens: List[str], boost_table: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    """Acumula refuerzos por candidato con techo estricto en +0.12."""
+    if not boost_table or not tokens:
+        return {}
+    totals: Dict[str, float] = {}
+    for tok in set(tokens):
+        for target, val in boost_table.get(tok, {}).items():
+            totals[target] = min(totals.get(target, 0.0) + val, 0.12)
+    return totals
+
+
+_ACTION_SHORT_HINTS = {
+    "depurar_error": "Encontrar la causa raíz de un error y corregir el código.",
+    "generar_codigo": "Escribir un script, función, consulta o módulo desde cero.",
+    "analizar_datos": "Explorar datos, calcular métricas y detectar patrones.",
+    "comparar_evaluar": "Contrastar opciones o conceptos lado a lado con criterios claros.",
+    "resumir_sintetizar": "Condensar un texto largo en puntos clave sin perder datos.",
+    "planificar_pasos": "Ordenar una meta en pasos, etapas o cronograma accionable.",
+    "redactar_contenido": "Escribir un correo, nota, mensaje o publicación desde cero.",
+    "explicar_concepto": "Explicar qué es y cómo funciona un tema con ejemplos claros.",
+    "transformar_formato": "Convertir una lista o texto desordenado a JSON, tabla o CSV.",
+    "extraer_informacion": "Sacar datos puntuales (fechas, montos, nombres) sin inventar.",
+    "clasificar_categorizar": "Agrupar elementos en categorías definidas con conteo.",
+    "traducir_adaptar": "Traducir de idioma o adaptar el tono a otro destinatario.",
+    "reescribir_mejorar": "Pulir un texto existente para hacerlo más claro o directo.",
+    "auditar_criticar": "Revisar un texto o cláusula buscando riesgos y puntos débiles.",
+    "simular_practicar": "Practicar un diálogo turno a turno con feedback al final.",
+    "idear_alternativas": "Generar ideas variadas, ángulos o propuestas creativas.",
+    "calcular_modelar": "Hacer cálculos numéricos, márgenes o escenarios paso a paso.",
+    "razonar_resolver": "Resolver un problema lógico o matemático justificando pasos.",
+    "decidir_recomendar": "Ponderar alternativas y recomendar la mejor opción.",
+    "diagnosticar_resolver": "Formular causas probables de un problema y cómo comprobarlas.",
+    "consultar_dato": "Responder un dato puntual o definición breve en pocas líneas.",
+}
+
+
+def _score_actions_detailed(
+    text: str,
+    normalized_text: str,
+    tokens: Optional[List[str]] = None,
+    learned_action_boosts: Optional[Dict[str, float]] = None,
+) -> Tuple[Dict[str, float], Dict[str, Dict[str, Any]]]:
+    """
+    v7.0: Combina reglas normalizadas (saturadas en 2.0 hits), TF-IDF con bigramas,
+    desempates de pares cercanos y refuerzos aprendidos de SQLite (<= +0.12).
+    """
     tfidf_scores = _TFIDF_INDEX.score_text(text)
     actions_cfg = KNOWLEDGE_BASE.get("actions", {})
     combined: Dict[str, float] = {}
+    details: Dict[str, Dict[str, Any]] = {}
+    learned = learned_action_boosts or {}
 
     for action_key, cfg in actions_cfg.items():
         lex_hits = 0.0
+        phrase_hit = False
+        seen_norms = set()
+
         for kw in cfg.get("keywords", []):
-            kw_norm = _strip_accents(kw.lower())
+            kw_norm = _norm_kw(kw)
+            if not kw_norm or kw_norm in seen_norms:
+                continue
+            seen_norms.add(kw_norm)
             if " " in kw_norm:
-                if kw_norm in normalized_text:
+                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
                     lex_hits += 1.5
+                    phrase_hit = True
             else:
                 if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
                     lex_hits += 1.0
-        lex_norm = min(lex_hits / 3.0, 1.0)
+
+        lex_norm = min(lex_hits / 2.0, 1.0)
         tfidf_val = tfidf_scores.get(action_key, 0.0)
-        combined[action_key] = round(0.55 * lex_norm + 0.45 * tfidf_val, 4)
+        phrase_bonus = 0.08 if phrase_hit else 0.0
+        learned_bonus = min(learned.get(action_key, 0.0), 0.12)
+        score = min(0.55 * lex_norm + 0.45 * tfidf_val + phrase_bonus + learned_bonus, 0.99)
+        combined[action_key] = round(score, 4)
+        details[action_key] = {
+            "lex_hits": lex_hits,
+            "lex_norm": lex_norm,
+            "tfidf": tfidf_val,
+            "phrase_hit": phrase_hit,
+            "learned_bonus": learned_bonus,
+        }
 
-    return combined
+    # Desempate 1 (v7.0): reescribir_mejorar vs. redactar_contenido
+    has_polish_verb = bool(re.search(
+        r"\b(?:pulir|reescribir|corregir\s+estilo|corregir\s+ortografia|mejorar\s+(?:la\s+)?redaccion|mejorar\s+este\s+texto|hacer\s+mas\s+(?:claro|corto))\b",
+        normalized_text,
+    ))
+    has_existing_ref = bool(re.search(
+        r"\b(?:este\s+(?:correo|mail|texto|mensaje|parrafo|borrador)|esta\s+(?:nota|carta|redaccion)|la\s+redaccion\s+de)\b",
+        normalized_text,
+    ))
+    if has_polish_verb and has_existing_ref and "reescribir_mejorar" in combined:
+        combined["reescribir_mejorar"] = round(min(max(combined["reescribir_mejorar"] + 0.18, combined.get("redactar_contenido", 0.0) + 0.12), 0.98), 4)
+        details["reescribir_mejorar"]["tiebreak"] = "reescribir_vs_redactar"
+
+    # Desempate 2 (v7.0): comparar_evaluar vs. explicar_concepto ante "diferencia(s) entre X y Y"
+    if re.search(r"\bdiferencias?\s+entre\b", normalized_text) and "comparar_evaluar" in combined:
+        combined["comparar_evaluar"] = round(min(max(combined["comparar_evaluar"] + 0.18, combined.get("explicar_concepto", 0.0) + 0.10), 0.98), 4)
+        details["comparar_evaluar"]["tiebreak"] = "diferencia_entre"
+
+    return combined, details
 
 
-def _classify_domain(normalized_text: str, explicit_category: str) -> Tuple[str, List[Dict[str, Any]]]:
+def _score_actions(text: str, normalized_text: str) -> Dict[str, float]:
+    scores, _ = _score_actions_detailed(text, normalized_text)
+    return scores
+
+
+_DOMAIN_ANCHORS: Dict[str, Tuple[set, float]] = {
+    "Ciencia de Datos e IA": (
+        {
+            "pandas", "numpy", "scikit-learn", "sklearn", "dataset", "csv", "parquet",
+            "jupyter", "colab", "machine learning", "deep learning", "regresion lineal",
+            "regresion logistica", "random forest", "xgboost", "tf-idf", "clustering",
+            "eda", "outliers", "valores nulos", "llm", "inteligencia artificial",
+            "correlacion", "modelo",
+        },
+        0.30,
+    ),
+    "Tecnología y programación": (
+        {
+            "python", "django", "flask", "fastapi", "javascript", "typescript", "react",
+            "vue", "html", "css", "sql", "postgresql", "postgres", "mysql", "sqlite",
+            "mongodb", "docker", "git", "github", "bash", "linux", "api", "rest",
+            "graphql", "regex", "keyerror", "typeerror", "valueerror", "traceback",
+            "script", "codigo", "endpoint", "dataframe",
+        },
+        0.26,
+    ),
+    "Trámites y documentos": (
+        {
+            "clausula", "alquiler", "contrato", "inquilino", "locatario", "locador",
+            "licencia", "nota formal", "tramite", "carta documento", "descargo",
+            "afip", "arca", "anses", "monotributo", "defensa del consumidor", "nda",
+            "declaracion jurada",
+        },
+        0.30,
+    ),
+    "Negocios y comercio": (
+        {
+            "negocio", "comercio", "pyme", "emprendimiento", "ventas", "stock",
+            "inventario", "vencimientos", "margen", "rentabilidad", "gastos fijos",
+            "punto de equilibrio", "cliente", "clientes", "proveedor", "proveedores",
+            "facturacion", "kpi", "roi", "churn",
+        },
+        0.24,
+    ),
+    "Estudio y academia": (
+        {
+            "parcial", "examen", "final", "recuperatorio", "facultad", "universidad",
+            "catedra", "tesis", "tesina", "monografia", "apa", "mitosis", "meiosis",
+            "autoevaluacion", "trabajo practico", "principiante", "desde cero",
+        },
+        0.26,
+    ),
+    "Redacción y comunicación": (
+        {
+            "correo", "email", "mail", "whatsapp", "instagram", "linkedin", "tiktok",
+            "copywriting", "post", "publicacion", "carta", "comunicado", "pitch",
+            "redaccion",
+        },
+        0.22,
+    ),
+    "Planificación y productividad": (
+        {
+            "cronograma", "roadmap", "hitos", "rutina", "agenda", "sprint", "kanban",
+            "okr", "checklist", "itinerario",
+        },
+        0.24,
+    ),
+    "Toma de decisiones": (
+        {
+            "matriz de decision", "trade-off", "costo beneficio", "dilema",
+            "me conviene", "comprar o alquilar",
+        },
+        0.26,
+    ),
+}
+
+
+def _classify_domain(
+    normalized_text: str,
+    explicit_category: str,
+    entities: Optional[List[str]] = None,
+    learned_domain_boosts: Optional[Dict[str, float]] = None,
+) -> Tuple[str, List[Dict[str, Any]]]:
     trace: List[Dict[str, Any]] = []
     mapped = LEGACY_DOMAIN_ALIASES.get(explicit_category, explicit_category)
     domains_cfg = KNOWLEDGE_BASE.get("domains", {})
@@ -528,6 +967,8 @@ def _classify_domain(normalized_text: str, explicit_category: str) -> Tuple[str,
         trace.append({"stage": "domain", "rule": f"Dominio explícito/mapeado: {mapped}"})
         return mapped, trace
 
+    ent_set = set(entities or [])
+    learned = learned_domain_boosts or {}
     best_domain = "Otro / General"
     best_score = 0.0
     matched_kws: List[str] = []
@@ -535,18 +976,43 @@ def _classify_domain(normalized_text: str, explicit_category: str) -> Tuple[str,
     for dom_name, cfg in domains_cfg.items():
         if dom_name == "Otro / General":
             continue
-        score = 0.0
-        hits = []
+        raw_hits = 0.0
+        hits: List[str] = []
+        seen_norms = set()
         for kw in cfg.get("keywords", []):
-            kw_norm = _strip_accents(kw.lower())
+            kw_norm = _norm_kw(kw)
+            if not kw_norm or kw_norm in seen_norms:
+                continue
+            seen_norms.add(kw_norm)
             if " " in kw_norm:
-                if kw_norm in normalized_text:
-                    score += 1.5
+                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                    raw_hits += 1.5
                     hits.append(kw)
             else:
                 if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
-                    score += 1.0
+                    raw_hits += 1.0
                     hits.append(kw)
+
+        # Normalización por tamaño del vocabulario del dominio (v7.0)
+        vocab_norm = math.sqrt(max(len(seen_norms), 1))
+        score = raw_hits / vocab_norm
+
+        # Afinidad con entidades y anclas de alta señal del dominio (v7.0)
+        anchors, anchor_w = _DOMAIN_ANCHORS.get(dom_name, (set(), 0.0))
+        anchor_hits = 0
+        for anch in anchors:
+            if anch in ent_set or re.search(rf"(?<![a-z0-9]){re.escape(anch)}(?![a-z0-9])", normalized_text):
+                anchor_hits += 1
+                if anch not in hits:
+                    hits.append(anch)
+        if anchor_hits > 0:
+            score += min(anchor_hits * anchor_w, 0.90)
+
+        # Refuerzo aprendido de correcciones previas en SQLite (<= +0.12)
+        learned_b = min(learned.get(dom_name, 0.0), 0.12)
+        if learned_b > 0.0:
+            score += learned_b
+
         if score > best_score:
             best_score = score
             best_domain = dom_name
@@ -554,8 +1020,8 @@ def _classify_domain(normalized_text: str, explicit_category: str) -> Tuple[str,
 
     trace.append({
         "stage": "domain",
-        "rule": f"Inferencia léxica -> {best_domain}",
-        "score": best_score,
+        "rule": f"Inferencia normalizada -> {best_domain}",
+        "score": round(best_score, 3),
         "matched_keywords": matched_kws,
     })
     return best_domain, trace
@@ -570,7 +1036,7 @@ def _classify_deliverable(normalized_text: str, action: str, form_data: Dict[str
                 return deliv_key
         return fmt
 
-    if action == "simular_practicar" and "json" not in normalized_text and "tabla" not in normalized_text:
+    if action == "simular_practicar" and not _kw_in("json", normalized_text) and not _kw_in("tabla", normalized_text):
         return "diálogo interactivo"
 
     if re.search(r"\b(?:(?:en|a|formato|como|quiero)\s+(?:un\s+)?json|json\s+limpio)\b", normalized_text):
@@ -581,10 +1047,15 @@ def _classify_deliverable(normalized_text: str, action: str, form_data: Dict[str
     best_deliv = ""
     best_hits = 0
     for deliv_key, cfg in KNOWLEDGE_BASE.get("deliverables", {}).items():
-        hits = sum(
-            1 for kw in cfg.get("keywords", [])
-            if _strip_accents(kw.lower()) in normalized_text
-        )
+        seen_norms = set()
+        hits = 0
+        for kw in cfg.get("keywords", []):
+            kw_norm = _norm_kw(kw)
+            if not kw_norm or kw_norm in seen_norms:
+                continue
+            seen_norms.add(kw_norm)
+            if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                hits += 1
         if hits > best_hits:
             best_hits = hits
             best_deliv = deliv_key
@@ -627,10 +1098,14 @@ def _detect_subintents(raw_text: str, normalized_text: str, action: str) -> Tupl
         res = []
         for sub_name, cfg in group.items():
             s = 0.0
+            seen_norms = set()
             for kw in cfg.get("keywords", []):
-                kw_norm = _strip_accents(kw.lower())
+                kw_norm = _norm_kw(kw)
+                if not kw_norm or kw_norm in seen_norms:
+                    continue
+                seen_norms.add(kw_norm)
                 if " " in kw_norm:
-                    if kw_norm in normalized_text:
+                    if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
                         s += 1.5
                 elif re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
                     s += 1.0
@@ -671,26 +1146,119 @@ def _detect_ontology_objects(normalized_text: str) -> List[str]:
     return matched
 
 
-def _select_suggested_slots(domain: str, action: str, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+_CONCEPTUAL_ACTIONS = {"explicar_concepto", "comparar_evaluar", "resumir_sintetizar"}
+
+_OPERATIONAL_DATA_RE = re.compile(
+    r"\b(?:csv|xlsx|dataset|datasets|modelo|modelos|entrenar|entrenamiento|regresion|clasificacion|"
+    r"clustering|pandas|numpy|sklearn|scikit-learn|sql|sqlite|postgresql|mysql|dataframe|"
+    r"tabla\s+de\s+datos|archivo|archivos|planilla)\b",
+    flags=re.IGNORECASE,
+)
+
+_OPERATIONAL_SLOT_IDS = {
+    "data_shape", "ml_goal", "tech_stack", "code_constraints", "data_question", "code_io", "error_context",
+}
+
+
+def _build_slot_labels_map() -> Dict[str, str]:
+    labels: Dict[str, str] = {
+        "edu_level": "Nivel educativo",
+        "explain_depth": "Nivel de profundidad",
+        "study_focus": "Enfoque de estudio",
+        "dataset_size": "Tamaño del dataset",
+        "data_shape": "Estructura y tamaño del dataset",
+        "ml_goal": "Prioridad del análisis o modelo",
+        "audience": "Público / Nivel",
+        "deliverable": "Formato de salida",
+    }
+    catalog = KNOWLEDGE_BASE.get("slot_catalog", {})
+    for group_key in ("by_domain", "by_action"):
+        for slots in catalog.get(group_key, {}).values():
+            for slot in slots:
+                sid = slot.get("id", "")
+                lbl = slot.get("label", "")
+                if sid and lbl:
+                    labels[sid] = lbl
+                    labels[sid.lower()] = lbl
+    return labels
+
+
+SLOT_LABELS_ES: Dict[str, str] = _build_slot_labels_map()
+
+
+def _format_slot_label(key: str) -> str:
+    """Resuelve siempre una etiqueta humana en español para cualquier clave de slot."""
+    clean_k = str(key or "").strip()
+    if not clean_k:
+        return "Dato adicional"
+    if clean_k in SLOT_LABELS_ES:
+        return SLOT_LABELS_ES[clean_k]
+    low = clean_k.lower()
+    if low in SLOT_LABELS_ES:
+        return SLOT_LABELS_ES[low]
+    # Si ya viene legible en español (con espacios), devolverla tal cual
+    if " " in clean_k and "_" not in clean_k:
+        return clean_k
+    return clean_k.replace("_", " ").strip().capitalize()
+
+
+def _check_conceptual_no_data(
+    action: str,
+    payload_kind: str,
+    filenames: List[str],
+    normalized_text: str,
+) -> bool:
+    return (
+        action in _CONCEPTUAL_ACTIONS
+        and payload_kind == "sin_insumo"
+        and not filenames
+        and not bool(_OPERATIONAL_DATA_RE.search(normalized_text or ""))
+    )
+
+
+def _get_slots_for_request(
+    domain: str,
+    action: str,
+    form_data: Dict[str, Any],
+    conceptual_no_data: bool = False,
+) -> Tuple[List[Dict[str, Any]], List[str]]:
     catalog = KNOWLEDGE_BASE.get("slot_catalog", {})
     candidates: List[Dict[str, Any]] = []
-    candidates.extend(catalog.get("by_action", {}).get(action, []))
-    candidates.extend(catalog.get("by_domain", {}).get(domain, []))
+
+    if conceptual_no_data:
+        # Prioriza la acción y el aprendizaje conceptual; excluye slots operativos de dataset/modelo
+        candidates.extend(catalog.get("by_action", {}).get(action, []))
+        candidates.extend(catalog.get("by_domain", {}).get("Estudio y academia", []))
+        for dom_slot in catalog.get("by_domain", {}).get(domain, []):
+            if dom_slot["id"] not in _OPERATIONAL_SLOT_IDS:
+                candidates.append(dom_slot)
+    else:
+        candidates.extend(catalog.get("by_action", {}).get(action, []))
+        candidates.extend(catalog.get("by_domain", {}).get(domain, []))
 
     answered_keys = {_strip_accents(str(k).lower()) for k, v in form_data.items() if v}
-    filtered: List[Dict[str, Any]] = []
-    seen_ids = set()
+    eligible_all: List[Dict[str, Any]] = []
+    seen_all = set()
     for slot in candidates:
         sid = slot["id"]
-        if sid in seen_ids:
+        if sid in seen_all:
             continue
-        if _strip_accents(sid.lower()) in answered_keys:
-            continue
-        seen_ids.add(sid)
-        filtered.append(slot)
+        seen_all.add(sid)
+        eligible_all.append(slot)
 
-    filtered.sort(key=lambda s: s.get("impact_pts", 5), reverse=True)
-    return filtered[:3]
+    eligible_all.sort(key=lambda s: s.get("impact_pts", 5), reverse=True)
+    active_slot_ids = [s["id"] for s in eligible_all]
+    return eligible_all[:3], active_slot_ids
+
+
+def _select_suggested_slots(
+    domain: str,
+    action: str,
+    form_data: Dict[str, Any],
+    conceptual_no_data: bool = False,
+) -> List[Dict[str, Any]]:
+    slots, _ = _get_slots_for_request(domain, action, form_data, conceptual_no_data=conceptual_no_data)
+    return slots
 
 
 def _extract_context_modifiers(normalized_text: str) -> Dict[str, Any]:
@@ -898,6 +1466,27 @@ def check_fidelity(user_text: str, rewritten_goal: str, parsed: ParsedRequest) -
     }
 
 
+def _split_segments_safe(text: str) -> List[str]:
+    """Divide por conectores de intención sin cortar `;` dentro de bloques o código inline."""
+    if not text:
+        return []
+    placeholders: List[str] = []
+
+    def _hide(match: re.Match) -> str:
+        idx = len(placeholders)
+        placeholders.append(match.group(0))
+        return f"__CODE_SEG_{idx}__"
+
+    masked = re.sub(r"```[\s\S]*?```|`[^`]+`", _hide, text)
+    raw_parts = [s.strip() for s in SEGMENT_CONNECTORS_RE.split(masked) if s.strip()]
+    restored: List[str] = []
+    for part in raw_parts:
+        for idx, orig in enumerate(placeholders):
+            part = part.replace(f"__CODE_SEG_{idx}__", orig)
+        restored.append(part)
+    return restored or [text]
+
+
 def parse_request(
     user_text: str,
     category: str = "",
@@ -911,7 +1500,7 @@ def parse_request(
     form_data = form_data or {}
     req = ParsedRequest(raw_text=(user_text or "").strip())
 
-    # Etapa 0 (v6.0): Separar pedido vs. insumo pegado
+    # Etapa 0 (v6.0/v7.0): Separar pedido vs. insumo pegado
     instr_part, payload_part = split_request_payload(req.raw_text)
     req.instruction_text = instr_part
     req.payload_text = payload_part
@@ -919,7 +1508,7 @@ def parse_request(
 
     # Etapa 1: Normalización sobre el pedido completo (y sobre el pedido núcleo para clasificar)
     norm_text, tokens, lemmas = normalize_and_lemmatize(req.raw_text)
-    norm_instr, _, _ = normalize_and_lemmatize(instr_part)
+    norm_instr, instr_tokens, _ = normalize_and_lemmatize(instr_part)
     req.normalized_text = norm_text
     req.tokens = tokens
     req.lemmas = lemmas
@@ -931,8 +1520,14 @@ def parse_request(
     req.pii_warnings = pii_warnings
     req.has_pii_masked = bool(pii_warnings)
 
-    # Etapa 3: Entidades y Restricciones
-    ext = _extract_entities_and_constraints(req.raw_text, norm_text, technique)
+    # Etapa 3: Entidades (todo el texto) y Restricciones (solo pedido, sin contaminar por insumo pegado)
+    classify_src = instr_part if payload_part else req.raw_text
+    classify_norm = norm_instr if payload_part else norm_text
+    classify_tokens = instr_tokens if payload_part else tokens
+
+    ext = _extract_entities_and_constraints(
+        req.raw_text, norm_text, technique, constraint_text=classify_src, form_data=form_data
+    )
     req.entities = ext["entities"]
     req.versions = ext["versions"]
     req.filenames = ext["filenames"]
@@ -944,24 +1539,50 @@ def parse_request(
             if isinstance(nc, str) and nc.strip() and nc.strip() not in req.neg_constraints:
                 req.neg_constraints.append(nc.strip())
     req.quant_constraints = ext["quant_constraints"]
-    req.contradictions = ext["contradictions"]
+    # Recalcular contradicciones contemplando negative_constraints explícitos + form_data
+    req.contradictions = _detect_contradictions(
+        classify_norm, req.neg_constraints, technique, form_data=form_data
+    )
 
-    # Etapa 4: Dominio, Acción (21 Arquetipos), Sub-intención, Roles y Cálculo
-    classify_src = instr_part if payload_part else req.raw_text
-    classify_norm = norm_instr if payload_part else norm_text
+    # Etapa 4: Aprendizaje activo local + Dominio + Acción (21 Arquetipos) + Sub-intención
+    learned_tables = _get_learned_correction_boosts()
+    learned_dom_boosts = _lookup_token_boosts(classify_tokens, learned_tables.get("domains", {}))
+    learned_act_boosts = _lookup_token_boosts(classify_tokens, learned_tables.get("actions", {}))
+    if learned_dom_boosts or learned_act_boosts:
+        req.trace.append({
+            "stage": "active_learning",
+            "rule": f"Refuerzo SQLite aplicado (dominios={learned_dom_boosts}, acciones={learned_act_boosts})",
+        })
 
     domain_hint = override_domain or category
-    req.domain, dom_trace = _classify_domain(classify_norm, domain_hint)
+    req.domain, dom_trace = _classify_domain(
+        classify_norm, domain_hint, entities=req.entities, learned_domain_boosts=learned_dom_boosts
+    )
     req.trace.extend(dom_trace)
 
-    segments_raw = [s.strip() for s in SEGMENT_CONNECTORS_RE.split(classify_src) if s.strip()]
-    if not segments_raw:
-        segments_raw = [classify_src]
+    segments_raw = _split_segments_safe(classify_src)
 
-    global_scores = _score_actions(classify_src, classify_norm)
-    ranked = sorted(global_scores.items(), key=lambda kv: kv[1], reverse=True)
+    global_scores, score_details = _score_actions_detailed(
+        classify_src, classify_norm, tokens=classify_tokens, learned_action_boosts=learned_act_boosts
+    )
+    if len(segments_raw) > 1:
+        seg0 = segments_raw[0]
+        seg0_norm, seg0_toks, _ = normalize_and_lemmatize(seg0)
+        seg0_scores, seg0_details = _score_actions_detailed(
+            seg0, seg0_norm, tokens=seg0_toks, learned_action_boosts=learned_act_boosts
+        )
+        # En pedidos multi-cláusula ("X; y además Y"), la primera cláusula define la intención principal
+        blended_scores = {
+            k: round(min(0.65 * seg0_scores.get(k, 0.0) + 0.35 * global_scores.get(k, 0.0), 0.99), 4)
+            for k in global_scores
+        }
+        ranked = sorted(blended_scores.items(), key=lambda kv: kv[1], reverse=True)
+        score_details = seg0_details
+    else:
+        ranked = sorted(global_scores.items(), key=lambda kv: kv[1], reverse=True)
+
     top1_action, top1_score = ranked[0]
-    top2_score = ranked[1][1] if len(ranked) > 1 else 0.0
+    top2_action, top2_score = ranked[1] if len(ranked) > 1 else ("explicar_concepto", 0.0)
 
     if top1_score == 0.0:
         top1_action = "explicar_concepto"
@@ -969,10 +1590,12 @@ def parse_request(
     secondary: List[str] = []
     if len(segments_raw) > 1:
         for seg in segments_raw[1:]:
-            seg_norm, _, _ = normalize_and_lemmatize(seg)
-            seg_scores = _score_actions(seg, seg_norm)
+            seg_norm, seg_toks, _ = normalize_and_lemmatize(seg)
+            seg_scores, _ = _score_actions_detailed(
+                seg, seg_norm, tokens=seg_toks, learned_action_boosts=learned_act_boosts
+            )
             seg_top, seg_val = max(seg_scores.items(), key=lambda kv: kv[1])
-            if seg_top != top1_action and seg_val >= max(0.6 * top1_score, 0.20) and seg_top not in secondary:
+            if seg_top != top1_action and seg_val >= max(0.55 * top1_score, 0.20) and seg_top not in secondary:
                 secondary.append(seg_top)
     else:
         for act_k, act_s in ranked[1:3]:
@@ -989,8 +1612,35 @@ def parse_request(
     req.action_label = actions_cfg.get(req.action, {}).get("label", req.action)
     req.secondary_actions = secondary
 
-    req.confidence = round(min(max(top1_score, 0.15 if req.word_count >= 3 else 0.05), 0.99), 3)
-    req.margin = round(max(top1_score - top2_score, 0.0), 3)
+    # Calibración v7.0 de confianza y margen
+    raw_margin = max(top1_score - top2_score, 0.0)
+    req.margin = round(raw_margin, 3)
+
+    useful_words = [t for t in req.tokens if t not in SPANISH_STOPWORDS]
+    is_short_or_trivial = (
+        norm_text in TRIVIAL_GREETINGS
+        or len(useful_words) <= 2
+        or (req.word_count < 4 and not req.entities and not req.errors_detected)
+    )
+
+    if is_short_or_trivial:
+        req.confidence = round(
+            min(max(top1_score * 0.65, 0.15 if req.word_count >= 3 else 0.05), 0.45),
+            3,
+        )
+    elif top1_score == 0.0:
+        req.confidence = 0.15 if req.word_count >= 3 else 0.05
+    else:
+        top1_det = score_details.get(top1_action, {})
+        cal = top1_score
+        cal += min(raw_margin * 0.55, 0.22)
+        if top1_det.get("lex_hits", 0.0) >= 1.0 and top1_det.get("tfidf", 0.0) >= 0.12:
+            cal += 0.12
+        if req.entities or req.filenames or req.errors_detected or payload_part:
+            cal += 0.06
+        if top1_det.get("tiebreak"):
+            cal += 0.05
+        req.confidence = round(min(max(cal, 0.15), 0.99), 3)
 
     if override_deliverable:
         req.deliverable = override_deliverable
@@ -1013,18 +1663,47 @@ def parse_request(
     req.subintent, req.subintents_matched = _detect_subintents(req.raw_text, norm_text, req.action)
     req.ontology_objects = _detect_ontology_objects(norm_text)
 
-    # Extractor de roles semánticos y calculador determinístico (v6.0)
+    # Extractor de roles semánticos y calculador determinístico (v6.0/v7.1)
     req.roles = extract_semantic_roles(classify_src, payload_info=req.payload_info)
     req.calc_info = compute_control_values(req.raw_text, roles=req.roles)
 
-    useful_words = [t for t in req.tokens if t not in SPANISH_STOPWORDS]
-    if len(useful_words) < 4 and (len(useful_words) <= 2 or (not req.entities and not req.errors_detected and req.confidence < 0.35)):
+    # v7.1: Ancla temática visible cuando el pedido tiene tema explícito sin entidades técnicas
+    tema_cand = (req.roles.get("tema") or "").strip()
+    if tema_cand and len(tema_cand) >= 3 and tema_cand.lower() != "el tema solicitado":
+        req.topic_anchor = tema_cand
+
+    req.is_conceptual_no_data = _check_conceptual_no_data(
+        action=req.action,
+        payload_kind=req.payload_info.get("payload_kind", "sin_insumo"),
+        filenames=req.filenames,
+        normalized_text=classify_norm,
+    )
+
+    if len(useful_words) < 4 and (len(useful_words) <= 2 or (not req.entities and not req.errors_detected and req.confidence < 0.45)):
         req.is_vague = True
         req.suggested_paths = _build_suggested_paths(req.raw_text)
 
     if req.margin < 0.15 or req.word_count < 5 or req.is_vague:
         req.needs_disambiguation = True
-    req.suggested_slots = _select_suggested_slots(req.domain, req.action, form_data)
+        cand_pair = [(top1_action, top1_score)]
+        alt_action = top2_action if top2_score > 0.0 and top2_action != top1_action else (
+            "planificar_pasos" if top1_action == "explicar_concepto" else "explicar_concepto"
+        )
+        alt_score = top2_score if alt_action == top2_action else 0.0
+        cand_pair.append((alt_action, alt_score))
+        req.disambiguation_options = [
+            {
+                "action": ak,
+                "label": actions_cfg.get(ak, {}).get("label", ak),
+                "hint": _ACTION_SHORT_HINTS.get(ak, ""),
+                "score": round(as_, 3),
+            }
+            for ak, as_ in cand_pair
+        ]
+
+    req.suggested_slots, req.active_slot_ids = _get_slots_for_request(
+        req.domain, req.action, form_data, conceptual_no_data=req.is_conceptual_no_data
+    )
     req.facets = _build_facets(req)
 
     rewritten, _ = rewrite_goal(req)
@@ -1147,6 +1826,9 @@ def lint_prompt(
             "whatsapp", "instagram", "turno", "oraciones", "personaje", "fin", "devolución",
             "margen", "escenario", "fórmula", "costo", "venta", "gastos",
             "gancho", "límite honesto", "promesa", "cifra", "fuente", "no consta", "registros",
+            "jerga", "confusiones", "malentendidos", "coherencia", "conocimientos previos",
+            "educativo", "profundidad", "enfoque", "autodidacta", "intuitiva", "tema principal",
+            "término", "nivel",
         ]
     )
 
@@ -1255,8 +1937,13 @@ def calculate_rubric_v2(
     penalties = len(parsed.contradictions) * 8
     if "[PEGA AQUÍ" in improved_prompt or "[PEGÁ ACÁ" in improved_prompt:
         penalties += 5
+    if noise_ratio >= 0.10:
+        # v7.1: ningún prompt con >=10% de relleno puede mostrar 100/100
+        penalties += max(6, int(round((noise_ratio - 0.08) * 60)))
 
     final_score = int(round(max(min(weighted_total - penalties, 100), 10)))
+    if noise_ratio >= 0.10:
+        final_score = min(final_score, 92)
     if is_trivial:
         final_score = min(final_score, 48)
 
@@ -1329,6 +2016,151 @@ def calculate_rubric_score(text: str) -> Dict[str, Any]:
 # ETAPA 6: Ensamblador Composicional Híbrido (v5.0 Micro-Directivas + v6.0 Cola Larga)
 # ---------------------------------------------------------------------------
 
+_EXAM_CONTEXT_RE = re.compile(
+    r"\b(?:examen|examenes|parcial|parciales|final|finales|recuperatorio|facultad|universidad|"
+    r"terciario|catedra|trabajo\s+practico|tp|autoevaluacion|rendir)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _is_exam_context(parsed: ParsedRequest, form_data: Dict[str, Any]) -> bool:
+    if _EXAM_CONTEXT_RE.search(parsed.normalized_text or ""):
+        return True
+    for k, v in form_data.items():
+        if k == "Reglas Rápidas" or not isinstance(v, str):
+            continue
+        if _EXAM_CONTEXT_RE.search(_strip_accents(v.lower())):
+            return True
+    return False
+
+
+def _parse_quick_rules(form_data: Dict[str, Any], tema_label: str) -> Tuple[List[str], List[str]]:
+    """Convierte 'Reglas Rápidas' en instrucciones y restricciones operativas reales."""
+    raw_rules = str(form_data.get("Reglas Rápidas") or "").strip()
+    if not raw_rules:
+        return [], []
+    quick_insts: List[str] = []
+    quick_restrs: List[str] = []
+    for part in re.split(r"[,;\n]+", raw_rules):
+        rule_norm = _strip_accents(part.strip().lower())
+        if not rule_norm:
+            continue
+        if "ejemplo" in rule_norm:
+            quick_insts.append(f"Incluye al menos 2 ejemplos reales y concretos aplicados a {tema_label}.")
+        elif "tecnicismo" in rule_norm:
+            quick_restrs.append(
+                f"- Evita jerga técnica innecesaria al hablar de {tema_label}; si aparece un término técnico indispensable, defínelo en una línea simple."
+            )
+        elif "tabla comparativa" in rule_norm:
+            quick_insts.append(
+                f"Incluye una tabla comparativa en Markdown con criterios claros y comparables sobre {tema_label}."
+            )
+        elif "casos borde" in rule_norm or "errores" in rule_norm:
+            quick_insts.append(
+                f"Detalla casos borde o errores frecuentes al aplicar {tema_label} y cómo prevenirlos."
+            )
+        elif "relleno" in rule_norm:
+            quick_restrs.append(
+                f"- Responde de forma directa sobre {tema_label} sin introducciones vacías, rodeos ni cierres genéricos."
+            )
+    return quick_insts, quick_restrs
+
+
+def _parse_study_slot_instructions(
+    form_data: Dict[str, Any],
+    tema_label: str,
+    technique: str,
+    active_directives: List[Dict[str, Any]],
+) -> Tuple[List[str], List[str]]:
+    """
+    Operacionaliza las opciones de estudio elegidas en `study_focus` o `explain_depth`:
+    - 'Con ejercicios resueltos' -> fase ejecutar
+    - 'Con preguntas de examen' / 'Con preguntas de repaso' -> fase validar/entregar
+      (evitando duplicar si ya está activa la técnica Pedagógico o `estudio.parcial`).
+    """
+    exec_insts: List[str] = []
+    closing_insts: List[str] = []
+    vals = [
+        _strip_accents(str(form_data.get(k) or "").strip().lower())
+        for k in ("study_focus", "explain_depth")
+    ]
+    joined = " | ".join(v for v in vals if v)
+    if not joined:
+        return exec_insts, closing_insts
+
+    if "con ejercicios resueltos" in joined:
+        exec_insts.append(
+            f"Incluye al menos 2 ejercicios prácticos sobre {tema_label} resueltos paso a paso, explicando el porqué de cada paso."
+        )
+
+    has_pedagogic_or_parcial = (
+        technique == "Pedagógico"
+        or any(d.get("id") == "estudio.parcial" for d in active_directives)
+    )
+    if ("con preguntas de examen" in joined or "con preguntas de repaso" in joined) and not has_pedagogic_or_parcial:
+        closing_insts.append(
+            f"Incluye al final 3 preguntas de autoevaluación o examen sobre {tema_label} con sus respuestas justificadas."
+        )
+
+    return exec_insts, closing_insts
+
+
+def _instruction_bucket(line: str) -> Optional[str]:
+    low = _strip_accents(line.lower())
+    if re.search(r"(?:empieza|comienza|inicia)\s+con\s+una\s+definicion|definicion\s+(?:simple|intuitiva)", low):
+        return "opening_definition"
+    if re.search(r"errores\s+(?:comunes|frecuentes)|confusiones\s+(?:frecuentes|habituales|tipicas)", low):
+        return "common_errors"
+    if re.search(r"ilustra\s+.*\b(?:ejemplo|analogia)|al\s+menos\s+(?:un|2)\s+ejemplos?", low):
+        return "concrete_examples"
+    return None
+
+
+def _dedupe_instructions(lines: List[str]) -> List[str]:
+    """Elimina duplicados literales, solapamientos semánticos y repeticiones de apertura."""
+    result: List[str] = []
+    seen_buckets = set()
+    seen_word_sets: List[set] = []
+
+    for line in lines:
+        clean = (line or "").strip()
+        if not clean:
+            continue
+        bucket = _instruction_bucket(clean)
+        if bucket and bucket in seen_buckets:
+            # Si llega una instrucción más rica de ejemplos reales (2 ejemplos), reemplazar la genérica de 1 ejemplo
+            if bucket == "concrete_examples" and "2 ejemplos reales" in clean.lower():
+                for i, prev in enumerate(result):
+                    if _instruction_bucket(prev) == "concrete_examples":
+                        result[i] = clean
+                        break
+            continue
+
+        words = {
+            w for w in re.findall(r"[a-z0-9]{4,}", _strip_accents(clean.lower()))
+            if w not in SPANISH_STOPWORDS
+        }
+        is_near_dup = False
+        if words:
+            for prev_w in seen_word_sets:
+                if not prev_w:
+                    continue
+                inter = len(words & prev_w)
+                union = len(words | prev_w)
+                if union > 0 and (inter / union) >= 0.62:
+                    is_near_dup = True
+                    break
+        if is_near_dup:
+            continue
+
+        if bucket:
+            seen_buckets.add(bucket)
+        seen_word_sets.append(words)
+        result.append(clean)
+
+    return result
+
+
 def _assemble_prompt_with_segments(
     parsed: ParsedRequest,
     form_data: Dict[str, Any],
@@ -1344,6 +2176,12 @@ def _assemble_prompt_with_segments(
 
     dom_info = domains_cfg.get(parsed.domain, domains_cfg.get("Otro / General", {}))
     act_info = actions_cfg.get(parsed.action, actions_cfg.get("explicar_concepto", {}))
+    tema_label = (
+        parsed.topic_anchor
+        or parsed.roles.get("tema")
+        or (", ".join(parsed.entities[:2]) if parsed.entities else parsed.domain)
+    )
+    exam_ctx = _is_exam_context(parsed, form_data)
 
     custom_role = form_data.get("Rol que debe asumir la IA")
     if custom_role:
@@ -1388,12 +2226,17 @@ def _assemble_prompt_with_segments(
         level=level,
     ) if use_universal else None
 
-    # Contexto real (sin secciones vacías)
+    # Reglas Rápidas -> instrucciones y restricciones operativas reales (v7.1)
+    quick_insts, quick_restrs = _parse_quick_rules(form_data, tema_label)
+
+    # Contexto real (sin secciones vacías ni claves técnicas crudas)
     ctx_lines: List[str] = []
     if parsed.filenames:
         ctx_lines.append(f"- **Archivos:** {', '.join(parsed.filenames)}")
     if parsed.entities:
         ctx_lines.append(f"- **Herramientas / Conceptos:** {', '.join(parsed.entities[:8])}")
+    elif parsed.topic_anchor:
+        ctx_lines.append(f"- **Tema principal:** {parsed.topic_anchor}")
     if parsed.errors_detected:
         ctx_lines.append(f"- **Errores detectados:** {', '.join(parsed.errors_detected)}")
     if parsed.roles.get("perspectiva"):
@@ -1420,46 +2263,90 @@ def _assemble_prompt_with_segments(
                 ctx_lines.append(f"- **Desglose de {obj_k}:** {'; '.join(delivs)}")
 
     for k, v in form_data.items():
-        if v and k not in ("Rol que debe asumir la IA", "Formato de Salida"):
-            ctx_lines.append(f"- **{k}:** {v}")
+        if v and k not in ("Rol que debe asumir la IA", "Formato de Salida", "Reglas Rápidas"):
+            human_label = _format_slot_label(k)
+            ctx_lines.append(f"- **{human_label}:** {v}")
 
-    # Instrucciones composicionales
-    inst_lines: List[str] = []
-    seen_inst = set()
+    # Instrucciones composicionales (sin duplicación semántica y respetando fases de cierre)
+    raw_inst_lines: List[str] = []
+    closing_summary_lines: List[str] = []
     if univ and univ["instructions"]:
-        for ul in univ["instructions"]:
-            if ul not in seen_inst:
-                seen_inst.add(ul)
-                inst_lines.append(ul)
-        # Cuando sintetizamos por arquetipo universal, solo anexamos restricciones estrictas de usuario (prioridad 95)
+        raw_inst_lines.extend(univ["instructions"])
         active_directives = [d for d in directives if d.get("priority", 0) >= 95]
     else:
         active_directives = directives
 
     for d in active_directives:
-        txt = d["text_short"] if level == "Ligera" else d["text"]
-        if txt not in seen_inst:
-            seen_inst.add(txt)
-            inst_lines.append(txt)
+        if d["id"] == "estudio.errores_comunes" and not exam_ctx:
+            txt = (
+                f"Señala errores o confusiones frecuentes sobre {tema_label}."
+                if level == "Ligera"
+                else f"Incluye una sección breve de 'Errores o confusiones frecuentes sobre {tema_label}' señalando malentendidos habituales."
+            )
+        else:
+            txt = d["text_short"] if level == "Ligera" else d["text"]
 
-    if len(inst_lines) < 2:
+        # La ficha de repaso rápido ('estudio.resumen') va siempre al cierre final de # Instrucciones
+        if d["id"] == "estudio.resumen":
+            closing_summary_lines.append(txt)
+        else:
+            raw_inst_lines.append(txt)
+
+    # Operacionalizar enfoque de estudio (study_focus / explain_depth)
+    study_exec_insts, study_closing_insts = _parse_study_slot_instructions(
+        form_data=form_data,
+        tema_label=tema_label,
+        technique=technique,
+        active_directives=active_directives,
+    )
+
+    # En explicar_concepto (Completa/Profunda), garantizar 3-4 pasos progresivos en orden didáctico:
+    # Definición -> Cómo funciona -> Ejemplos -> Ejercicios resueltos -> Errores frecuentes -> Preguntas -> Ficha de repaso
+    if parsed.action == "explicar_concepto" and level in ("Completa", "Profunda") and not univ:
+        non_err = [ln for ln in raw_inst_lines if _instruction_bucket(ln) != "common_errors"]
+        err_only = [ln for ln in raw_inst_lines if _instruction_bucket(ln) == "common_errors"]
+        raw_inst_lines = (
+            non_err
+            + [
+                f"Desarrolla paso a paso cómo funciona {tema_label}, avanzando de lo simple a lo complejo con sus componentes clave.",
+                f"Ilustra {tema_label} con al menos un ejemplo práctico y cotidiano fácil de visualizar.",
+            ]
+            + quick_insts
+            + study_exec_insts
+            + err_only
+            + study_closing_insts
+            + closing_summary_lines
+        )
+    else:
+        raw_inst_lines.extend(quick_insts)
+        raw_inst_lines.extend(study_exec_insts)
+        raw_inst_lines.extend(study_closing_insts)
+        raw_inst_lines.extend(closing_summary_lines)
+
+    # Deduplicar antes de verificar si hace falta completar desde base_inst
+    inst_lines = _dedupe_instructions(raw_inst_lines)
+
+    if len(inst_lines) < 2 or (parsed.action == "explicar_concepto" and len(inst_lines) < 3):
+        candidate_base = list(inst_lines)
         for base_inst in act_info.get("instructions", []):
-            if base_inst not in seen_inst:
-                seen_inst.add(base_inst)
-                inst_lines.append(base_inst)
-                if len(inst_lines) >= 4:
-                    break
+            candidate_base.append(base_inst)
+            candidate_base = _dedupe_instructions(candidate_base)
+            if len(candidate_base) >= (3 if level == "Ligera" else 4):
+                break
+        inst_lines = candidate_base
 
     for note in adj_notes:
-        if note not in seen_inst:
-            seen_inst.add(note)
+        if note not in inst_lines:
             inst_lines.append(note)
 
-    # Restricciones reales (solo si existen)
+    # Restricciones reales (solo si existen, integrando Reglas Rápidas)
     restr_lines: List[str] = []
     if univ and univ["restrictions"]:
         for ur in univ["restrictions"]:
             restr_lines.append(f"- {ur}")
+    for qr in quick_restrs:
+        if qr not in restr_lines:
+            restr_lines.append(qr)
     for nc in parsed.neg_constraints:
         line_nc = f"- Restricción del usuario: {nc}."
         if line_nc not in restr_lines:
@@ -1478,13 +2365,27 @@ def _assemble_prompt_with_segments(
         )
     )
 
-    # Criterio de éxito verificable
+    # Criterio de éxito verificable y coherente (sin mencionar autoevaluación si no fue solicitada)
+    has_self_eval = (
+        technique == "Pedagógico"
+        or any(d["id"] == "estudio.parcial" for d in active_directives)
+        or any(
+            "autoevaluaci" in x.lower() or "preguntas de examen" in x.lower() or "preguntas de repaso" in x.lower()
+            for x in inst_lines + [str(v) for v in form_data.values()]
+        )
+    )
+
     success_parts: List[str] = []
     if univ and univ["success_criteria"]:
         for sc in univ["success_criteria"]:
             success_parts.append(f"- {sc}")
     act_crit = success_cfg.get("by_action", {}).get(parsed.action, "")
     if act_crit and not (univ and univ["success_criteria"]):
+        if parsed.action == "explicar_concepto" and not has_self_eval:
+            act_crit = (
+                f"Un lector del nivel indicado comprende la definición y el funcionamiento de {tema_label} "
+                "en una lectura y reconoce sus errores o confusiones frecuentes."
+            )
         success_parts.append(f"- {act_crit}")
     deliv_crit = success_cfg.get("by_deliverable", {}).get(parsed.deliverable, "")
     if deliv_crit:
@@ -1525,7 +2426,7 @@ def _assemble_prompt_with_segments(
         parsed.filenames
         or parsed.entities[:3]
         or ([parsed.payload_info["summary_label"]] if parsed.payload_info.get("payload_kind") != "sin_insumo" else [])
-        or [parsed.roles.get("tema")] if parsed.roles.get("tema") else [parsed.domain]
+        or ([parsed.topic_anchor] if parsed.topic_anchor else [parsed.domain])
     )
 
     if univ and univ.get("compact_mode") and level != "Profunda":
@@ -1542,7 +2443,12 @@ def _assemble_prompt_with_segments(
             lines.append(f"{idx}. {il}")
         lines.append(f"Formato: {fmt_instruction}")
         if restr_lines:
-            lines.append("Restricciones: " + "; ".join(parsed.neg_constraints or parsed.quant_constraints or [r.lstrip("- ") for r in restr_lines]))
+            lines.append(
+                "Restricciones: "
+                + "; ".join(
+                    [r.lstrip("- ").rstrip(".") for r in restr_lines]
+                )
+            )
         if technique != "Estándar":
             lines.append(f"Nota de técnica ({tech_info['name']}): {tech_info['desc']}")
         raw_improved = "\n".join(lines) + example_block + placeholder_block
@@ -1612,26 +2518,64 @@ def _assemble_prompt_with_segments(
             })
 
         if level == "Profunda":
-            missing_items = [s["question"] for s in parsed.suggested_slots[:3]]
+            # 1. Supuestos derivados SOLO de slots faltantes relevantes (excluyendo los ya respondidos) y anclados al tema
+            answered_norm = {_strip_accents(str(k).lower()) for k, v in form_data.items() if v}
+            missing_items = [
+                s["question"]
+                for s in parsed.suggested_slots[:3]
+                if _strip_accents(s["id"].lower()) not in answered_norm
+            ]
             if missing_items:
-                sup_txt = "\n".join(f"- Si no se especifica, indicar qué aplica para: {q}" for q in missing_items)
+                sup_txt = "\n".join(
+                    f"- Si no se especifica respecto a {tema_label}, indicar qué aplica para: {q}"
+                    for q in missing_items
+                )
                 sections.append(f"# Supuestos y datos faltantes\n{sup_txt}")
 
+            # 2. Casos borde anclados naturalmente al tema
             edge_list = [d["edge_cases"] for d in directives if d.get("edge_cases")]
             if univ and univ.get("edge_cases"):
                 edge_list.extend(univ["edge_cases"])
             if edge_list:
-                edge_txt = "\n".join(f"- {ec}" for ec in edge_list[:5])
-                sections.append(f"# Casos borde a contemplar\n{edge_txt}")
+                anchored_edges = []
+                for ec in edge_list[:5]:
+                    if tema_label.lower() not in ec.lower() and not any(e in ec.lower() for e in parsed.entities):
+                        anchored_edges.append(f"- {ec.rstrip('.')} al abordar {tema_label}.")
+                    else:
+                        anchored_edges.append(f"- {ec}")
+                sections.append("# Casos borde a contemplar\n" + "\n".join(anchored_edges))
 
-            val_list = [d["verifiable"] for d in directives if d.get("verifiable")]
-            if univ and univ.get("success_criteria"):
-                val_list.extend(univ["success_criteria"])
-            if val_list:
-                val_txt = "\n".join(f"- Verificar: {v}" for v in val_list[:5])
+            # 3. Validación previa de proceso (distinta de # Criterio de éxito — cero copias textuales)
+            success_norm_set = {
+                _strip_accents(sp.lstrip("- ").strip().lower()) for sp in success_parts
+            }
+            val_candidates = [
+                f"Comprobar que el nivel de explicación sobre {tema_label} sea coherente con el público definido sin introducir jerga sin aclarar.",
+                f"Verificar ausencia de contradicciones internas, definiciones falsas o afirmaciones sin fundamento sobre {tema_label}.",
+                f"Confirmar el cumplimiento de todas las restricciones declaradas y del formato de salida ({parsed.deliverable}) antes de entregar.",
+            ]
+            if parsed.filenames or parsed.entities:
+                refs = ", ".join((parsed.filenames + parsed.entities)[:3])
+                val_candidates.insert(
+                    1,
+                    f"Comprobar que todas las referencias técnicas ({refs}) aparezcan con nombres y parámetros exactos.",
+                )
+            val_unique = [
+                v for v in val_candidates
+                if _strip_accents(v.lower()) not in success_norm_set
+            ]
+            if val_unique:
+                val_txt = "\n".join(f"- {v}" for v in val_unique[:4])
                 sections.append(f"# Validación previa a responder\n{val_txt}")
 
-            dont_list = list(dom_info.get("guardrails", []))
+            # 4. Guardrails (# Qué no hacer): conceptuales cuando no hay datos/modelos
+            if parsed.is_conceptual_no_data:
+                dont_list = [
+                    f"No asumas conocimientos previos no declarados sobre {tema_label} ni uses jerga técnica sin definirla en su primera aparición.",
+                    f"No inventes definiciones, cifras ni ejemplos falsos sobre {tema_label}; si un punto admite matices, acláralo brevemente.",
+                ]
+            else:
+                dont_list = list(dom_info.get("guardrails", []))
             if parsed.neg_constraints:
                 dont_list.extend(f"No violar: {nc}" for nc in parsed.neg_constraints)
             if dont_list:
@@ -1663,6 +2607,13 @@ def _assemble_prompt_with_segments(
             })
 
     extra_anchors = list(parsed.roles.get("campos_esquema") or [])
+    if parsed.topic_anchor:
+        extra_anchors.append(parsed.topic_anchor)
+        for tw in re.findall(r"[a-záéíóúñ0-9]{4,}", parsed.topic_anchor.lower()):
+            if _strip_accents(tw) not in SPANISH_STOPWORDS:
+                extra_anchors.append(tw)
+    if parsed.roles.get("tema"):
+        extra_anchors.append(parsed.roles["tema"])
     if parsed.roles.get("canal"):
         extra_anchors.append(parsed.roles["canal"])
     if parsed.roles.get("perspectiva"):
@@ -1736,9 +2687,11 @@ def analyze_live_preview(
         "confidence": parsed.confidence,
         "margin": parsed.margin,
         "needs_disambiguation": parsed.needs_disambiguation,
+        "disambiguation_options": parsed.disambiguation_options,
         "is_vague": parsed.is_vague,
         "suggested_paths": parsed.suggested_paths,
         "entities": parsed.entities,
+        "topic_anchor": parsed.topic_anchor,
         "versions": parsed.versions,
         "filenames": parsed.filenames,
         "errors_detected": parsed.errors_detected,
@@ -1748,6 +2701,7 @@ def analyze_live_preview(
         "pii_warnings": parsed.pii_warnings,
         "has_pii": parsed.has_pii_masked,
         "suggested_slots": parsed.suggested_slots,
+        "active_slot_ids": parsed.active_slot_ids,
         "payload_kind": parsed.payload_info.get("payload_kind", "sin_insumo"),
         "payload_summary": parsed.payload_info.get("summary_label", "Sin insumo pegado"),
         "roles_filled": parsed.roles.get("roles_filled", 0.0),
@@ -1861,6 +2815,7 @@ def get_gemini_response(
         "n_intents": rubric["n_intents"],
         "n_entities": len(parsed.entities),
         "entities": parsed.entities,
+        "topic_anchor": parsed.topic_anchor,
         "n_neg_constraints": len(parsed.neg_constraints),
         "neg_constraints": parsed.neg_constraints,
         "quant_constraints": parsed.quant_constraints,
@@ -1884,9 +2839,11 @@ def get_gemini_response(
         "has_pii_masked": bool(mask_pii and parsed.has_pii_masked),
         "pii_warnings": parsed.pii_warnings,
         "needs_disambiguation": parsed.needs_disambiguation,
+        "disambiguation_options": parsed.disambiguation_options,
         "is_vague": parsed.is_vague,
         "suggested_paths": parsed.suggested_paths,
         "suggested_slots": parsed.suggested_slots,
+        "active_slot_ids": parsed.active_slot_ids,
         "segments": segments,
         "trace": parsed.trace,
     }

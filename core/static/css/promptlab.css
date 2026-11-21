@@ -485,3 +485,304 @@ body {
     border: 1px solid rgba(239, 68, 68, 0.35);
     color: var(--pl-text);
 }
+
+/* ==========================================================================
+   PromptLab v7.0 — Interfaz Progresiva en 3 Modos (Express / Guiado / Pro)
+   ========================================================================== */
+
+.pl-workspace-shell {
+    min-height: 100%;
+    padding: 1.5rem 1.75rem 2.5rem;
+    transition: max-width 0.25s ease;
+}
+
+.pl-workspace-shell[data-mode="express"] {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.pl-workspace-shell[data-mode="express"] .pl-workspace-main {
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+
+.pl-workspace-shell[data-mode="express"] .pl-workspace-aside {
+    display: none !important;
+}
+
+/* Visibilidad progresiva por modo */
+.pl-workspace-shell[data-mode="express"] .pl-only-guiado,
+.pl-workspace-shell[data-mode="express"] .pl-only-pro,
+.pl-workspace-shell[data-mode="express"] .pl-guiado-pro {
+    display: none !important;
+}
+
+.pl-workspace-shell[data-mode="guiado"] .pl-only-express,
+.pl-workspace-shell[data-mode="guiado"] .pl-only-pro {
+    display: none !important;
+}
+
+.pl-workspace-shell[data-mode="pro"] .pl-only-express,
+.pl-workspace-shell[data-mode="pro"] .pl-only-guiado {
+    display: none !important;
+}
+
+/* Selector Segmentado de 3 Modos */
+.pl-mode-switcher {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 5px;
+    background-color: var(--pl-surface-soft);
+    border: 1px solid var(--pl-border);
+    border-radius: 16px;
+}
+
+.pl-mode-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--pl-text-secondary);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.pl-mode-btn:hover {
+    color: var(--pl-text);
+    background-color: rgba(91, 82, 245, 0.06);
+}
+
+.pl-mode-btn.active {
+    background-color: var(--pl-surface);
+    color: var(--pl-text);
+    border-color: rgba(91, 82, 245, 0.35);
+    box-shadow: 0 3px 12px rgba(91, 82, 245, 0.12);
+}
+
+[data-theme="dark"] .pl-mode-btn.active {
+    border-color: rgba(124, 115, 255, 0.5);
+    box-shadow: 0 4px 16px rgba(2, 6, 23, 0.45);
+}
+
+.pl-mode-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pl-mode-sub {
+    font-size: 0.74rem;
+    color: var(--pl-text-secondary);
+    line-height: 1.25;
+}
+
+.pl-mode-btn.active .pl-mode-title {
+    color: var(--pl-accent);
+}
+
+@media (max-width: 767.98px) {
+    .pl-workspace-shell {
+        padding: 1rem;
+    }
+    .pl-mode-switcher {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Caja de entrada única y salida independiente */
+.pl-input-card {
+    background-color: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: 18px;
+    box-shadow: var(--pl-shadow);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pl-input-card:focus-within {
+    border-color: rgba(91, 82, 245, 0.5);
+    box-shadow: 0 0 0 3px rgba(91, 82, 245, 0.10), var(--pl-shadow);
+}
+
+.pl-output-card {
+    background-color: var(--pl-surface);
+    border: 1px solid rgba(91, 82, 245, 0.28);
+    border-radius: 18px;
+    box-shadow: var(--pl-shadow);
+    animation: pl-fade-in 0.22s ease;
+}
+
+[data-theme="dark"] .pl-output-card {
+    border-color: rgba(124, 115, 255, 0.35);
+}
+
+@keyframes pl-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.pl-output-textarea {
+    background-color: var(--pl-surface-alt) !important;
+    border: 1px solid var(--pl-border) !important;
+    border-radius: 12px !important;
+    color: var(--pl-text) !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.92rem !important;
+    line-height: 1.65;
+    padding: 1rem 1.1rem !important;
+}
+
+/* Ejemplos rápidos clicables en Express */
+.pl-example-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background-color: var(--pl-surface-alt);
+    color: var(--pl-text-secondary);
+    border: 1px solid var(--pl-border);
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.pl-example-pill:hover {
+    border-color: var(--pl-accent);
+    color: var(--pl-text);
+    background-color: var(--pl-surface);
+    transform: translateY(-1px);
+}
+
+/* Puente progresivo Express -> Guiado */
+.pl-bridge-banner {
+    background: linear-gradient(135deg, rgba(91, 82, 245, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%);
+    border: 1px solid rgba(91, 82, 245, 0.24);
+    border-radius: 14px;
+    padding: 12px 16px;
+    color: var(--pl-text);
+}
+
+/* Tarjeta de desambiguación rápida */
+.pl-disamb-card {
+    background-color: var(--pl-surface-analysis);
+    border: 1px solid rgba(91, 82, 245, 0.25);
+    border-radius: 14px;
+    padding: 12px 16px;
+}
+
+.pl-disamb-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background-color: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    color: var(--pl-text);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    width: 100%;
+}
+
+.pl-disamb-option:hover {
+    border-color: var(--pl-accent);
+    box-shadow: 0 3px 10px rgba(91, 82, 245, 0.12);
+}
+
+/* Botón X para revertir un solo override en chip */
+.pl-chip-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background-color: rgba(91, 82, 245, 0.2);
+    color: var(--pl-accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    margin-left: 2px;
+    cursor: pointer;
+}
+
+.pl-chip-reset:hover {
+    background-color: var(--pl-accent);
+    color: #ffffff;
+}
+
+/* Barra de progreso de puntaje en Guiado */
+.pl-score-strip {
+    background-color: var(--pl-surface-alt);
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+/* Botón favorito activo */
+.btn-fav-active {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(245, 158, 11, 0.55) !important;
+    color: #d97706 !important;
+}
+
+[data-theme="dark"] .btn-fav-active {
+    color: #fbbf24 !important;
+}
+
+/* Panel lateral estilizado en Guiado / Pro */
+.pl-aside-card {
+    background-color: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: 18px;
+    box-shadow: var(--pl-shadow);
+    position: sticky;
+    top: 1.25rem;
+}
+
+/* v7.1: Lectura cómoda en Guiado y Estudio Pro + pulso de cambios pendientes */
+.pl-workspace-shell[data-mode="guiado"] .pl-output-textarea,
+.pl-workspace-shell[data-mode="pro"] .pl-output-textarea {
+    min-height: 360px !important;
+    max-height: 500px;
+}
+
+.pl-btn-has-changes {
+    box-shadow: 0 0 0 0 rgba(91, 82, 245, 0.55), 0 4px 16px rgba(91, 82, 245, 0.35) !important;
+    animation: pl-btn-pulse 2s infinite;
+}
+
+@keyframes pl-btn-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(91, 82, 245, 0.55), 0 4px 16px rgba(91, 82, 245, 0.35); }
+    70% { box-shadow: 0 0 0 8px rgba(91, 82, 245, 0), 0 4px 16px rgba(91, 82, 245, 0.35); }
+    100% { box-shadow: 0 0 0 0 rgba(91, 82, 245, 0), 0 4px 16px rgba(91, 82, 245, 0.35); }
+}
+
+.pl-pending-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    margin-left: 6px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background-color: rgba(255, 255, 255, 0.24);
+    color: #ffffff;
+}

@@ -127,6 +127,36 @@ def split_request_payload(text: str) -> Tuple[str, str]:
     if len(marker) == 2 and marker[1].strip():
         return marker[0].strip(), marker[1].strip()
 
+    # 4. (v7.0) Bloques pegados de 1-2 párrafos tras ':' + salto de línea, encabezados de mail/cláusula o comillas largas
+    colon_nl = re.split(r":\s*\n+", raw, maxsplit=1)
+    if len(colon_nl) == 2:
+        cand_instr = colon_nl[0].strip()
+        cand_pay = colon_nl[1].strip()
+        if len(cand_instr) >= 8 and len(cand_pay) >= 20:
+            return cand_instr, cand_pay
+
+    if len(lines) >= 2:
+        for idx in range(1, len(lines)):
+            ln = lines[idx].strip()
+            if not ln:
+                continue
+            if re.match(
+                r"^(?:Asunto:|De:|Para:|Estimad[oa]\b|Hola,|CL[ÁA]USULA\b|ART[ÍI]CULO\b|PRIMERA\b|SEGUNDA\b|Traceback\b|SELECT\b|def\s+|import\s+)",
+                ln,
+                flags=re.IGNORECASE,
+            ):
+                instr = " ".join(l.strip() for l in lines[:idx] if l.strip())
+                payload = "\n".join(l.rstrip() for l in lines[idx:] if l.strip())
+                if instr and payload:
+                    return instr, payload
+
+    quoted_after_colon = re.search(r":\s*[\"«“]([\s\S]{25,})[\"»”]\s*$", raw)
+    if quoted_after_colon:
+        cand_instr = raw[:quoted_after_colon.start()].strip()
+        cand_pay = quoted_after_colon.group(1).strip()
+        if len(cand_instr) >= 8 and cand_pay:
+            return cand_instr, cand_pay
+
     return raw, ""
 
 
@@ -456,7 +486,7 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
         if phrase not in restricciones_especiales:
             restricciones_especiales.append(phrase)
 
-    # Tema nuclear (priorizar 'sobre / acerca de' antes que 'de' genérico)
+    # Tema nuclear (priorizar 'sobre / acerca de' y objetos de verbos conceptuales antes que 'de' genérico)
     tema = ""
     m_tema = re.search(
         r"\b(?:sobre|acerca\s+de)\s+([^.,;\n]+?)(?=[.,;\n]|$|\s+sin\b|\s+para\b|\s+que\b)",
@@ -465,12 +495,18 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
     )
     if not m_tema:
         m_tema = re.search(
+            r"\b(?:entender|aprender|estudiar|explicar(?:me|melo)?|comprender|conocer|definir|qu[eé]\s+es|c[oó]mo\s+funciona)\s+(?:sobre\s+|la\s+|el\s+|los\s+|las\s+|un\s+|una\s+)?([^.,;\n]+?)(?=\s+desde\s+cero\b|\s+para\b|\s+sin\b|\s+con\s+(?:ejemplos?|analog)|[.,;\n]|$)",
+            raw,
+            flags=re.IGNORECASE,
+        )
+    if not m_tema:
+        m_tema = re.search(
             r"\b(?:cl[aá]usula\s+de|lista\s+desordenada\s+de|de)\s+([^.,;\n]+?)(?=[.,;\n]|$|\s+sin\b|\s+para\b|\s+que\b)",
             raw,
             flags=re.IGNORECASE,
         )
     if m_tema:
-        tema = m_tema.group(1).strip()
+        tema = re.sub(r"\s+desde\s+cero\b.*$", "", m_tema.group(1), flags=re.IGNORECASE).strip(" .,:;")
     elif payload_info and payload_info.get("payload_kind") != "sin_insumo":
         tema = payload_info.get("summary_label", "")
     elif situacion:

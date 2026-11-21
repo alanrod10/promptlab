@@ -939,7 +939,9 @@
         "Convertir esta lista desordenada de productos y precios en un JSON limpio con campos definidos",
         "Transformar estos datos de texto plano en una tabla Markdown estructurada",
         "Pasar este listado de clientes con teléfonos y direcciones a formato CSV válido",
-        "Reestructurar esta tabla desordenada separando nombre, presentación y precio numérico"
+        "Reestructurar esta tabla desordenada separando nombre, presentación y precio numérico",
+        "Pasame este listado de WhatsApp a una tabla con columnas producto, cantidad y precio",
+        "Convertí estas filas separadas por punto y coma en un JSON prolijo y validado"
       ],
       "instructions": [
         "Procesa {MATERIAL} generando exactamente un objeto o fila por cada ítem detectado.",
@@ -977,7 +979,10 @@
       "prototypes": [
         "Extraer fechas, montos y responsables de este documento sin inventar nada",
         "Sacar todos los correos electrónicos y nombres de clientes de este texto",
-        "Extraer únicamente los requisitos obligatorios de este pliego o convocatoria"
+        "Extraer únicamente los requisitos obligatorios de este pliego o convocatoria",
+        "Sacame de este mail las fechas de entrega, los montos y quién es responsable de cada cosa",
+        "Extraeme los nombres, DNI y teléfonos que aparecen en esta planilla pegada",
+        "Identificar todas las fechas de vencimiento y montos a pagar de esta factura"
       ],
       "instructions": [
         "Extrae exclusivamente los campos pedidos ({CAMPOS}) presentes en {MATERIAL}.",
@@ -1014,7 +1019,10 @@
       "prototypes": [
         "Clasificar estos comentarios de clientes en positivo, neutro o negativo con motivo",
         "Categorizar esta lista de gastos por rubro contable en una tabla",
-        "Etiquetar cada ticket de soporte según urgencia y área responsable"
+        "Etiquetar cada ticket de soporte según urgencia y área responsable",
+        "Agrupame estas reseñas de clientes por tema: precio, atención, envío o calidad",
+        "Clasificá cada movimiento bancario en gasto fijo, variable o ingreso",
+        "Asignar una categoría a cada producto de este listado según su rubro"
       ],
       "instructions": [
         "Asigna cada elemento de {MATERIAL} a una categoría mutuamente excluyente sobre {TEMA}.",
@@ -1050,7 +1058,10 @@
       "prototypes": [
         "Traducir este informe técnico al inglés manteniendo la terminología del dominio",
         "Adaptar este comunicado legal a lenguaje sencillo para clientes de WhatsApp",
-        "Cambiar el tono de este mensaje de técnico a ejecutivo para directorio"
+        "Cambiar el tono de este mensaje de técnico a ejecutivo para directorio",
+        "Traducime este mail al inglés con tono profesional para un proveedor del exterior",
+        "Bajá a lenguaje simple este texto técnico para que lo entienda cualquier cliente",
+        "Adaptar este posteo formal de LinkedIn a un mensaje corto y cercano para Instagram"
       ],
       "instructions": [
         "Traduce o adapta {MATERIAL} para {DESTINATARIO} por el canal {CANAL} conservando el sentido exacto.",
@@ -1086,7 +1097,10 @@
       "prototypes": [
         "Pulir la redacción de este correo para que suene más claro y profesional",
         "Acortar este párrafo a la mitad sin perder los datos clave ni la fuerza del mensaje",
-        "Corregir ortografía, cohesión y puntuación de este borrador"
+        "Corregir ortografía, cohesión y puntuación de este borrador",
+        "Pulime este correo para un cliente que suene más profesional sin cambiar lo que digo",
+        "Mejorar la redacción de este párrafo para que sea más claro y directo",
+        "Corregí la ortografía y hacé más corto este mensaje antes de mandarlo"
       ],
       "instructions": [
         "Reescribe {MATERIAL} eliminando muletillas, redundancias y rodeos sin alterar los hechos.",
@@ -1130,7 +1144,10 @@
       "prototypes": [
         "Revisar esta cláusula de alquiler y detectar riesgos para mí como inquilino",
         "Auditar este borrador de propuesta comercial buscando vacíos o compromisos riesgosos",
-        "Criticar este argumento o plan señalando puntos débiles y suposiciones ocultas"
+        "Criticar este argumento o plan señalando puntos débiles y suposiciones ocultas",
+        "Revisame este contrato de trabajo y decime qué cláusulas me perjudican",
+        "Auditar esta propuesta comercial buscando riesgos, vacíos y letra chica",
+        "Detectar puntos débiles y supuestos riesgosos en este plan de negocio"
       ],
       "instructions": [
         "Resume en una oración qué obliga o exige {MATERIAL} desde la perspectiva de {PERSPECTIVA}.",
@@ -1171,7 +1188,10 @@
       "prototypes": [
         "Simular ser un cliente enojado porque le llegó un producto vencido para practicar respuesta por WhatsApp",
         "Simular una entrevista laboral técnica haciendo una pregunta por turno",
-        "Practicar una negociación de sueldo respondiendo en personaje y dando feedback al final"
+        "Practicar una negociación de sueldo respondiendo en personaje y dando feedback al final",
+        "Hacé de cuenta que sos un entrevistador de recursos humanos y practicamos una entrevista",
+        "Simulá ser un proveedor que no quiere bajar el precio para practicar la negociación",
+        "Quiero practicar cómo responderle a un cliente que reclama una devolución por WhatsApp"
       ],
       "instructions": [
         "Actúa únicamente en el rol de {ROL} frente a la situación: {TEMA}, sin salir del personaje durante la práctica.",
@@ -1214,7 +1234,10 @@
       "prototypes": [
         "Dame 5 ideas de contenido educativo para Instagram sobre inteligencia artificial aplicada a comercios chicos, sin humo",
         "Generar 6 alternativas de nombre y eslogan para una tienda saludable",
-        "Proponer 4 ángulos distintos para una campaña de lanzamiento sin promesas exageradas"
+        "Proponer 4 ángulos distintos para una campaña de lanzamiento sin promesas exageradas",
+        "Dame ideas de nombres para mi emprendimiento de comida saludable",
+        "Proponeme 10 ideas de posteos para TikTok sobre finanzas personales",
+        "Lluvia de ideas de promociones para aumentar las ventas en temporada baja"
       ],
       "instructions": [
         "Genera exactamente {N} ideas distintas sobre {TEMA} adaptadas al canal {CANAL}.",
@@ -1256,7 +1279,10 @@
       "prototypes": [
         "Calcular cuánto tengo que vender por día para cubrir $1.200.000 de gastos fijos con margen del 30%",
         "Modelar escenarios de ventas mensuales variando precio unitario y costos variables",
-        "Calcular el punto de equilibrio y margen sobre costo vs margen sobre venta"
+        "Calcular el punto de equilibrio y margen sobre costo vs margen sobre venta",
+        "Calculame el precio de venta si el costo es 2500 y quiero ganar un 40 por ciento",
+        "Cuánto tengo que vender por mes para cubrir el alquiler y los sueldos",
+        "Proyectar la ganancia mensual con tres escenarios de ventas optimista, normal y pesimista"
       ],
       "instructions": [
         "Declara explícitamente los supuestos iniciales: período analizado y si el margen se aplica sobre venta o sobre costo.",
@@ -1295,7 +1321,10 @@
       "prototypes": [
         "Resolver este problema de probabilidad condicional explicando cada deducción",
         "Deducir qué restricción se rompe en este acertijo lógico paso a paso",
-        "Encontrar la solución matemática óptima verificando las condiciones de borde"
+        "Encontrar la solución matemática óptima verificando las condiciones de borde",
+        "Resolver este ejercicio de combinatoria paso a paso explicando el razonamiento",
+        "Ayudame a deducir la respuesta de este acertijo lógico justificando cada paso",
+        "Demostrar esta propiedad matemática con un razonamiento ordenado"
       ],
       "instructions": [
         "Lista las premisas, variables y restricciones conocidas de {TEMA} antes de operar.",
@@ -1331,7 +1360,10 @@
       "prototypes": [
         "Evaluar si conviene comprar o alquilar un local comercial según flujo de caja y riesgo",
         "Recomendar qué herramienta elegir entre tres opciones según presupuesto y curva de aprendizaje",
-        "Armar una matriz ponderada para decidir entre dos ofertas laborales"
+        "Armar una matriz ponderada para decidir entre dos ofertas laborales",
+        "Qué me conviene más: comprar una notebook nueva o una usada reacondicionada",
+        "Recomendame qué opción elegir entre estas dos ofertas de trabajo según sueldo y crecimiento",
+        "Ayudame a decidir si conviene alquilar un local o vender solo por internet"
       ],
       "instructions": [
         "Define entre 4 y 6 criterios de decisión ponderados alineados a las prioridades del usuario.",
@@ -1355,7 +1387,10 @@
       "label": "Diagnosticar fallas generales",
       "keywords": [
         "diagnostico",
+        "diagnosticar",
+        "diagnostica",
         "por que baja",
+        "por que cayeron",
         "caida de",
         "cuello de botella",
         "no rinde",
@@ -1367,7 +1402,10 @@
       "prototypes": [
         "Diagnosticar por qué cayeron las ventas este mes y proponer pruebas para verificar la causa",
         "Identificar cuellos de botella en la atención al cliente de un comercio",
-        "Detectar causas probables de ausentismo o rotación en un equipo"
+        "Detectar causas probables de ausentismo o rotación en un equipo",
+        "Por qué bajaron las ventas del local si tengo los mismos clientes de siempre",
+        "Detectar la causa probable de que los empleados lleguen tarde todos los días",
+        "Diagnosticar qué está fallando en la atención si aumentaron los reclamos"
       ],
       "instructions": [
         "Formula 3 a 5 hipótesis ordenadas de la causa más probable a la menos probable para {TEMA}.",
@@ -1402,7 +1440,10 @@
       "prototypes": [
         "Cuál es la diferencia rápida en una línea entre IVA e Ingresos Brutos",
         "Qué significa la sigla FEFO en logística en una oración",
-        "Dame solo la fórmula de interés compuesto sin introducción"
+        "Dame solo la fórmula de interés compuesto sin introducción",
+        "Qué significa la sigla ROI, respondé en una línea",
+        "Cuál es la fórmula del interés simple, solo el dato",
+        "Respuesta directa: cuántos gramos tiene una onza"
       ],
       "instructions": [
         "Responde directamente al dato consultado sobre {TEMA} en máximo 3 líneas.",
@@ -1704,7 +1745,8 @@
             "Texto no estructurado",
             "No tengo datos aún"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Estructura y tamaño del dataset"
         },
         {
           "id": "ml_goal",
@@ -1715,7 +1757,8 @@
             "Máxima precisión predictiva",
             "Limpieza y diagnóstico rápido"
           ],
-          "target_block": "Objetivo"
+          "target_block": "Objetivo",
+          "label": "Prioridad del análisis o modelo"
         }
       ],
       "Tecnología y programación": [
@@ -1729,7 +1772,8 @@
             "SQL / Base de datos",
             "Bash / Linux"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Lenguaje o stack técnico"
         },
         {
           "id": "code_constraints",
@@ -1740,7 +1784,8 @@
             "Compatible con producción",
             "Código simple para aprender"
           ],
-          "target_block": "Instrucciones"
+          "target_block": "Instrucciones",
+          "label": "Restricciones técnicas o de entorno"
         }
       ],
       "Estudio y academia": [
@@ -1754,7 +1799,8 @@
             "Posgrado / Investigación",
             "Autodidacta desde cero"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Nivel educativo"
         },
         {
           "id": "study_focus",
@@ -1765,7 +1811,8 @@
             "Con ejercicios resueltos",
             "Con preguntas de examen"
           ],
-          "target_block": "Instrucciones"
+          "target_block": "Instrucciones",
+          "label": "Enfoque de estudio"
         }
       ],
       "Negocios y comercio": [
@@ -1779,7 +1826,8 @@
             "Servicios B2B",
             "E-commerce"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Tipo o escala del negocio"
         },
         {
           "id": "biz_horizon",
@@ -1790,7 +1838,8 @@
             "Plan mensual / trimestral",
             "Bajo presupuesto"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Horizonte o restricción principal"
         }
       ],
       "Redacción y comunicación": [
@@ -1804,7 +1853,8 @@
             "Proveedor / Institución",
             "Público en redes"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Destinatario y relación"
         },
         {
           "id": "comm_tone",
@@ -1816,7 +1866,8 @@
             "Cercano y persuasivo",
             "Firme pero respetuoso"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Tono del mensaje"
         }
       ],
       "Investigar y analizar": [
@@ -1829,7 +1880,8 @@
             "Evidencia técnica y riesgos",
             "Impacto en el usuario/cliente"
           ],
-          "target_block": "Instrucciones"
+          "target_block": "Instrucciones",
+          "label": "Criterios de evaluación"
         }
       ],
       "Trámites y documentos": [
@@ -1842,7 +1894,8 @@
             "Reclamo comercial / consumidor",
             "Documento laboral / CV"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Contexto institucional"
         }
       ],
       "Planificación y productividad": [
@@ -1855,7 +1908,8 @@
             "Este mes (4 semanas)",
             "Trimestre (90 días)"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Plazo disponible"
         }
       ],
       "Toma de decisiones": [
@@ -1868,7 +1922,8 @@
             "Mayor velocidad de resultado",
             "Impacto a largo plazo"
           ],
-          "target_block": "Instrucciones"
+          "target_block": "Instrucciones",
+          "label": "Factor prioritario"
         }
       ],
       "Otro / General": [
@@ -1881,7 +1936,8 @@
             "Trabajo profesional",
             "Estudio / aprendizaje"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Contexto de uso"
         }
       ]
     },
@@ -1896,7 +1952,8 @@
             "Devuelve resultado incorrecto",
             "Falla solo en producción"
           ],
-          "target_block": "Datos de Entrada"
+          "target_block": "Datos de Entrada",
+          "label": "Contexto del error"
         }
       ],
       "generar_codigo": [
@@ -1909,7 +1966,8 @@
             "Consulta base de datos",
             "Función pura con parámetros"
           ],
-          "target_block": "Objetivo"
+          "target_block": "Objetivo",
+          "label": "Entrada y salida esperada"
         }
       ],
       "analizar_datos": [
@@ -1922,7 +1980,8 @@
             "Encontrar qué impulsa el resultado",
             "Resumir indicadores clave"
           ],
-          "target_block": "Objetivo"
+          "target_block": "Objetivo",
+          "label": "Pregunta clave sobre los datos"
         }
       ],
       "comparar_evaluar": [
@@ -1935,7 +1994,8 @@
             "3 o más alternativas",
             "Priorizar costo vs calidad"
           ],
-          "target_block": "Instrucciones"
+          "target_block": "Instrucciones",
+          "label": "Alcance y eje de comparación"
         }
       ],
       "resumir_sintetizar": [
@@ -1948,7 +2008,8 @@
             "Media (100-150 palabras)",
             "Detallado por secciones"
           ],
-          "target_block": "Formato de Salida"
+          "target_block": "Formato de Salida",
+          "label": "Extensión del resumen"
         }
       ],
       "planificar_pasos": [
@@ -1961,7 +2022,8 @@
             "Fases con responsables y tiempos",
             "Guía detallada paso a paso"
           ],
-          "target_block": "Formato de Salida"
+          "target_block": "Formato de Salida",
+          "label": "Nivel de detalle del plan"
         }
       ],
       "redactar_contenido": [
@@ -1974,7 +2036,8 @@
             "Aprobar propuesta o presupuesto",
             "Solo informar con claridad"
           ],
-          "target_block": "Objetivo"
+          "target_block": "Objetivo",
+          "label": "Acción esperada del lector"
         }
       ],
       "explicar_concepto": [
@@ -1987,7 +2050,8 @@
             "Técnica con ejemplos prácticos",
             "Con preguntas de repaso"
           ],
-          "target_block": "Contexto y Parámetros"
+          "target_block": "Contexto y Parámetros",
+          "label": "Nivel de profundidad"
         }
       ],
       "transformar_formato": [
@@ -2000,7 +2064,8 @@
             "fecha, concepto, monto",
             "clave y valor simple"
           ],
-          "target_block": "Formato"
+          "target_block": "Formato",
+          "label": "Campos esperados en la salida"
         }
       ],
       "auditar_criticar": [
@@ -2013,7 +2078,8 @@
             "Cliente / Comprador",
             "Empleador / Empresa"
           ],
-          "target_block": "Contexto"
+          "target_block": "Contexto",
+          "label": "Perspectiva de revisión"
         }
       ],
       "simular_practicar": [
@@ -2026,7 +2092,8 @@
             "Llamada / Presencial",
             "Correo / Entrevista"
           ],
-          "target_block": "Contexto"
+          "target_block": "Contexto",
+          "label": "Canal de la conversación"
         }
       ],
       "calcular_modelar": [
@@ -2039,7 +2106,8 @@
             "Sobre costo",
             "Mostrar ambos comparados"
           ],
-          "target_block": "Contexto"
+          "target_block": "Contexto",
+          "label": "Base de cálculo del margen"
         }
       ],
       "idear_alternativas": [
@@ -2052,7 +2120,122 @@
             "LinkedIn / Blog",
             "WhatsApp / Email"
           ],
-          "target_block": "Contexto"
+          "target_block": "Contexto",
+          "label": "Plataforma y público"
+        }
+      ],
+      "clasificar_categorizar": [
+        {
+          "id": "class_scheme",
+          "question": "¿Ya tenés definidas las categorías o querés que las proponga?",
+          "impact_pts": 7,
+          "options": [
+            "Uso mis categorías (te las paso)",
+            "Proponé categorías claras",
+            "Positivo / Neutro / Negativo"
+          ],
+          "target_block": "Instrucciones",
+          "label": "Esquema de categorías"
+        }
+      ],
+      "consultar_dato": [
+        {
+          "id": "answer_length",
+          "question": "¿Qué tan corta querés la respuesta?",
+          "impact_pts": 5,
+          "options": [
+            "Solo el dato",
+            "Dato + 1 línea de contexto",
+            "Dato + ejemplo"
+          ],
+          "target_block": "Formato de Salida",
+          "label": "Extensión de la respuesta"
+        }
+      ],
+      "decidir_recomendar": [
+        {
+          "id": "decision_criteria",
+          "question": "¿Qué criterio pesa más para decidir?",
+          "impact_pts": 8,
+          "options": [
+            "Costo total",
+            "Riesgo / seguridad",
+            "Tiempo / rapidez",
+            "Crecimiento a futuro"
+          ],
+          "target_block": "Instrucciones",
+          "label": "Criterio principal de decisión"
+        }
+      ],
+      "diagnosticar_resolver": [
+        {
+          "id": "diag_evidence",
+          "question": "¿Qué datos o síntomas concretos tenés del problema?",
+          "impact_pts": 7,
+          "options": [
+            "Números de ventas / métricas",
+            "Quejas o comentarios",
+            "Solo una sensación general"
+          ],
+          "target_block": "Contexto",
+          "label": "Evidencia o síntomas disponibles"
+        }
+      ],
+      "extraer_informacion": [
+        {
+          "id": "extract_fields",
+          "question": "¿Qué campos exactos querés extraer?",
+          "impact_pts": 7,
+          "options": [
+            "Fechas y montos",
+            "Nombres y contactos",
+            "Requisitos u obligaciones"
+          ],
+          "target_block": "Formato",
+          "label": "Campos a extraer"
+        }
+      ],
+      "razonar_resolver": [
+        {
+          "id": "reasoning_depth",
+          "question": "¿Cómo querés ver la resolución?",
+          "impact_pts": 6,
+          "options": [
+            "Solo el resultado verificado",
+            "Paso a paso justificado",
+            "Con un método alternativo"
+          ],
+          "target_block": "Instrucciones",
+          "label": "Detalle de la resolución"
+        }
+      ],
+      "reescribir_mejorar": [
+        {
+          "id": "rewrite_goal",
+          "question": "¿Qué querés mejorar principalmente del texto?",
+          "impact_pts": 7,
+          "options": [
+            "Más claro y directo",
+            "Más formal / profesional",
+            "Más corto",
+            "Corregir ortografía"
+          ],
+          "target_block": "Objetivo",
+          "label": "Objetivo de mejora"
+        }
+      ],
+      "traducir_adaptar": [
+        {
+          "id": "target_audience_lang",
+          "question": "¿Para quién y en qué idioma o registro es la versión final?",
+          "impact_pts": 7,
+          "options": [
+            "Inglés profesional",
+            "Español simple para clientes",
+            "Tono ejecutivo para jefes"
+          ],
+          "target_block": "Contexto",
+          "label": "Idioma y registro destino"
         }
       ]
     }
@@ -3102,12 +3285,13 @@
       "when": {
         "any": [
           "action:resumir_sintetizar",
+          "action:explicar_concepto",
           "domain:Estudio y academia"
         ]
       },
       "when_not": [],
       "phase": "entregar",
-      "priority": 65,
+      "priority": 20,
       "levels": [
         "profunda"
       ],

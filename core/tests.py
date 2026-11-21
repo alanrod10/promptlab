@@ -202,7 +202,7 @@ class PromptLabViewsAndIntegrationTests(TestCase):
         resp_live = self.client.post("/api/analyze-live/", data=json.dumps(live_payload), content_type="application/json")
         self.assertEqual(resp_live.status_code, 200)
         live_data = resp_live.json()
-        self.assertEqual(live_data["engine_version"], "v6.0")
+        self.assertEqual(live_data["engine_version"], "v7.0")
         self.assertIn("python", live_data["entities"])
         self.assertIn("pandas", live_data["entities"])
         self.assertTrue(live_data["has_pii"])
@@ -398,7 +398,7 @@ class PromptLabV6UniversalEngineTests(TestCase):
             "Aceite Natura 2100"
         )
         res = get_gemini_response(raw, level="Completa")
-        self.assertEqual(res["engine_version"], "v6.0")
+        self.assertEqual(res["engine_version"], "v7.0")
         self.assertEqual(res["detected_action"], "transformar_formato")
         self.assertEqual(res["detected_deliverable"], "json")
         self.assertEqual(res["payload_kind"], "lista_registros")
@@ -498,3 +498,271 @@ class PromptLabV6UniversalEngineTests(TestCase):
         rows = list(csv.reader(io.StringIO(csv_resp.content.decode("utf-8-sig"))))
         self.assertEqual(len(rows[0]), 38)
         self.assertEqual(rows[0][22:25], ["payload_kind", "roles_filled", "verifiable_ratio"])
+
+
+class PromptLabV7EngineAndWorkspaceTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="tester_v7", password="123")
+
+    def test_clitic_normalizer_preserves_nouns_and_tech(self):
+        norm, tokens, _ = normalize_and_lemmatize(
+            "clausula sqlite dataframe cliente principiante"
+        )
+        for word in ("clausula", "sqlite", "dataframe", "cliente", "principiante"):
+            self.assertIn(word, tokens)
+            self.assertIn(word, norm)
+
+        r_clause = parse_request("Revisame esta cláusula de alquiler como inquilino")
+        self.assertEqual(r_clause.domain, "Trámites y documentos")
+
+        r_sql = parse_request("Comparar SQLite vs PostgreSQL")
+        self.assertIn("sqlite", r_sql.entities)
+
+        r_aud = parse_request(
+            "explicame la diferencia entre mitosis y meiosis para el parcial del viernes, soy principiante"
+        )
+        self.assertEqual(r_aud.audience, "Principiante / Sin conocimientos previos")
+
+    def test_deliverable_word_boundaries_no_false_positives(self):
+        r = parse_request(
+            "Diagnosticar por qué bajaron las ventas y descartar causas secundarias de forma realista"
+        )
+        self.assertNotEqual(r.deliverable, "email / mensaje")
+        self.assertNotEqual(r.deliverable, "lista")
+
+    def test_confidence_calibration_on_clear_requests(self):
+        clear_prompts = [
+            "Armame un script en Python",
+            "Pulir la redacción de este correo para un cliente",
+            "explicame la diferencia entre mitosis y meiosis para el parcial del viernes, soy principiante",
+        ]
+        for txt in clear_prompts:
+            res = analyze_live_preview(txt)
+            self.assertGreaterEqual(
+                res["confidence"],
+                0.65,
+                f"Confianza baja ({res['confidence']}) para pedido claro: {txt}",
+            )
+
+        vague = analyze_live_preview("ventas")
+        self.assertLess(vague["confidence"], 0.50)
+
+    def test_active_learning_sqlite_boost(self):
+        from .services import _get_learned_correction_boosts, _score_actions_detailed, invalidate_learned_boosts_cache
+
+        invalidate_learned_boosts_cache()
+        sample = "Gestionar pliego de licitacion municipal con anexos tecnicos"
+        norm_sample, toks_sample, _ = normalize_and_lemmatize(sample)
+
+        base_scores, _ = _score_actions_detailed(sample, norm_sample, tokens=toks_sample)
+        base_audit = base_scores["auditar_criticar"]
+
+        # Dos correcciones persistidas en SQLite para el término "licitacion" / "pliego"
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Revisar pliego de licitacion obra publica",
+            improved_text="# Rol\nAuditor",
+            category="Trámites y documentos",
+            detected_action="auditar_criticar",
+            user_corrected=True,
+        )
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Chequear pliego de licitacion proveedor",
+            improved_text="# Rol\nAuditor",
+            category="Trámites y documentos",
+            detected_action="auditar_criticar",
+            user_corrected=True,
+        )
+        invalidate_learned_boosts_cache()
+
+        learned = _get_learned_correction_boosts()
+        self.assertIn("licitacion", learned["actions"])
+        self.assertIn("auditar_criticar", learned["actions"]["licitacion"])
+        self.assertLessEqual(learned["actions"]["licitacion"]["auditar_criticar"], 0.12)
+
+        boosted_req = parse_request(sample)
+        self.assertEqual(boosted_req.domain, "Trámites y documentos")
+
+        boosted_scores, _ = _score_actions_detailed(
+            sample,
+            norm_sample,
+            tokens=toks_sample,
+            learned_action_boosts={"auditar_criticar": learned["actions"]["licitacion"]["auditar_criticar"]},
+        )
+        self.assertGreater(boosted_scores["auditar_criticar"], base_audit)
+
+    def test_improve_api_returns_prompt_id_and_disambiguation(self):
+        resp = self.client.post(
+            "/api/improve/",
+            data=json.dumps({"text": "Analizar o resumir este texto", "level": "Completa"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("prompt_id", data)
+        self.assertIsInstance(data["prompt_id"], int)
+        self.assertTrue(Prompt.objects.filter(id=data["prompt_id"]).exists())
+        self.assertTrue(data["needs_disambiguation"])
+        self.assertIn("disambiguation_options", data)
+        self.assertGreaterEqual(len(data["disambiguation_options"]), 2)
+
+        # Toggle favorito vía AJAX (fetch) desde Espacio de Trabajo
+        fav_resp = self.client.post(
+            reverse("toggle_favorite", args=[data["prompt_id"]]),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(fav_resp.status_code, 200)
+        fav_json = fav_resp.json()
+        self.assertTrue(fav_json["is_favorite"])
+
+    def test_workspace_v7_progressive_modes_and_static_js(self):
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "workspace.js"
+        self.assertTrue(js_path.is_file(), "Falta archivo estático core/static/js/workspace.js")
+        self.assertIsNotNone(finders.find("js/workspace.js"))
+
+        ws = self.client.get(reverse("workspace"))
+        self.assertEqual(ws.status_code, 200)
+        self.assertContains(ws, "js/workspace.js")
+        self.assertContains(ws, "Express")
+        self.assertContains(ws, "Guiado")
+        self.assertContains(ws, "Estudio Pro")
+        self.assertContains(ws, "Prompt Listo para Usar")
+        self.assertContains(ws, "De dónde sale cada frase")
+        self.assertContains(ws, "Breve (Directo)")
+        self.assertContains(ws, "Datos que faltan para mejorar tu resultado")
+
+    def test_conceptual_datascience_from_scratch_regression(self):
+        from .services import calculate_rubric_v2
+
+        prompt_txt = "Quiero que me ayudes a entender la ciencia de datos desde cero"
+        form_data = {
+            "edu_level": "Autodidacta desde cero",
+            "explain_depth": "Intuitiva desde cero",
+            "Reglas Rápidas": "Agregar ejemplos reales, Explicar sin tecnicismos",
+        }
+
+        # Live preview con dominio Ciencia de Datos e IA no debe sugerir slots de dataset/modelo
+        live = analyze_live_preview(prompt_txt, category="Ciencia de Datos e IA")
+        slot_questions = " ".join(s["question"].lower() for s in live["suggested_slots"])
+        self.assertNotIn("tamaño aproximado tiene tu dataset", slot_questions)
+        self.assertEqual(live["topic_anchor"].lower(), "ciencia de datos")
+
+        results_by_level = {}
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(
+                prompt_txt,
+                category="Ciencia de Datos e IA",
+                form_data=form_data,
+                level=level,
+                technique="Estándar",
+            )
+            results_by_level[level] = res
+            out = res["improved_prompt"]
+            out_low = out.lower()
+
+            # 1. Cero claves técnicas crudas ni "Reglas Rápidas:" literal
+            for forbidden_key in ("edu_level", "explain_depth", "study_focus", "reglas rápidas:"):
+                self.assertNotIn(forbidden_key, out_low, f"Clave cruda '{forbidden_key}' en nivel {level}")
+
+            # 2. Cero slots/guardrails de dataset o data leakage en pedido conceptual
+            for forbidden_ops in ("tamaño aproximado tiene tu dataset", "data leakage", "p-valores"):
+                self.assertNotIn(forbidden_ops, out_low, f"Texto operativo '{forbidden_ops}' en nivel {level}")
+
+            # 3. Sin autoevaluación no solicitada y sin 'exámenes' si no pidió examen
+            self.assertNotIn("autoevaluación", out_low)
+            self.assertNotIn("en exámenes", out_low)
+
+            # 4. Anchor coverage >= 0.90 y noise_ratio < 0.10 en los 3 niveles
+            self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en {level}")
+            self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en {level}")
+
+        # 5. En Ligera: no hay dos instrucciones seguidas pidiendo definición inicial duplicada
+        ligera_lines = [ln.strip().lower() for ln in results_by_level["Ligera"]["improved_prompt"].splitlines() if ln.strip().startswith(("1.", "2.", "3.", "4."))]
+        def_openers = [ln for ln in ligera_lines if "definición" in ln]
+        self.assertLessEqual(len(def_openers), 1, f"Definición duplicada en Ligera: {ligera_lines}")
+
+        # 6. En Completa: Reglas Rápidas operacionalizadas + etiquetas en español + 3-4 pasos progresivos
+        completa_out = results_by_level["Completa"]["improved_prompt"]
+        self.assertIn("Nivel educativo:", completa_out)
+        self.assertIn("Nivel de profundidad:", completa_out)
+        self.assertIn("2 ejemplos reales", completa_out)
+        self.assertIn("# Restricciones", completa_out)
+
+        # 7. En Profunda: cero líneas duplicadas entre # Validación previa a responder y # Criterio de éxito
+        profunda_out = results_by_level["Profunda"]["improved_prompt"]
+        self.assertIn("# Validación previa a responder", profunda_out)
+        self.assertIn("# Criterio de éxito", profunda_out)
+        val_block = profunda_out.split("# Validación previa a responder", 1)[1].split("# ", 1)[0]
+        crit_block = profunda_out.split("# Criterio de éxito", 1)[1].split("# ", 1)[0]
+        val_lines = {ln.lstrip("- ").replace("Verificar:", "").strip().lower() for ln in val_block.splitlines() if ln.strip().startswith("-")}
+        crit_lines = {ln.lstrip("- ").strip().lower() for ln in crit_block.splitlines() if ln.strip().startswith("-")}
+        self.assertTrue(val_lines, "Validación previa vacía")
+        self.assertTrue(crit_lines, "Criterio de éxito vacío")
+        self.assertEqual(val_lines & crit_lines, set(), f"Líneas duplicadas entre Validación y Criterio: {val_lines & crit_lines}")
+
+        # 8. Detección de contradicción: Explicar sin tecnicismos + Técnica con ejemplos prácticos
+        contra_live = analyze_live_preview(
+            prompt_txt,
+            form_data={
+                "explain_depth": "Técnica con ejemplos prácticos",
+                "Reglas Rápidas": "Explicar sin tecnicismos",
+            },
+        )
+        self.assertGreaterEqual(len(contra_live["contradictions"]), 1)
+
+        # 9. Consistencia rúbrica v2: si noise_ratio >= 0.10 nunca puede devolver 100/100
+        parsed = parse_request(prompt_txt, form_data=form_data)
+        penalized = calculate_rubric_v2(
+            parsed=parsed,
+            improved_prompt=profunda_out,
+            form_data=form_data,
+            level="Profunda",
+            noise_ratio=0.18,
+            anchor_coverage=0.82,
+        )
+        self.assertLess(penalized["final_score"], 100)
+
+        # 10. Operacionalización de study_focus='Con ejercicios resueltos' + ficha de repaso al final en Profunda
+        prof_ej = get_gemini_response(
+            prompt_txt,
+            form_data={
+                **form_data,
+                "study_focus": "Con ejercicios resueltos",
+            },
+            level="Profunda",
+            technique="Estándar",
+        )
+        prof_ej_out = prof_ej["improved_prompt"]
+        self.assertGreaterEqual(prof_ej["anchor_coverage"], 0.90)
+        self.assertLess(prof_ej["noise_ratio"], 0.10)
+        inst_block = prof_ej_out.split("# Instrucciones", 1)[1].split("# ", 1)[0]
+        self.assertIn("ejercicios prácticos sobre ciencia de datos resueltos paso a paso", inst_block.lower())
+        self.assertIn("en 60 segundos", inst_block.lower())
+        idx_paso = inst_block.lower().index("desarrolla paso a paso")
+        idx_ejemplos = inst_block.lower().index("2 ejemplos reales")
+        idx_ficha = inst_block.lower().index("en 60 segundos")
+        self.assertGreater(idx_ficha, idx_paso, "La ficha 'en 60 segundos' debe ir después del desarrollo paso a paso")
+        self.assertGreater(idx_ficha, idx_ejemplos, "La ficha 'en 60 segundos' debe ir después de los ejemplos")
+        numbered_steps = [ln.strip() for ln in inst_block.splitlines() if ln.strip() and ln.strip()[0].isdigit()]
+        self.assertIn("en 60 segundos", numbered_steps[-1].lower(), "La ficha de repaso debe ser el último paso")
+
+        # 11. Operacionalización de preguntas de examen/repaso (sin duplicar si técnica='Pedagógico')
+        prof_preg = get_gemini_response(
+            prompt_txt,
+            form_data={"study_focus": "Con preguntas de examen"},
+            level="Profunda",
+            technique="Estándar",
+        )
+        self.assertIn("3 preguntas de autoevaluación o examen sobre ciencia de datos", prof_preg["improved_prompt"].lower())
+        self.assertGreaterEqual(prof_preg["anchor_coverage"], 0.90)
+        self.assertLess(prof_preg["noise_ratio"], 0.10)
+
+        prof_ped = get_gemini_response(
+            prompt_txt,
+            form_data={"study_focus": "Con preguntas de examen"},
+            level="Profunda",
+            technique="Pedagógico",
+        )
+        self.assertNotIn("3 preguntas de autoevaluación o examen sobre ciencia de datos", prof_ped["improved_prompt"].lower())
