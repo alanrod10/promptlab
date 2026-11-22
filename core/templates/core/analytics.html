@@ -1,202 +1,532 @@
 {% extends 'core/base.html' %}
 {% load static %}
+{% block title %}Estadísticas y Datos · PromptLab{% endblock %}
 {% block content %}
-<div class="container-fluid py-4 px-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+<div class="pl-page-shell">
+    <!-- Bloque 0: Encabezado + Filtro de período + Exportación -->
+    <header class="pl-page-header">
         <div>
-            <h3 class="fw-bold pl-text-primary mb-1" style="letter-spacing: -0.02em;"><i class="bi bi-bar-chart-line text-primary me-2"></i>Estadísticas y Datos</h3>
-            <p class="pl-text-secondary small mb-0">Resumen claro de tus prompts guardados, mejora lograda y exportación a CSV para análisis.</p>
+            <h1 class="pl-page-title">Estadísticas y Datos</h1>
+            <p class="pl-page-subtitle">
+                Mirá en lenguaje claro cómo mejoran tus prompts, qué temas trabajás más y cómo sacarle más provecho a PromptLab.
+            </p>
         </div>
-        <a href="{% url 'export_csv' %}" class="btn btn-brand px-4 py-2 fw-medium">
-            <i class="bi bi-file-earmark-spreadsheet me-2"></i>Descargar Dataset (.CSV)
-        </a>
-    </div>
 
-    <!-- KPIs Principales -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <nav class="stats-period-nav" aria-label="Filtrar estadísticas por período">
+                <a href="{% url 'analytics' %}?periodo=all"
+                   class="stats-period-pill {% if period == 'all' %}active{% endif %}"
+                   {% if period == 'all' %}aria-current="page"{% endif %}>
+                    Todo el historial
+                </a>
+                <a href="{% url 'analytics' %}?periodo=30d"
+                   class="stats-period-pill {% if period == '30d' %}active{% endif %}"
+                   {% if period == '30d' %}aria-current="page"{% endif %}>
+                    Últimos 30 días
+                </a>
+                <a href="{% url 'analytics' %}?periodo=7d"
+                   class="stats-period-pill {% if period == '7d' %}active{% endif %}"
+                   {% if period == '7d' %}aria-current="page"{% endif %}>
+                    Últimos 7 días
+                </a>
+            </nav>
+
+            <a href="{% url 'export_csv' %}" class="btn btn-brand btn-sm px-3 py-2 fw-medium">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Descargar Dataset (.CSV)
+            </a>
+        </div>
+    </header>
+
+    {% if total_all_time == 0 %}
+    <!-- Estado vacío inicial: nunca se creó un prompt -->
+    <section class="pl-empty-state mb-4">
+        <div class="pl-empty-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                <polyline points="17 6 23 6 23 12"/>
+            </svg>
+        </div>
+        <h4 class="fw-bold pl-text-primary mb-2">Todavía no hay estadísticas para mostrar</h4>
+        <p class="pl-text-secondary small mx-auto mb-3" style="max-width: 560px; line-height: 1.6;">
+            Apenas mejores tu primer pedido en el Espacio de Trabajo, acá vas a ver cuánto subió su calidad, qué temas trabajás más y consejos personalizados para ahorrar tiempo.
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+            <span class="stats-action-pill"><i class="bi bi-collection text-primary"></i> Prompts Analizados</span>
+            <span class="stats-action-pill"><i class="bi bi-graph-up-arrow text-success"></i> Mejora promedio</span>
+            <span class="stats-action-pill"><i class="bi bi-award text-warning"></i> Calidad promedio</span>
+            <span class="stats-action-pill"><i class="bi bi-bullseye text-info"></i> Precisión sin Relleno</span>
+        </div>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 fw-semibold">
+                <i class="bi bi-magic me-1"></i> Ir al Espacio de Trabajo
+            </a>
+            <a href="{% url 'templates_gallery' %}" class="btn btn-pl-secondary px-4 py-2 fw-medium">
+                <i class="bi bi-grid me-1"></i> Explorar Plantillas
+            </a>
+        </div>
+    </section>
+
+    {% elif total_prompts == 0 %}
+    <!-- Estado vacío por filtro de período -->
+    <section class="pl-empty-state mb-4">
+        <div class="pl-empty-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+        </div>
+        <h4 class="fw-bold pl-text-primary mb-2">Sin actividad en {{ summary_data.period_label }}</h4>
+        <p class="pl-text-secondary small mx-auto mb-4" style="max-width: 520px; line-height: 1.6;">
+            Tenés <strong>{{ total_all_time }}</strong> prompt(s) en tu historial general, pero ninguno fue creado durante {{ summary_data.period_label }}.
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a href="{% url 'analytics' %}?periodo=all" class="btn btn-brand px-4 py-2 fw-semibold">
+                <i class="bi bi-clock-history me-1"></i> Ver todo el historial
+            </a>
+            <a href="{% url 'workspace' %}" class="btn btn-pl-secondary px-4 py-2 fw-medium">
+                Crear un nuevo prompt
+            </a>
+        </div>
+    </section>
+
+    {% else %}
+    <!-- Tarjeta destacada: Tu resumen rápido -->
+    <section class="stats-summary-card p-4 mb-4" aria-label="Tu resumen rápido">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+            <div>
+                <div class="small fw-bold text-uppercase text-primary mb-1" style="letter-spacing: 0.04em;">
+                    <i class="bi bi-stars me-1"></i>Tu resumen rápido
+                </div>
+                <p class="pl-text-primary mb-1" style="font-size: 1.02rem; line-height: 1.55;">
+                    En {{ summary_data.period_label }} optimizaste <strong>{{ summary_data.count }}</strong>
+                    prompt{% if summary_data.count != 1 %}s{% endif %}, pasando de un puntaje inicial promedio de
+                    <strong>{{ summary_data.avg_before }}/100</strong> a <strong>{{ summary_data.avg_after }}/100</strong>
+                    (<strong>{{ summary_data.avg_gain_fmt }}</strong>).
+                </p>
+                <p class="pl-text-secondary small mb-0">
+                    Tu área más consultada fue <strong>{{ summary_data.top_domain }}</strong> y tu modo más elegido fue <strong>{{ summary_data.top_mode }}</strong>.
+                    {% if summary_data.pii_protected_count > 0 %}
+                        Además, se protegieron datos sensibles automáticamente en <strong>{{ summary_data.pii_protected_count }}</strong> registro(s).
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bloque 1: 4 Tarjetas KPI -->
     <div class="row g-4 mb-4">
         <div class="col-md-6 col-xl-3">
-            <div class="pl-card h-100">
-                <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
+            <article class="pl-card stats-kpi-card h-100 p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex justify-content-between align-items-start gap-2">
                     <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Prompts Analizados</span>
+                        <div class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                            Prompts optimizados
+                        </div>
+                        <div class="small pl-text-secondary" style="font-size: 0.75rem;">Prompts Analizados</div>
                         <h2 class="fw-bold pl-text-primary my-2" style="letter-spacing: -0.03em;">{{ total_prompts }}</h2>
-                        <small class="pl-text-secondary"><i class="bi bi-database me-1 text-primary"></i>Guardados en SQLite ({{ favorites_count }} favoritos)</small>
                     </div>
                     <div class="pl-kpi-icon rounded-circle bg-primary bg-opacity-10 text-primary">
-                        <i class="bi bi-database-fill"></i>
+                        <i class="bi bi-collection-fill"></i>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="pl-card h-100">
-                <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Calidad Promedio Lograda</span>
-                        <h2 class="fw-bold text-success my-2" style="letter-spacing: -0.03em;">{{ avg_final_score }}<span class="fs-6 pl-text-secondary">/100</span></h2>
-                        <small class="pl-text-secondary"><i class="bi bi-graph-up-arrow me-1 text-success"></i>Pedido inicial: {{ avg_user_score }} • Datos sumados: +{{ avg_info_gain }} pts</small>
-                    </div>
-                    <div class="pl-kpi-icon rounded-circle bg-success bg-opacity-10 text-success">
-                        <i class="bi bi-award-fill"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="pl-card h-100">
-                <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Precisión sin Relleno</span>
-                        <h2 class="fw-bold text-info my-2" style="letter-spacing: -0.03em;">{{ avg_anchor_coverage }}%</h2>
-                        <small class="pl-text-secondary"><i class="bi bi-check2-all me-1 text-info"></i>Líneas con datos útiles • Solo {{ avg_noise_ratio }}% de relleno</small>
-                    </div>
-                    <div class="pl-kpi-icon rounded-circle bg-info bg-opacity-10 text-info">
-                        <i class="bi bi-diagram-3-fill"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="pl-card h-100">
-                <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <span class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Seguridad y Aprendizaje</span>
-                        <h2 class="fw-bold text-warning my-2" style="letter-spacing: -0.03em;">{{ avg_confidence }}%</h2>
-                        <small class="pl-text-secondary"><i class="bi bi-pencil-square me-1 text-warning"></i>Seguridad al detectar • {{ correction_rate }}% ajustados por el usuario</small>
-                    </div>
-                    <div class="pl-kpi-icon rounded-circle bg-warning bg-opacity-10 text-warning">
-                        <i class="bi bi-cpu-fill"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráficos Fila 1 -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-7">
-            <div class="pl-card h-100">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">¿Sobre qué temas consultás más?</h6>
-                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> las barras más largas muestran las áreas donde más usás PromptLab.</p>
-                    {% if total_prompts > 0 %}
-                        <div style="height: 260px;">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5 pl-text-secondary small">Genera al menos un prompt para ver este gráfico.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-5">
-            <div class="pl-card h-100">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">¿Qué estilos de respuesta elegís más?</h6>
-                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> cada porción representa la proporción de uso de cada técnica.</p>
-                    {% if total_prompts > 0 %}
-                        <div style="height: 260px;">
-                            <canvas id="techChart"></canvas>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5 pl-text-secondary small">Sin datos registrados aún.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico Comparativo Puntaje Inicial vs Final por Técnica y por Acción -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-6">
-            <div class="pl-card h-100">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">¿Cuánto mejoran los prompts según la técnica elegida?</h6>
-                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> compara el puntaje de la idea original (gris) contra el prompt terminado (verde).</p>
-                    {% if total_prompts > 0 %}
-                        <div style="height: 260px;">
-                            <canvas id="techScoreChart"></canvas>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5 pl-text-secondary small">Genera al menos un prompt para visualizar la comparativa.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="pl-card h-100">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold pl-text-primary mb-1">¿Cuánto mejoran los prompts según la tarea?</h6>
-                    <p class="pl-text-secondary small mb-3"><strong>Cómo leer este gráfico:</strong> compara el puntaje de la idea original contra el prompt terminado para cada tipo de tarea.</p>
-                    {% if total_prompts > 0 %}
-                        <div style="height: 260px;">
-                            <canvas id="actionScoreChart"></canvas>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5 pl-text-secondary small">Genera al menos un prompt para visualizar la comparativa por acción.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline v7.2) -->
-    <div class="pl-card mb-4">
-        <div class="card-body p-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                 <div>
-                    <h6 class="fw-bold pl-text-primary mb-1">
-                        <i class="bi bi-compass-fill text-primary me-2"></i>Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline)
-                    </h6>
-                    <p class="pl-text-secondary small mb-0">
-                        Minería estadística local (Log-Odds Dirichlet suavizado) sobre tu historial SQLite para detectar patrones de cola larga sin internet.
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1">
+                            <i class="bi bi-star-fill text-warning me-1"></i>{{ favorites_count }} en favoritos
+                        </span>
+                        {% if pii_protected_count > 0 %}
+                        <span class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1">
+                            <i class="bi bi-shield-check me-1"></i>{{ pii_protected_count }} con privacidad protegida
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="pl-text-secondary small mb-0" style="font-size: 0.78rem;">
+                        Cantidad total de pedidos guardados en el período elegido.
                     </p>
                 </div>
-                <div class="d-flex flex-wrap gap-2">
-                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">
-                        Roles completos: <strong>{{ avg_roles_filled }}%</strong>
+            </article>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <article class="pl-card stats-kpi-card h-100 p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                            Mejora promedio
+                        </div>
+                        <h2 class="fw-bold text-success my-2" style="letter-spacing: -0.03em;">{{ avg_gain_fmt }}</h2>
+                    </div>
+                    <div class="pl-kpi-icon rounded-circle bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="small fw-medium pl-text-primary mb-1">
+                        {% if avg_initial_score is not None and avg_final_score is not None %}
+                            De {{ avg_initial_score }}/100 inicial a {{ avg_final_score }}/100 final
+                        {% else %}
+                            Sin datos suficientes aún
+                        {% endif %}
+                    </div>
+                    <p class="pl-text-secondary small mb-0" style="font-size: 0.78rem;">
+                        Cuántos puntos de claridad y estructura gana cada pedido tras mejorarlo.
+                    </p>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <article class="pl-card stats-kpi-card h-100 p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                            Calidad promedio
+                        </div>
+                        <h2 class="fw-bold pl-text-primary my-2" style="letter-spacing: -0.03em;">
+                            {% if avg_final_score is not None %}{{ avg_final_score }}<span class="fs-6 pl-text-secondary">/100</span>{% else %}—{% endif %}
+                        </h2>
+                    </div>
+                    <span class="stats-quality-badge {{ quality_band.badge_class }}">{{ quality_band.label }}</span>
+                </div>
+                <div>
+                    <div class="pl-progress mb-2"
+                         role="progressbar"
+                         aria-label="Calidad promedio"
+                         aria-valuenow="{{ avg_final_pct }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="pl-progress-bar h-100" style="width: {{ avg_final_pct }}%;"></div>
+                    </div>
+                    <p class="pl-text-secondary small mb-0" style="font-size: 0.78rem;">
+                        Mide si el prompt final tiene rol, objetivo, contexto y formato claros.
+                    </p>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <article class="pl-card stats-kpi-card h-100 p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="text-uppercase small fw-bold pl-text-secondary" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                            Precisión sin Relleno
+                        </div>
+                        <h2 class="fw-bold text-info my-2" style="letter-spacing: -0.03em;">
+                            {% if avg_anchor_coverage is not None %}{{ avg_anchor_coverage }}% <span class="fs-6 fw-normal pl-text-secondary">datos útiles</span>{% else %}—{% endif %}
+                        </h2>
+                    </div>
+                    <div class="pl-kpi-icon rounded-circle bg-info bg-opacity-10 text-info">
+                        <i class="bi bi-bullseye"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="small fw-medium pl-text-primary mb-1">
+                        {% if avg_noise_ratio is not None %}
+                            {{ avg_noise_ratio }}% texto de relleno
+                        {% else %}
+                            Sin datos suficientes aún
+                        {% endif %}
+                    </div>
+                    <p class="pl-text-secondary small mb-0" style="font-size: 0.78rem;">
+                        Qué proporción del prompt aporta instrucciones reales sin frases vacías.
+                    </p>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Bloque 2: Fila A — Temas (Barras horizontales) + Estilos/Modos (Dona interactivo) -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <h5 class="fw-bold pl-text-primary mb-1">¿Sobre qué temas consultás más?</h5>
+                <p class="pl-text-secondary small mb-3">
+                    <strong>Cómo leer este gráfico:</strong> Las barras más largas muestran las áreas donde más usás PromptLab.
+                </p>
+                <div id="chart-domains-svg" class="stats-chart-svg-wrap flex-grow-1 d-flex align-items-center"></div>
+            </section>
+        </div>
+
+        <div class="col-lg-5">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                    <h5 class="fw-bold pl-text-primary mb-0">¿Qué estilos y modos elegís más?</h5>
+                    <div class="stats-mini-toggle" role="group" aria-label="Cambiar vista del gráfico circular">
+                        <button type="button" class="stats-mini-pill active" data-donut-view="styles" aria-pressed="true">Estilos de respuesta</button>
+                        <button type="button" class="stats-mini-pill" data-donut-view="modes" aria-pressed="false">Modos de profundidad</button>
+                    </div>
+                </div>
+                <p class="pl-text-secondary small mb-3">
+                    <strong>Cómo leer este gráfico:</strong> Cada porción muestra qué proporción de tus prompts usa cada opción.
+                </p>
+
+                <div class="stats-donut-layout flex-grow-1">
+                    <div id="chart-donut-svg" class="stats-donut-svg-wrap"></div>
+                    <div id="chart-donut-legend" class="stats-donut-legend"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Bloque 3: Fila B — Mejora por técnica/modo + Mejora por tarea (Barras verticales agrupadas) -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                    <h5 class="fw-bold pl-text-primary mb-0">¿Cuánto mejoran los prompts según la técnica elegida?</h5>
+                    <div class="stats-mini-toggle" role="group" aria-label="Cambiar agrupación de mejora">
+                        <button type="button" class="stats-mini-pill active" data-grouped-view="by_technique" aria-pressed="true">Por técnica</button>
+                        <button type="button" class="stats-mini-pill" data-grouped-view="by_mode" aria-pressed="false">Por modo</button>
+                    </div>
+                </div>
+                <p class="pl-text-secondary small mb-2">
+                    <strong>Cómo leer este gráfico:</strong> Compara el puntaje promedio de tu idea original (gris) contra el prompt terminado (verde) en cada estilo.
+                </p>
+                <div class="d-flex flex-wrap align-items-center gap-3 small mb-2">
+                    <span class="d-inline-flex align-items-center gap-1 pl-text-secondary">
+                        <span class="stats-legend-dot stats-legend-init"></span> Puntaje inicial promedio
                     </span>
-                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
-                        Predicados verificables: <strong>{{ avg_verifiable_ratio }}%</strong>
+                    <span class="d-inline-flex align-items-center gap-1 pl-text-secondary">
+                        <span class="stats-legend-dot" style="background-color: #10b981;"></span> Puntaje final promedio
                     </span>
                 </div>
-            </div>
-            {% if long_tail_candidates %}
-                <div class="table-responsive">
+                <div id="chart-tech-grouped-svg" class="stats-chart-svg-wrap flex-grow-1"></div>
+            </section>
+        </div>
+
+        <div class="col-lg-6">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <h5 class="fw-bold pl-text-primary mb-1">¿Cuánto mejoran los prompts según la tarea?</h5>
+                <p class="pl-text-secondary small mb-2">
+                    <strong>Cómo leer este gráfico:</strong> Compara el puntaje promedio inicial (gris) contra el prompt mejorado (violeta) para cada tipo de tarea.
+                </p>
+                <div class="d-flex flex-wrap align-items-center gap-3 small mb-2">
+                    <span class="d-inline-flex align-items-center gap-1 pl-text-secondary">
+                        <span class="stats-legend-dot stats-legend-init"></span> Idea inicial promedio
+                    </span>
+                    <span class="d-inline-flex align-items-center gap-1 pl-text-secondary">
+                        <span class="stats-legend-dot" style="background-color: #7c73ff;"></span> Prompt mejorado promedio
+                    </span>
+                </div>
+                <div id="chart-task-grouped-svg" class="stats-chart-svg-wrap stats-chart-scroll-x flex-grow-1"></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Bloque 3b: Fila C — Evolución Antes vs. Después (Líneas con área) + Distribución de calidad (Barra segmentada) -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                    <h5 class="fw-bold pl-text-primary mb-0">Evolución: Antes vs. Después <span class="visually-hidden">Comparativa "Antes vs. Después"</span></h5>
+                    <div class="d-flex align-items-center gap-3 small">
+                        <span class="d-inline-flex align-items-center gap-1 pl-text-secondary">
+                            <span class="stats-legend-dot stats-legend-init"></span> Tu idea inicial
+                        </span>
+                        <span class="d-inline-flex align-items-center gap-1 pl-text-secondary">
+                            <span class="stats-legend-dot" style="background-color: #10b981;"></span> Prompt mejorado
+                        </span>
+                    </div>
+                </div>
+                <p class="pl-text-secondary small mb-2">
+                    <strong>Cómo leer este gráfico:</strong> La línea gris muestra tu idea inicial y la línea destacada el prompt mejorado; cuanto más separadas estén, mayor fue el salto de calidad.
+                </p>
+                <div id="chart-evolution-svg" class="stats-chart-svg-wrap flex-grow-1"></div>
+            </section>
+        </div>
+
+        <div class="col-lg-5">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <h5 class="fw-bold pl-text-primary mb-1">Distribución de calidad</h5>
+                <p class="pl-text-secondary small mb-3">
+                    <strong>Cómo leer este gráfico:</strong> La barra segmentada muestra qué proporción de tus prompts alcanzó cada nivel de calidad.
+                </p>
+
+                <!-- Barra segmentada continua 100% -->
+                <div class="stats-stacked-bar mb-3" role="img" aria-label="Barra segmentada de distribución de calidad">
+                    {% for band in quality_distribution %}
+                        {% if band.pct > 0 %}
+                        <div class="stats-stacked-seg {{ band.bar_class }}"
+                             style="width: {{ band.pct }}%;"
+                             title="{{ band.label }}: {{ band.count }} ({{ band.pct }}%)"></div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- 4 mini-tarjetas resumen -->
+                <div class="row g-2 mb-3">
+                    {% for band in quality_distribution %}
+                    <div class="col-6">
+                        <div class="stats-band-mini-card p-2 h-100">
+                            <div class="d-flex align-items-center justify-content-between gap-1 mb-1">
+                                <span class="d-inline-flex align-items-center gap-1 small fw-bold pl-text-primary">
+                                    <span class="stats-legend-dot {{ band.bar_class }}"></span>
+                                    {{ band.label }}
+                                </span>
+                            </div>
+                            <div class="fw-bold pl-text-primary" style="font-size: 0.95rem;">
+                                {{ band.count }} <span class="small fw-normal pl-text-secondary">({{ band.pct }}%)</span>
+                            </div>
+                            <div class="pl-text-secondary" style="font-size: 0.72rem; line-height: 1.3;">{{ band.hint }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if top_actions %}
+                <div class="mt-auto pt-3 pl-border-top">
+                    <div class="small fw-bold text-uppercase pl-text-secondary mb-2" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                        Tareas más frecuentes
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for act in top_actions %}
+                        <span class="stats-action-pill">
+                            <strong>{{ act.label }}</strong>
+                            <span class="pl-text-secondary">{{ act.count }} ({{ act.pct }}%)</span>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+
+    <!-- Bloque 4: Consejos Personalizados + Actividad Reciente -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-5">
+            <section class="pl-card h-100 p-4">
+                <h5 class="fw-bold pl-text-primary mb-1">Qué podés aprovechar mejor</h5>
+                <p class="pl-text-secondary small mb-3">
+                    Recomendaciones prácticas calculadas sobre tus datos reales de este período.
+                </p>
+
+                <div class="d-flex flex-column gap-3">
+                    {% for tip in personalized_tips %}
+                    <div class="stats-tip-item p-3">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi {{ tip.icon }} text-{{ tip.tone }} mt-1 flex-shrink-0"></i>
+                            <div>
+                                <div class="small fw-bold pl-text-primary mb-1">{{ tip.title }}</div>
+                                <p class="small pl-text-secondary mb-0" style="line-height: 1.5;">{{ tip.text }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+
+        <div class="col-lg-7">
+            <section class="pl-card h-100 p-4 d-flex flex-column">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                    <h5 class="fw-bold pl-text-primary mb-0">Últimos 5 prompts evaluados</h5>
+                    <a href="{% url 'history' %}" class="btn btn-sm btn-pl-secondary px-3">
+                        Ver historial completo <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <p class="pl-text-secondary small mb-3">
+                    Resumen de tus pedidos más recientes con acceso directo para seguir editándolos.
+                </p>
+
+                <div class="stats-table-wrap flex-grow-1">
                     <table class="table table-sm table-hover align-middle small mb-0">
                         <thead>
                             <tr>
-                                <th>Término o Frase Candidata</th>
-                                <th>Frecuencia</th>
-                                <th>Casos Difíciles / Baja Confianza</th>
-                                <th>Z-Score Log-Odds</th>
-                                <th>Arquetipo Sugerido</th>
+                                <th>Fecha</th>
+                                <th>Pedido</th>
+                                <th>Área</th>
+                                <th>Modo</th>
+                                <th>Antes → Después</th>
+                                <th>Mejora</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for cand in long_tail_candidates %}
+                            {% for row in recent_prompts %}
                             <tr>
-                                <td><code>{{ cand.term }}</code>{% if cand.is_bigram %} <span class="badge bg-secondary bg-opacity-10 pl-text-secondary ms-1">bigrama</span>{% endif %}</td>
-                                <td>{{ cand.support }}</td>
-                                <td>{{ cand.hard_hits }}</td>
-                                <td><span class="badge bg-info bg-opacity-10 text-info">{{ cand.z_score }}</span></td>
-                                <td><code>{{ cand.suggested_action }}</code></td>
+                                <td class="text-nowrap pl-text-secondary">{{ row.date_short }}</td>
+                                <td>
+                                    <a href="{% url 'workspace' %}?load={{ row.id }}" class="text-decoration-none fw-medium pl-text-primary" title="{{ row.original_text }}">
+                                        {{ row.title_short }}
+                                    </a>
+                                </td>
+                                <td class="pl-text-secondary">{{ row.domain }}</td>
+                                <td><span class="pl-mode-badge pl-mode-badge--{{ row.mode_key }}">{{ row.mode_label }}</span></td>
+                                <td class="text-nowrap fw-semibold pl-text-primary">
+                                    {% if row.initial_score is not None %}{{ row.initial_score }}{% else %}—{% endif %} → {% if row.final_score is not None %}{{ row.final_score }}{% else %}—{% endif %}
+                                </td>
+                                <td class="text-nowrap"><span class="stats-gain-pill">{{ row.gain_fmt }}</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-            {% else %}
-                <div class="pl-analysis-box p-3 small pl-text-secondary">
-                    <i class="bi bi-info-circle text-primary me-1"></i>
-                    A medida que acumules nuevos pedidos en SQLite (especialmente consultas complejas o inusuales), esta tabla mostrará automáticamente frases recurrentes candidatas para ampliar las reglas offline.
-                </div>
-            {% endif %}
+            </section>
         </div>
     </div>
 
+    <!-- Bloque complementario: Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline) -->
+    <section class="pl-card mb-4 p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h6 class="fw-bold pl-text-primary mb-1">
+                    <i class="bi bi-compass-fill text-primary me-2"></i>Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline)
+                </h6>
+                <p class="pl-text-secondary small mb-0">
+                    Detección estadística local sobre tu historial para identificar frases frecuentes y ampliar las reglas sin conexión.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">
+                    Roles resueltos: <strong>{{ avg_roles_filled }}%</strong>
+                </span>
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
+                    Criterios verificables: <strong>{{ avg_verifiable_ratio }}%</strong>
+                </span>
+            </div>
+        </div>
+        {% if long_tail_candidates %}
+            <div class="stats-table-wrap">
+                <table class="table table-sm table-hover align-middle small mb-0">
+                    <thead>
+                        <tr>
+                            <th>Término o Frase Candidata</th>
+                            <th>Frecuencia</th>
+                            <th>Casos de Baja Seguridad</th>
+                            <th>Relevancia</th>
+                            <th>Tarea Sugerida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cand in long_tail_candidates %}
+                        <tr>
+                            <td><code>{{ cand.term }}</code>{% if cand.is_bigram %} <span class="badge bg-secondary bg-opacity-10 pl-text-secondary ms-1">frase</span>{% endif %}</td>
+                            <td>{{ cand.support }}</td>
+                            <td>{{ cand.hard_hits }}</td>
+                            <td><span class="badge bg-info bg-opacity-10 text-info">{{ cand.z_score }}</span></td>
+                            <td>{{ cand.suggested_action_label }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="pl-analysis-box p-3 small pl-text-secondary">
+                <i class="bi bi-info-circle text-primary me-1"></i>
+                A medida que acumules nuevos pedidos en la base local, esta sección mostrará frases recurrentes candidatas para enriquecer el motor offline.
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- compat: analytics_charts.js?v=7.2.3 -->
+    {{ chart_payload|json_script:"analytics-chart-data" }}
+    <script src="{% static 'js/analytics_charts.js' %}?v=7.2.4"></script>
+    {% endif %}
+
     <!-- Bloque Desplegable: Ver Fórmulas y Detalle Técnico para Evaluación Académica -->
-    <div class="accordion mb-4" id="academicDetailAccordion">
+    <div class="accordion mb-2" id="academicDetailAccordion">
         <div class="accordion-item pl-card border-0">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed bg-transparent pl-text-primary fw-bold px-4 py-3 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAcademicDetail">
@@ -206,266 +536,27 @@
             <div id="collapseAcademicDetail" class="accordion-collapse collapse">
                 <div class="accordion-body px-4 pb-4 pt-2">
                     <div class="pl-analysis-box p-3 mb-3 small pl-text-secondary">
-                        <strong class="pl-text-primary d-block mb-1">Variables y Fórmulas del Motor Universal v7.2:</strong>
-                        <code>user_score</code> (0–100, riqueza de entrada) •
-                        <code>information_gain</code> (0–40, slots + restricciones + ejemplos) •
-                        <code>final_score</code> (0–100, rúbrica ponderada por acción menos penalizaciones) •
-                        <code>info_density</code> = (entidades + restricciones + slots + intenciones) / palabras •
-                        <code>anchor_coverage</code> (meta ≥ 0.90) •
-                        <code>noise_ratio</code> = 1 − anchor_coverage (meta &lt; 0.10) •
-                        <code>roles_filled</code> (0–1, roles semánticos cubiertos) •
-                        <code>verifiable_ratio</code> (0–1, densidad de predicados verificables) •
-                        <code>intent_confidence</code> y <code>intent_margin</code> (TF-IDF + léxico + gramática de roles).
+                        <strong class="pl-text-primary d-block mb-1">Cómo calcula la calidad el Motor Universal v7.2:</strong>
+                        <strong>Puntaje inicial</strong> (0–100 según detalle del pedido original) &bull;
+                        <strong>Aporte del usuario</strong> (0–40 según contexto y restricciones agregadas) &bull;
+                        <strong>Puntaje final</strong> (0–100 según rúbrica de 5 criterios) &bull;
+                        <strong>Datos útiles</strong> (meta &ge; 90%) &bull;
+                        <strong>Texto de relleno</strong> (meta &lt; 10%) &bull;
+                        <strong>Roles resueltos</strong> y <strong>Criterios verificables</strong>.
                     </div>
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                         <div>
                             <h6 class="fw-bold pl-text-primary mb-1"><i class="bi bi-table text-primary me-2"></i>Esquema del Dataset Exportado v7.2 (<code>promptlab_dataset.csv</code>)</h6>
-                            <p class="pl-text-secondary small mb-0">Variables estructuradas listas para cargar en Python con <code>pd.read_csv('promptlab_dataset.csv')</code>.</p>
+                            <p class="pl-text-secondary small mb-0">Archivo tabular de 38 columnas en UTF-8 listo para análisis con Python y Pandas.</p>
                         </div>
-                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">38 columnas • UTF-8</span>
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">38 columnas &bull; UTF-8</span>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle small mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Columna</th>
-                                    <th>Tipo</th>
-                                    <th>Descripción</th>
-                                    <th>Columna</th>
-                                    <th>Tipo</th>
-                                    <th>Descripción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td><code>id</code> / <code>engine_version</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int/str</span></td><td>Identificador y versión del motor (v7.2)</td><td><code>intent_confidence</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Confianza del clasificador TF-IDF + léxico (0–1)</td></tr>
-                                <tr><td><code>categoria</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Dominio especializado asignado o inferido</td><td><code>intent_margin</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Margen entre top-1 y top-2 de intención</td></tr>
-                                <tr><td><code>detected_action</code> / <code>subintent</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Arquetipo cognitivo (21 posibles) y sub-intención</td><td><code>n_entities</code> / <code>n_intents</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de entidades e intenciones detectadas</td></tr>
-                                <tr><td><code>detected_deliverable</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Entregable objetivo (código, tabla, diálogo, json, etc.)</td><td><code>n_neg_constraints</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de restricciones negativas extraídas</td></tr>
-                                <tr><td><code>puntaje_inicial</code> (<code>user_score</code>)</td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntaje de la idea cruda del usuario (0–100)</td><td><code>n_slots_used</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Preguntas del asistente respondidas</td></tr>
-                                <tr><td><code>information_gain</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntos reales aportados por el usuario (0–40)</td><td><code>info_density</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Densidad informativa por palabra de entrada</td></tr>
-                                <tr><td><code>puntaje_final</code> (<code>final_score</code>)</td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Puntaje estructural final ponderado (0–100)</td><td><code>noise_ratio</code> / <code>anchor_coverage</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Proporción de relleno (&lt;0.10) y anclas útiles (≥0.90)</td></tr>
-                                <tr><td><code>payload_kind</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Tipo de insumo pegado detectado estructuralmente</td><td><code>roles_filled</code> / <code>verifiable_ratio</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Roles semánticos resueltos y tasa de predicados verificables</td></tr>
-                                <tr><td><code>ganancia_calidad_pts</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Diferencia entre puntaje final e inicial</td><td><code>tiene_criterio_exito</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>1 si incluye sección # Criterio de éxito</td></tr>
-                                <tr><td><code>es_favorito</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>Validación del usuario (1 favorito, 0 normal)</td><td><code>user_corrected</code> / <code>has_pii_masked</code></td><td><span class="badge bg-warning bg-opacity-10 text-warning">binario</span></td><td>Corrección de chips y anonimización PII</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <p class="pl-text-secondary small mb-0">
+                        Incluye identificador, fecha, versión del motor, área temática, tarea detectada, formato de salida, modo (Express, Guiado, Estudio Pro), puntaje inicial, aporte del usuario, puntaje final, ganancia en puntos, porcentaje de datos útiles, porcentaje de texto de relleno, marcado de favoritos y anonimización de datos sensibles.
+                    </p>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Explicación Sencilla de la Relación con Ciencia de Datos -->
-    <div class="pl-analysis-box p-4" style="border-left: 4px solid var(--pl-accent) !important;">
-        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-diagram-3-fill me-2"></i>¿Cómo se integra PromptLab con la Ciencia de Datos?</h6>
-        <div class="row g-3 small pl-text-secondary mt-1">
-            <div class="col-md-4">
-                <strong class="pl-text-primary d-block mb-1">1. Recolección de Datos Estructurados</strong>
-                Cada vez que se usa la aplicación, se guarda un registro en la base de datos SQLite con el texto original, la categoría, la técnica elegida y el texto mejorado.
-            </div>
-            <div class="col-md-4">
-                <strong class="pl-text-primary d-block mb-1">2. Medición Cuantitativa (Rúbrica 0-100)</strong>
-                El sistema evalúa 5 criterios objetivos (Rol, Objetivo, Contexto, Instrucciones y Formato) para medir con números cuántos puntos de calidad ganó el prompt y cuántas palabras se agregaron.
-            </div>
-            <div class="col-md-4">
-                <strong class="pl-text-primary d-block mb-1">3. Exportación CSV para Machine Learning</strong>
-                El botón <em>Descargar Dataset (.CSV)</em> genera una tabla limpia lista para abrir en <strong>Python, Pandas o Google Colab</strong> y entrenar modelos que clasifiquen textos o predigan qué prompts prefiere el usuario (usando la columna <code>es_favorito</code>).
-            </div>
-        </div>
-    </div>
 </div>
-
-<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const totalPrompts = {{ total_prompts }};
-    if (totalPrompts === 0) return;
-
-    const catLabels = {{ cat_labels_json|safe }};
-    const catCounts = {{ cat_counts_json|safe }};
-    const techLabels = {{ tech_labels_json|safe }};
-    const techCounts = {{ tech_counts_json|safe }};
-    const techScoreLabels = {{ tech_score_labels_json|safe }};
-    const techInitAvg = {{ tech_init_avg_json|safe }};
-    const techFinalAvg = {{ tech_final_avg_json|safe }};
-    const actionLabels = {{ action_labels_json|safe }};
-    const actionInitScores = {{ action_init_scores_json|safe }};
-    const actionFinalScores = {{ action_final_scores_json|safe }};
-
-    function getChartThemeColors() {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        return {
-            text: isDark ? '#cbd5e1' : '#475569',
-            grid: isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.06)'
-        };
-    }
-
-    const charts = [];
-    let cColors = getChartThemeColors();
-
-    const catCtx = document.getElementById('categoryChart');
-    if (catCtx) {
-        charts.push(new Chart(catCtx, {
-            type: 'bar',
-            data: {
-                labels: catLabels,
-                datasets: [{
-                    label: 'Cantidad de Prompts',
-                    data: catCounts,
-                    backgroundColor: '#635bff',
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: { precision: 0, color: cColors.text },
-                        grid: { color: cColors.grid }
-                    },
-                    y: {
-                        ticks: { color: cColors.text },
-                        grid: { color: 'transparent' }
-                    }
-                }
-            }
-        }));
-    }
-
-    const techCtx = document.getElementById('techChart');
-    if (techCtx) {
-        charts.push(new Chart(techCtx, {
-            type: 'doughnut',
-            data: {
-                labels: techLabels,
-                datasets: [{
-                    data: techCounts,
-                    backgroundColor: ['#635bff', '#10b981', '#f59e0b', '#06b6d4', '#ec4899'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: cColors.text }
-                    }
-                }
-            }
-        }));
-    }
-
-    const techScoreCtx = document.getElementById('techScoreChart');
-    if (techScoreCtx) {
-        charts.push(new Chart(techScoreCtx, {
-            type: 'bar',
-            data: {
-                labels: techScoreLabels,
-                datasets: [
-                    {
-                        label: 'Puntaje Inicial Promedio',
-                        data: techInitAvg,
-                        backgroundColor: '#94a3b8',
-                        borderRadius: 6
-                    },
-                    {
-                        label: 'Puntaje Final Promedio',
-                        data: techFinalAvg,
-                        backgroundColor: '#10b981',
-                        borderRadius: 6
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        labels: { color: cColors.text }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: cColors.text },
-                        grid: { color: 'transparent' }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: { color: cColors.text },
-                        grid: { color: cColors.grid }
-                    }
-                }
-            }
-        }));
-    }
-
-    const actionScoreCtx = document.getElementById('actionScoreChart');
-    if (actionScoreCtx) {
-        charts.push(new Chart(actionScoreCtx, {
-            type: 'bar',
-            data: {
-                labels: actionLabels,
-                datasets: [
-                    {
-                        label: 'Idea Inicial (user_score)',
-                        data: actionInitScores,
-                        backgroundColor: '#94a3b8',
-                        borderRadius: 6
-                    },
-                    {
-                        label: 'Puntaje Final (final_score)',
-                        data: actionFinalScores,
-                        backgroundColor: '#635bff',
-                        borderRadius: 6
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        labels: { color: cColors.text }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: cColors.text },
-                        grid: { color: 'transparent' }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: { color: cColors.text },
-                        grid: { color: cColors.grid }
-                    }
-                }
-            }
-        }));
-    }
-
-    window.addEventListener('themeChanged', function() {
-        const colors = getChartThemeColors();
-        charts.forEach(chart => {
-            if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
-                chart.options.plugins.legend.labels.color = colors.text;
-            }
-            if (chart.options.scales) {
-                Object.values(chart.options.scales).forEach(axis => {
-                    if (axis.ticks) axis.ticks.color = colors.text;
-                    if (axis.grid && axis.grid.color !== 'transparent') axis.grid.color = colors.grid;
-                });
-            }
-            chart.update();
-        });
-    });
-});
-</script>
 {% endblock %}

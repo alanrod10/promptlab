@@ -3470,3 +3470,6 @@ def get_gemini_response(
         "segments": segments,
         "trace": parsed.trace,
     }
+
+
+build_prompt = get_gemini_response

@@ -309,6 +309,7 @@
     // ------------------------------------------------------------------
 
     function setWorkspaceMode(mode, persist) {
+        if (mode === "estudio_pro") mode = "pro";
         if (!MODE_TO_LEVEL[mode]) mode = "express";
         currentMode = mode;
 
@@ -683,7 +684,7 @@
 
         if (!segments || segments.length === 0) {
             segContainer.innerHTML =
-                '<p class="pl-text-secondary small">Genera o mejora un prompt para visualizar el mapa de origen y las reglas disparadas.</p>';
+                '<p class="pl-text-secondary small">Generá o mejorá un prompt para visualizar el mapa de origen y las reglas disparadas.</p>';
             return;
         }
 
@@ -1280,6 +1281,7 @@
         if ($("live-detection-bar")) $("live-detection-bar").classList.add("d-none");
         if ($("pii-alert-banner")) $("pii-alert-banner").classList.add("d-none");
         if ($("contradiction-banner")) $("contradiction-banner").classList.add("d-none");
+        if ($("template-loaded-banner")) $("template-loaded-banner").classList.add("d-none");
         if ($("disambiguation-card")) $("disambiguation-card").classList.add("d-none");
         if ($("btn-fill-placeholders")) $("btn-fill-placeholders").classList.add("d-none");
 
@@ -1412,8 +1414,24 @@
         if ($("btn-fill-placeholders")) $("btn-fill-placeholders").addEventListener("click", enfocarDatosPendientes);
         if ($("tab-btn-editor")) $("tab-btn-editor").addEventListener("click", () => switchOutputTab("editor"));
         if ($("tab-btn-origin")) $("tab-btn-origin").addEventListener("click", () => switchOutputTab("origin"));
+        if ($("btn-dismiss-template-banner")) {
+            $("btn-dismiss-template-banner").addEventListener("click", () => {
+                if ($("template-loaded-banner")) $("template-loaded-banner").classList.add("d-none");
+            });
+        }
 
-        // Estado inicial desde backend (?load=<id> | ?preset=<slug> | default localStorage)
+        // Estado inicial desde backend (?load=<id> | ?preset=<slug> | sessionStorage | default localStorage)
+        let sessionTemplate = null;
+        try {
+            const rawSessionTpl = sessionStorage.getItem("promptlab_selected_template");
+            if (rawSessionTpl) {
+                sessionTemplate = JSON.parse(rawSessionTpl);
+                sessionStorage.removeItem("promptlab_selected_template");
+            }
+        } catch (_e) {
+            sessionTemplate = null;
+        }
+
         const boot = readBootData();
         if (boot.loaded_prompt) {
             const lp = boot.loaded_prompt;
@@ -1449,9 +1467,25 @@
             if (inputEl && inputEl.value.trim().length >= 3) {
                 triggerLiveAnalyze();
             }
-        } else if (boot.preset_data) {
-            setWorkspaceMode("guiado", false);
+        } else if (sessionTemplate && sessionTemplate.prompt) {
+            if (inputEl) {
+                inputEl.value = sessionTemplate.prompt;
+            }
+            const tplMode = sessionTemplate.workspace_mode || sessionTemplate.mode || LEVEL_TO_MODE[sessionTemplate.level] || "guiado";
+            setWorkspaceMode(tplMode, false);
+            if ($("template-loaded-banner")) {
+                $("template-loaded-banner").classList.remove("d-none");
+            }
             triggerLiveAnalyze();
+            if (inputEl) inputEl.focus();
+        } else if (boot.preset_data) {
+            const presetMode = boot.preset_data.mode || LEVEL_TO_MODE[boot.preset_data.level] || "guiado";
+            setWorkspaceMode(presetMode, false);
+            if ($("template-loaded-banner")) {
+                $("template-loaded-banner").classList.remove("d-none");
+            }
+            triggerLiveAnalyze();
+            if (inputEl) inputEl.focus();
         } else {
             let savedMode = "express";
             try {

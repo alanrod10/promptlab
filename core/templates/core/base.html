@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PromptLab - Studio de Ingeniería de Prompts &amp; Ciencia de Datos</title>
+    <title>{% block title %}Espacio de Trabajo · PromptLab{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='2' y1='2' x2='30' y2='30' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%235b52f5'/%3E%3Cstop offset='55%25' stop-color='%237c73ff'/%3E%3Cstop offset='100%25' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23131b2e' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M8.5 11L13.5 16L8.5 21' stroke='%23f8fafc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='16.5' y1='11.5' x2='23.5' y2='11.5' stroke='%2322d3ee' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='16.5' y1='16' x2='21.5' y2='16' stroke='%237c73ff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='16.5' y1='20.5' x2='23.5' y2='20.5' stroke='%2310b981' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
     <script>
         (function() {
@@ -15,7 +15,8 @@
     </script>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
-    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=7.2.1">
+    <!-- compat: promptlab.css?v=7.2.1 promptlab.css?v=7.2.2 promptlab.css?v=7.2.3 -->
+    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=7.2.4">
 </head>
 <body class="d-flex">
     <!-- Isotipo SVG reutilizable LOGO-A (gradiente fuera de symbol para compatibilidad cross-browser) -->
@@ -65,20 +66,25 @@
             </div>
         </a>
 
-        <a href="{% url 'workspace' %}" class="nav-link-item {% if request.resolver_match.url_name == 'workspace' %}active{% endif %}">
-            <i class="bi bi-house-door"></i> <span>Espacio de Trabajo</span>
+        <a href="{% url 'workspace' %}" class="nav-link-item {% if request.resolver_match.url_name == 'workspace' %}active{% endif %}" {% if request.resolver_match.url_name == 'workspace' %}aria-current="page"{% endif %}>
+            <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/></svg>
+            <span>Espacio de Trabajo</span>
         </a>
-        <a href="{% url 'history' %}" class="nav-link-item {% if request.resolver_match.url_name == 'history' %}active{% endif %}">
-            <i class="bi bi-clock-history"></i> <span>Mi Historial</span>
+        <a href="{% url 'history' %}" class="nav-link-item {% if request.resolver_match.url_name == 'history' %}active{% endif %}" {% if request.resolver_match.url_name == 'history' %}aria-current="page"{% endif %}>
+            <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+            <span>Mi Historial</span>
         </a>
-        <a href="{% url 'favorites' %}" class="nav-link-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">
-            <i class="bi bi-star"></i> <span>Favoritos</span>
+        <a href="{% url 'favorites' %}" class="nav-link-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}" {% if request.resolver_match.url_name == 'favorites' %}aria-current="page"{% endif %}>
+            <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Favoritos</span>
         </a>
-        <a href="{% url 'templates_gallery' %}" class="nav-link-item {% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}">
-            <i class="bi bi-grid"></i> <span>Plantillas</span>
+        <a href="{% url 'templates_gallery' %}" class="nav-link-item {% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}" {% if request.resolver_match.url_name == 'templates_gallery' %}aria-current="page"{% endif %}>
+            <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+            <span>Plantillas</span>
         </a>
-        <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
-            <i class="bi bi-bar-chart-line"></i> <span>Estadísticas y Datos</span>
+        <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
+            <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>Estadísticas y Datos</span>
         </a>
 
         <div class="mt-auto pt-3">
@@ -114,20 +120,25 @@
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
         </div>
         <div class="offcanvas-body px-0 d-flex flex-column sidebar" style="min-height: auto; border-right: none;">
-            <a href="{% url 'workspace' %}" class="nav-link-item {% if request.resolver_match.url_name == 'workspace' %}active{% endif %}">
-                <i class="bi bi-house-door"></i> <span>Espacio de Trabajo</span>
+            <a href="{% url 'workspace' %}" class="nav-link-item {% if request.resolver_match.url_name == 'workspace' %}active{% endif %}" {% if request.resolver_match.url_name == 'workspace' %}aria-current="page"{% endif %}>
+                <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/></svg>
+                <span>Espacio de Trabajo</span>
             </a>
-            <a href="{% url 'history' %}" class="nav-link-item {% if request.resolver_match.url_name == 'history' %}active{% endif %}">
-                <i class="bi bi-clock-history"></i> <span>Mi Historial</span>
+            <a href="{% url 'history' %}" class="nav-link-item {% if request.resolver_match.url_name == 'history' %}active{% endif %}" {% if request.resolver_match.url_name == 'history' %}aria-current="page"{% endif %}>
+                <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+                <span>Mi Historial</span>
             </a>
-            <a href="{% url 'favorites' %}" class="nav-link-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">
-                <i class="bi bi-star"></i> <span>Favoritos</span>
+            <a href="{% url 'favorites' %}" class="nav-link-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}" {% if request.resolver_match.url_name == 'favorites' %}aria-current="page"{% endif %}>
+                <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span>Favoritos</span>
             </a>
-            <a href="{% url 'templates_gallery' %}" class="nav-link-item {% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}">
-                <i class="bi bi-grid"></i> <span>Plantillas</span>
+            <a href="{% url 'templates_gallery' %}" class="nav-link-item {% if request.resolver_match.url_name == 'templates_gallery' %}active{% endif %}" {% if request.resolver_match.url_name == 'templates_gallery' %}aria-current="page"{% endif %}>
+                <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                <span>Plantillas</span>
             </a>
-            <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
-                <i class="bi bi-bar-chart-line"></i> <span>Estadísticas y Datos</span>
+            <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
+                <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>Estadísticas y Datos</span>
             </a>
             <div class="mt-auto pt-3">
                 <div class="px-3 mb-3">

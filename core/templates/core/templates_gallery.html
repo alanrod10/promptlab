@@ -1,45 +1,186 @@
 {% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Plantillas · PromptLab{% endblock %}
 {% block content %}
-<div class="container py-4 px-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+<div class="pl-page-shell">
+    <!-- 1. Encabezado + Guía rápida en 3 pasos -->
+    <header class="pl-page-header">
         <div>
-            <h3 class="fw-bold pl-text-primary mb-1" style="letter-spacing: -0.02em;">Galería de Plantillas</h3>
-            <p class="pl-text-secondary small mb-0">Selecciona una plantilla curada para cargarla directamente en el editor y personalizarla.</p>
+            <h1 class="pl-page-title">Plantillas Listas para Usar</h1>
+            <p class="pl-page-subtitle">
+                ¿No sabés cómo pedirle algo a la IA? Elegí un caso parecido al tuyo, reemplazá lo que está entre <strong>[corchetes]</strong> con tus datos y dejá que PromptLab arme el prompt profesional.
+            </p>
         </div>
-        <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 fw-medium">
-            <i class="bi bi-pencil-square me-1"></i> Editor Libre
+        <a href="{% url 'workspace' %}" class="btn btn-pl-secondary px-3 py-2 fw-medium flex-shrink-0">
+            <i class="bi bi-pencil-square me-1"></i> Ir al Espacio de Trabajo
         </a>
-    </div>
+    </header>
 
-    <div class="row g-4">
-        {% for slug, tpl in templates.items %}
-        <div class="col-md-6 col-lg-4">
-            <div class="pl-card pl-card-hover h-100 d-flex flex-column">
-                <div class="card-body p-4 d-flex flex-column h-100">
-                    <div class="d-flex align-items-start mb-3">
-                        <div class="pl-kpi-icon bg-primary bg-opacity-10 text-primary me-3">
-                            <i class="bi bi-lightning-charge-fill"></i>
-                        </div>
-                        <div>
-                            <h5 class="fw-bold pl-text-primary mb-1" style="font-size: 1.05rem;">{{ tpl.title }}</h5>
-                            <div class="d-flex flex-wrap gap-1 mt-1">
-                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">{{ tpl.category }}</span>
-                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill"><i class="bi bi-sliders me-1"></i>{{ tpl.technique }}</span>
-                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill">Nivel {{ tpl.level }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="pl-text-secondary small mb-3" style="line-height: 1.55;">{{ tpl.description }}</p>
-                    <div class="p-3 pl-code-block mb-4 flex-grow-1">
-                        <p class="small pl-text-primary mb-0 fst-italic" style="line-height: 1.6;">"{{ tpl.text }}"</p>
-                    </div>
-                    <a href="{% url 'workspace' %}?preset={{ slug }}" class="btn btn-brand w-100 py-2 fw-medium mt-auto">
-                        <i class="bi bi-magic me-1"></i> Usar en el Editor
-                    </a>
+    <section class="pl-card p-3 p-md-4 mb-4" aria-label="Cómo usar las plantillas">
+        <div class="tpl-steps-strip">
+            <div class="tpl-step-item">
+                <div class="tpl-step-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <div>
+                    <div class="tpl-step-title">1. Elegí tu caso</div>
+                    <div class="tpl-step-sub">Filtrá por área o buscá una palabra clave</div>
                 </div>
             </div>
+            <div class="tpl-step-item">
+                <div class="tpl-step-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </div>
+                <div>
+                    <div class="tpl-step-title">2. Tocá "Usar esta plantilla"</div>
+                    <div class="tpl-step-sub">Se carga sola en el Espacio de Trabajo con el modo ideal</div>
+                </div>
+            </div>
+            <div class="tpl-step-item">
+                <div class="tpl-step-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="tpl-step-title">3. Reemplazá los [corchetes]</div>
+                    <div class="tpl-step-sub">Poné tus datos reales y tocá <em>Mejorar mi prompt</em></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tpl-modes-legend mt-3 pt-3 pl-border-top">
+            <span class="tpl-legend-item">
+                <span class="pl-mode-badge pl-mode-badge--express tpl-mode-badge tpl-mode-badge-express">Express</span>
+                <span class="pl-text-secondary">directo y breve</span>
+            </span>
+            <span class="tpl-legend-sep" aria-hidden="true">&middot;</span>
+            <span class="tpl-legend-item">
+                <span class="pl-mode-badge pl-mode-badge--guiado tpl-mode-badge tpl-mode-badge-guiado">Guiado</span>
+                <span class="pl-text-secondary">estructurado por secciones</span>
+            </span>
+            <span class="tpl-legend-sep" aria-hidden="true">&middot;</span>
+            <span class="tpl-legend-item">
+                <span class="pl-mode-badge pl-mode-badge--estudio_pro tpl-mode-badge tpl-mode-badge-estudio_pro">Estudio Pro</span>
+                <span class="pl-text-secondary">máximo detalle con casos borde</span>
+            </span>
+        </div>
+    </section>
+
+    <!-- 2. Barra de filtros y búsqueda instantánea (100% client-side) -->
+    <section class="pl-card p-3 mb-4 tpl-filter-bar" aria-label="Filtros de plantillas">
+        <div class="row g-3 align-items-center mb-3">
+            <div class="col-lg-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text pl-input border-end-0">
+                        <i class="bi bi-search pl-text-secondary"></i>
+                    </span>
+                    <input type="text"
+                           id="tpl-search-input"
+                           class="form-control pl-input border-start-0"
+                           placeholder="Buscar por tema, ej: SQL, parcial, proveedor, TikTok, CV..."
+                           aria-label="Buscar plantillas">
+                    <button type="button" id="tpl-search-clear" class="btn btn-pl-secondary btn-sm d-none" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-lg-6 d-flex flex-wrap align-items-center justify-content-lg-end gap-2">
+                <span class="small pl-text-secondary fw-medium me-1">Modo:</span>
+                <button type="button" class="tpl-mode-chip active" data-mode="" aria-pressed="true">Todos los modos</button>
+                <button type="button" class="tpl-mode-chip" data-mode="express" aria-pressed="false">Express</button>
+                <button type="button" class="tpl-mode-chip" data-mode="guiado" aria-pressed="false">Guiado</button>
+                <button type="button" class="tpl-mode-chip" data-mode="estudio_pro" aria-pressed="false">Estudio Pro</button>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 pl-border-top">
+            <div class="d-flex flex-wrap gap-2" role="group" aria-label="Filtrar por categoría">
+                <button type="button" class="tpl-cat-chip active" data-category="" aria-pressed="true">
+                    Todas <span class="tpl-cat-count">{{ total_templates }}</span>
+                </button>
+                {% for cat in categories %}
+                <button type="button" class="tpl-cat-chip" data-category="{{ cat.name }}" aria-pressed="false">
+                    {{ cat.name }} <span class="tpl-cat-count">{{ cat.count }}</span>
+                </button>
+                {% endfor %}
+            </div>
+            <div id="tpl-results-counter" class="small fw-semibold pl-text-secondary ms-auto">
+                Mostrando {{ total_templates }} de {{ total_templates }} plantillas
+            </div>
+        </div>
+    </section>
+
+    <!-- Estado vacío amigable -->
+    <div id="tpl-empty-state" class="pl-empty-state d-none mb-4">
+        <div class="pl-empty-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </div>
+        <h5 class="fw-bold pl-text-primary mb-1">No encontramos plantillas con esos filtros</h5>
+        <p class="pl-text-secondary small mb-3">Probá con otra palabra clave o limpiá los filtros activos para ver las {{ total_templates }} plantillas.</p>
+        <button type="button" id="btn-reset-tpl-filters" class="btn btn-brand btn-sm px-4 py-2 fw-medium">
+            Limpiar filtros
+        </button>
+    </div>
+
+    <!-- 3. Grilla de tarjetas -->
+    <div class="row g-4" id="tpl-cards-grid">
+        {% for tpl in templates_list %}
+        <div class="col-md-6 col-xl-4 tpl-gallery-item"
+             data-slug="{{ tpl.slug }}"
+             data-title="{{ tpl.titulo }}"
+             data-category="{{ tpl.categoria }}"
+             data-mode="{{ tpl.modo }}"
+             data-workspace-mode="{{ tpl.mode }}"
+             data-search="{{ tpl.titulo|lower }} {{ tpl.categoria|lower }} {{ tpl.descripcion|lower }} {{ tpl.por_que_funciona|lower }} {{ tpl.prompt|lower }}">
+            <article class="pl-card pl-card-hover h-100 d-flex flex-column p-4">
+                <!-- Fila superior: categoría + badge de modo -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">{{ tpl.categoria }}</span>
+                    <span class="pl-mode-badge pl-mode-badge--{{ tpl.modo }} tpl-mode-badge tpl-mode-badge-{{ tpl.modo }}">Modo {{ tpl.modo_label }}</span>
+                </div>
+
+                <!-- Título y descripción -->
+                <h5 class="fw-bold pl-text-primary mb-1" style="font-size: 1.04rem; line-height: 1.35;">{{ tpl.titulo }}</h5>
+                <p class="pl-text-secondary small mb-3" style="line-height: 1.5;">{{ tpl.descripcion }}</p>
+
+                <!-- Vista previa del prompt con placeholders resaltados -->
+                <div class="tpl-prompt-preview p-3 mb-3 flex-grow-1">
+                    <div class="tpl-prompt-text">{{ tpl.prompt_highlighted_html|safe }}</div>
+                    <textarea class="d-none tpl-raw-prompt" readonly aria-hidden="true">{{ tpl.prompt }}</textarea>
+                </div>
+
+                <!-- Micro-tip didáctico -->
+                <div class="tpl-why-box small mb-3">
+                    <i class="bi bi-lightbulb text-warning me-1"></i>
+                    <strong class="pl-text-primary">Por qué funciona:</strong>
+                    <span class="pl-text-secondary">{{ tpl.por_que_funciona }}</span>
+                </div>
+
+                <!-- Pie de tarjeta con 2 acciones -->
+                <div class="d-flex align-items-center gap-2 mt-auto pt-2 pl-border-top">
+                    <a href="{% url 'workspace' %}?preset={{ tpl.slug }}" class="btn btn-brand btn-sm flex-grow-1 py-2 fw-semibold tpl-use-btn">
+                        <i class="bi bi-magic me-1"></i> Usar esta plantilla
+                    </a>
+                    <button type="button" class="btn btn-pl-secondary btn-sm py-2 px-3 fw-medium tpl-copy-btn" title="Copiar texto de la plantilla">
+                        <i class="bi bi-clipboard me-1"></i> Copiar
+                    </button>
+                </div>
+            </article>
         </div>
         {% endfor %}
     </div>
 </div>
+
+<!-- compat: promptlab.css?v=7.2.2 templates_gallery.js?v=7.2.2 templates_gallery.js?v=7.2.3 -->
+<script src="{% static 'js/templates_gallery.js' %}?v=7.2.4"></script>
 {% endblock %}

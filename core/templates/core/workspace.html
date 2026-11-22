@@ -1,18 +1,19 @@
 {% extends 'core/base.html' %}
 {% load static %}
+{% block title %}Espacio de Trabajo · PromptLab{% endblock %}
 {% block content %}
 <div id="workspace-csrf-holder" class="d-none">{% csrf_token %}</div>
 
 <div id="workspace-root"
      class="pl-workspace-shell"
-     data-mode="{% if loaded_prompt %}{% if loaded_prompt.improvement_level == 'Ligera' %}express{% elif loaded_prompt.improvement_level == 'Profunda' %}pro{% else %}guiado{% endif %}{% elif preset_data %}guiado{% else %}express{% endif %}">
+     data-mode="{% if loaded_prompt %}{% if loaded_prompt.improvement_level == 'Ligera' %}express{% elif loaded_prompt.improvement_level == 'Profunda' %}pro{% else %}guiado{% endif %}{% elif preset_data %}{{ preset_data.mode|default:'guiado' }}{% else %}express{% endif %}">
 
     <!-- Cabecera y Selector Segmentado de 3 Modos -->
     <div class="d-flex flex-column gap-3 mb-4">
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <header class="pl-page-header mb-0">
             <div>
-                <h3 class="mb-1 fw-bold pl-text-primary" style="letter-spacing: -0.02em;">Espacio de Trabajo</h3>
-                <p class="pl-text-secondary small mb-0">
+                <h1 class="pl-page-title">Espacio de Trabajo</h1>
+                <p class="pl-page-subtitle">
                     Contá tu idea en lenguaje natural y elegí cuánta profundidad necesitás (<code>Ctrl + Enter</code>).
                 </p>
             </div>
@@ -22,7 +23,7 @@
                 <option value="Completa" {% if loaded_prompt and loaded_prompt.improvement_level == 'Completa' %}selected{% elif preset_data.level == 'Completa' %}selected{% elif not loaded_prompt and not preset_data %}selected{% endif %}>Por Secciones (Recomendado)</option>
                 <option value="Profunda" {% if loaded_prompt and loaded_prompt.improvement_level == 'Profunda' %}selected{% elif preset_data.level == 'Profunda' %}selected{% endif %}>Máximo Detalle (Con Casos Borde)</option>
             </select>
-        </div>
+        </header>
 
         <div class="pl-mode-switcher" role="group" aria-label="Modo del Espacio de Trabajo">
             <button type="button" id="mode-btn-express" class="pl-mode-btn" data-mode="express" aria-pressed="true">
@@ -72,6 +73,16 @@
     <div id="contradiction-banner" class="pl-alert-soft-warning rounded-3 py-2 px-3 small d-none mb-3">
         <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
         <strong>Contradicción detectada:</strong> <span id="contradiction-text"></span>
+    </div>
+
+    <div id="template-loaded-banner" class="pl-template-banner rounded-3 py-2 px-3 small mb-3 {% if not preset_data %}d-none{% endif %}">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div>
+                <i class="bi bi-grid-1x2-fill text-primary me-1"></i>
+                <span>Plantilla cargada: reemplazá los campos entre <strong>[corchetes]</strong> con tus datos reales y tocá <strong>"Mejorar mi prompt"</strong>.</span>
+            </div>
+            <button type="button" id="btn-dismiss-template-banner" class="btn-close btn-sm flex-shrink-0" aria-label="Cerrar aviso"></button>
+        </div>
     </div>
 
     <div class="row g-4 align-items-start">
@@ -251,7 +262,7 @@
                         <span id="origin-rule-inspector" class="ms-auto badge bg-primary bg-opacity-10 text-primary">Tocá cualquier bloque para ver por qué se agregó</span>
                     </div>
                     <div id="origin-segments-container">
-                        <p class="pl-text-secondary small">Genera o mejora un prompt para visualizar el mapa de origen y las reglas disparadas.</p>
+                        <p class="pl-text-secondary small">Generá o mejorá un prompt para visualizar el mapa de origen y las reglas disparadas.</p>
                     </div>
                     <div id="trace-container" class="mt-3 pt-3 pl-border-top d-none">
                         <h6 class="fw-bold pl-text-primary small text-uppercase mb-2"><i class="bi bi-cpu me-1 text-primary"></i>Trazabilidad del Motor NLP</h6>
@@ -298,7 +309,7 @@
                             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-check2-circle me-1"></i>Diagnóstico y Mejoras Aplicadas</h6>
                             <ul id="analysis-list" class="mb-0 small pl-text-secondary list-unstyled" style="line-height: 1.6;">
                                 {% if loaded_prompt %}
-                                <li class="mb-2">Prompt cargado desde tu historial (Dominio: {{ loaded_prompt.category|default:"General" }}, Acción: {{ loaded_prompt.detected_action }}, Técnica: {{ loaded_prompt.technique|default:"Estándar" }}).</li>
+                                <li class="mb-2">Prompt cargado desde tu historial (Área: {{ loaded_prompt.category|default:"General" }}, Tarea: {{ loaded_action_label }}, Modo: {{ loaded_mode_label }}, Estilo: {{ loaded_technique_label }}).</li>
                                 {% endif %}
                             </ul>
                         </div>
@@ -453,6 +464,7 @@
     </div>
 </div>
 
+<!-- compat: promptlab.css?v=7.2.1 workspace.js?v=7.2.1 promptlab.css?v=7.2.2 workspace.js?v=7.2.2 workspace.js?v=7.2.3 -->
 <script id="workspace-boot-data" type="application/json">{{ workspace_boot_json|safe }}</script>
-<script src="{% static 'js/workspace.js' %}?v=7.2.1"></script>
+<script src="{% static 'js/workspace.js' %}?v=7.2.4"></script>
 {% endblock %}

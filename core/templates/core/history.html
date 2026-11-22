@@ -1,42 +1,59 @@
 {% extends 'core/base.html' %}
+{% block title %}{% if only_favorites %}Favoritos · PromptLab{% else %}Mi Historial · PromptLab{% endif %}{% endblock %}
 {% block content %}
-<div class="container py-4 px-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+<div class="pl-page-shell">
+    <header class="pl-page-header">
         <div>
-            <h3 class="fw-bold pl-text-primary mb-1" style="letter-spacing: -0.02em;">
-                {% if only_favorites %}<i class="bi bi-star-fill text-warning me-2"></i>Mis Prompts Favoritos{% else %}<i class="bi bi-clock-history text-primary me-2"></i>Mi Historial de Prompts{% endif %}
-            </h3>
-            <p class="pl-text-secondary small mb-0">
-                {% if only_favorites %}Prompts destacados por su calidad y utilidad para tus proyectos.{% else %}Registro automático de todas tus solicitudes optimizadas y evaluadas en la base de datos.{% endif %}
+            <h1 class="pl-page-title">
+                {% if only_favorites %}
+                    Mis Prompts Favoritos
+                {% else %}
+                    Mi Historial
+                {% endif %}
+            </h1>
+            <p class="pl-page-subtitle">
+                {% if only_favorites %}
+                    Revisá tus prompts destacados para copiarlos o volver a abrirlos en el Espacio de Trabajo cuando quieras.
+                {% else %}
+                    Revisá tus prompts guardados, filtrá por área o modo y volvé a usarlos o copiarlos cuando quieras.
+                {% endif %}
             </p>
         </div>
-        <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 fw-medium">
+        <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 fw-medium flex-shrink-0">
             <i class="bi bi-plus-lg me-1"></i> Nuevo Prompt
         </a>
-    </div>
+    </header>
 
     {% if prompts %}
         <!-- Buscador y Filtros en tiempo real -->
         <div class="pl-card mb-4">
             <div class="card-body p-3">
                 <div class="row g-2 align-items-center">
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text pl-input border-end-0"><i class="bi bi-search pl-text-secondary"></i></span>
                             <input type="text" id="history-search" class="form-control pl-input border-start-0" placeholder="Buscar por palabra clave en el texto..." oninput="filtrarHistorial()">
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <select id="filter-category" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()">
-                            <option value="">Todas las categorías</option>
+                        <select id="filter-category" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()" aria-label="Filtrar por área">
+                            <option value="">Todas las áreas</option>
                             {% for cat in categories %}
                             <option value="{{ cat }}">{{ cat }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <select id="filter-technique" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()">
-                            <option value="">Todas las técnicas</option>
+                    <div class="col-md-2">
+                        <select id="filter-mode" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()" aria-label="Filtrar por modo">
+                            <option value="">Todos los modos</option>
+                            {% for m in modes %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filter-technique" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()" aria-label="Filtrar por estilo">
+                            <option value="">Todos los estilos</option>
                             {% for tech in techniques %}
                             <option value="{{ tech }}">{{ tech }}</option>
                             {% endfor %}
@@ -49,31 +66,48 @@
             </div>
         </div>
 
-        <div id="history-empty-filter" class="pl-card text-center py-4 d-none mb-3">
-            <i class="bi bi-funnel fs-3 pl-text-secondary"></i>
-            <p class="pl-text-secondary small mb-0 mt-2">No hay prompts que coincidan con los filtros seleccionados.</p>
+        <div id="history-empty-filter" class="pl-empty-state d-none mb-4">
+            <div class="pl-empty-icon" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+            </div>
+            <h5 class="fw-bold pl-text-primary mb-1">No hay prompts que coincidan con esos filtros</h5>
+            <p class="pl-text-secondary small mb-0">Probá limpiando la búsqueda o eligiendo otra área o modo.</p>
         </div>
 
         <div class="row g-4" id="history-list">
             {% for p in prompts %}
             <div class="col-12 history-item"
                  data-category="{{ p.category|default:'General' }}"
-                 data-technique="{{ p.technique|default:'Estándar' }}"
+                 data-mode="{{ p.display_mode }}"
+                 data-technique="{{ p.display_technique }}"
                  data-text="{{ p.original_text|lower }} {{ p.improved_text|lower }}">
                 <div class="pl-card pl-card-hover">
                     <div class="card-body p-4">
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">{{ p.category|default:"General" }}</span>
-                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1 action-label-badge" data-action-key="{{ p.detected_action|default:'explicar_concepto' }}"><i class="bi bi-lightning-charge me-1"></i><span class="action-label-text">{{ p.detected_action|default:"explicar_concepto" }}</span></span>
-                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-file-earmark-text me-1"></i>{{ p.detected_deliverable|default:"informe estructurado" }}</span>
-                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">{{ p.technique|default:"Estándar" }}</span>
-                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1"><i class="bi bi-award me-1"></i>{{ p.initial_score }} → {{ p.final_score }}/100</span>
+                                <span class="pl-mode-badge pl-mode-badge--{{ p.display_mode_key }}">Modo {{ p.display_mode }}</span>
+                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">
+                                    <i class="bi bi-lightning-charge me-1"></i>{{ p.display_action }}
+                                </span>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-1">
+                                    <i class="bi bi-file-earmark-text me-1"></i>{{ p.detected_deliverable|default:"informe estructurado" }}
+                                </span>
+                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">{{ p.display_technique }}</span>
+                                <span class="stats-quality-badge {{ p.quality_band.badge_class }}">
+                                    <i class="bi bi-award me-1"></i>{{ p.initial_score }} → {{ p.final_score }}/100 · {{ p.quality_band.label }}
+                                </span>
                                 {% if p.user_corrected %}
-                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-pencil-square me-1"></i>Corregido por usuario</span>
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-3 py-1">
+                                    <i class="bi bi-pencil-square me-1"></i>Ajustado por vos
+                                </span>
                                 {% endif %}
                                 {% if p.has_pii_masked %}
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-shield-check me-1"></i>PII anonimizado</span>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3 py-1">
+                                    <i class="bi bi-shield-check me-1"></i>Privacidad protegida
+                                </span>
                                 {% endif %}
                                 <small class="pl-text-secondary ms-1">{{ p.created_at|date:"d/m/Y H:i" }}</small>
                             </div>
@@ -81,20 +115,20 @@
                                 <form method="post" action="{% url 'toggle_favorite' p.id %}" class="d-inline">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.resolver_match.url_name }}">
-                                    <button type="submit" class="btn btn-sm {% if p.is_favorite %}btn-warning text-dark{% else %}btn-pl-secondary{% endif %} rounded-pill px-3" title="Marcar como favorito">
+                                    <button type="submit" class="btn btn-sm {% if p.is_favorite %}btn-warning text-dark{% else %}btn-pl-secondary{% endif %} rounded-pill px-3" title="{% if p.is_favorite %}Quitar de favoritos{% else %}Marcar como favorito{% endif %}">
                                         <i class="bi {% if p.is_favorite %}bi-star-fill{% else %}bi-star{% endif %}"></i>
                                     </button>
                                 </form>
-                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="copyText('prompt-text-{{ p.id }}', this)">
+                                <button type="button" class="btn btn-sm btn-pl-secondary px-3" onclick="copyText('prompt-text-{{ p.id }}', this)">
                                     <i class="bi bi-clipboard me-1"></i> Copiar
                                 </button>
-                                <a href="{% url 'workspace' %}?load={{ p.id }}" class="btn btn-sm btn-pl-secondary px-3">
-                                    <i class="bi bi-pencil-square me-1"></i> Abrir
+                                <a href="{% url 'workspace' %}?load={{ p.id }}" class="btn btn-sm btn-brand px-3 fw-medium">
+                                    <i class="bi bi-pencil-square me-1"></i> Usar en Espacio de Trabajo
                                 </a>
                                 <form method="post" action="{% url 'delete_prompt' p.id %}" class="d-inline delete-prompt-form">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.resolver_match.url_name }}">
-                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 btn-delete-init" title="Eliminar" onclick="pedirConfirmacionEliminar(this)">
+                                    <button type="button" class="btn btn-sm btn-pl-danger px-2 btn-delete-init" title="Eliminar" onclick="pedirConfirmacionEliminar(this)">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     <span class="d-none align-items-center gap-1 delete-confirm-group">
@@ -105,7 +139,7 @@
                                 </form>
                             </div>
                         </div>
-                        <p class="pl-text-secondary small mb-3"><strong class="pl-text-primary">Idea original (Puntaje inicial {{ p.initial_score }}/100):</strong> {{ p.original_text }}</p>
+                        <p class="pl-text-secondary small mb-3"><strong class="pl-text-primary">Tu idea inicial (Puntaje inicial {{ p.initial_score }}/100):</strong> {{ p.original_text }}</p>
                         <div class="p-3 pl-code-block position-relative">
                             <pre id="prompt-text-{{ p.id }}" class="mb-0 pl-text-primary pl-pre-collapsed" style="white-space: pre-wrap; font-family: inherit; font-size: 0.92rem; line-height: 1.65;">{{ p.improved_text }}</pre>
                             <button type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none fw-medium toggle-expand-btn" onclick="toggleExpand('prompt-text-{{ p.id }}', this)">
@@ -118,11 +152,25 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="pl-card text-center py-5">
-            <i class="bi {% if only_favorites %}bi-star{% else %}bi-inbox{% endif %} fs-1 pl-text-secondary"></i>
-            <h5 class="mt-3 fw-bold pl-text-primary">{% if only_favorites %}Aún no marcaste prompts como favoritos{% else %}Aún no tienes prompts guardados{% endif %}</h5>
-            <p class="pl-text-secondary small">Genera y optimiza tus ideas en el Espacio de Trabajo para construir tu base de datos.</p>
-            <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 mt-2">Ir al Espacio de Trabajo</a>
+        <div class="pl-empty-state">
+            <div class="pl-empty-icon" aria-hidden="true">
+                {% if only_favorites %}
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                {% else %}
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>
+                </svg>
+                {% endif %}
+            </div>
+            <h5 class="fw-bold pl-text-primary mb-1">
+                {% if only_favorites %}Todavía no marcaste prompts como favoritos{% else %}Todavía no tenés prompts guardados{% endif %}
+            </h5>
+            <p class="pl-text-secondary small mb-3">
+                Generá y mejorá tus ideas en el Espacio de Trabajo para armar tu historial.
+            </p>
+            <a href="{% url 'workspace' %}" class="btn btn-brand px-4 py-2 fw-semibold">Ir al Espacio de Trabajo</a>
         </div>
     {% endif %}
 </div>
@@ -133,10 +181,12 @@ function copyText(elementId, btn) {
     navigator.clipboard.writeText(text).then(() => {
         const original = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado';
-        btn.classList.replace('btn-outline-primary', 'btn-success');
+        btn.classList.add('btn-success', 'text-white');
+        btn.classList.remove('btn-pl-secondary');
         setTimeout(() => {
             btn.innerHTML = original;
-            btn.classList.replace('btn-success', 'btn-outline-primary');
+            btn.classList.remove('btn-success', 'text-white');
+            btn.classList.add('btn-pl-secondary');
         }, 1500);
     });
 }
@@ -175,47 +225,26 @@ function cancelarConfirmacionEliminar(btn) {
     if (initBtn) initBtn.classList.remove('d-none');
 }
 
-const ACTION_LABELS_MAP = {
-    depurar_error: 'Depurar error',
-    generar_codigo: 'Generar código',
-    analizar_datos: 'Analizar datos',
-    comparar_evaluar: 'Comparar y evaluar',
-    resumir_sintetizar: 'Resumir y sintetizar',
-    planificar_pasos: 'Planificar pasos',
-    redactar_contenido: 'Redactar contenido',
-    explicar_concepto: 'Explicar concepto',
-    transformar_formato: 'Transformar datos',
-    extraer_informacion: 'Extraer información',
-    clasificar_categorizar: 'Clasificar / etiquetar',
-    traducir_adaptar: 'Traducir / adaptar',
-    reescribir_mejorar: 'Mejorar redacción',
-    auditar_criticar: 'Revisar riesgos',
-    simular_practicar: 'Simular diálogo',
-    idear_alternativas: 'Generar ideas',
-    calcular_modelar: 'Calcular escenarios',
-    razonar_resolver: 'Resolver lógica',
-    decidir_recomendar: 'Evaluar y recomendar',
-    diagnosticar_resolver: 'Diagnosticar fallas',
-    consultar_dato: 'Consulta breve',
-};
-
 function filtrarHistorial() {
     const query = (document.getElementById('history-search').value || '').trim().toLowerCase();
     const cat = document.getElementById('filter-category').value;
+    const mode = document.getElementById('filter-mode').value;
     const tech = document.getElementById('filter-technique').value;
     const items = document.querySelectorAll('.history-item');
     let visible = 0;
 
     items.forEach(item => {
         const itemCat = item.getAttribute('data-category');
+        const itemMode = item.getAttribute('data-mode');
         const itemTech = item.getAttribute('data-technique');
         const itemText = item.getAttribute('data-text') || '';
 
         const matchQuery = !query || itemText.includes(query);
         const matchCat = !cat || itemCat === cat;
+        const matchMode = !mode || itemMode === mode;
         const matchTech = !tech || itemTech === tech;
 
-        if (matchQuery && matchCat && matchTech) {
+        if (matchQuery && matchCat && matchMode && matchTech) {
             item.classList.remove('d-none');
             visible++;
         } else {
@@ -230,13 +259,6 @@ function filtrarHistorial() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll('.action-label-badge').forEach(badge => {
-        const key = badge.getAttribute('data-action-key') || '';
-        const textEl = badge.querySelector('.action-label-text');
-        if (textEl && key) {
-            textEl.textContent = ACTION_LABELS_MAP[key] || (key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()));
-        }
-    });
     document.querySelectorAll('.history-item').forEach(item => {
         const pre = item.querySelector('pre');
         const btn = item.querySelector('.toggle-expand-btn');

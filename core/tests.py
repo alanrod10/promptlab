@@ -1232,3 +1232,491 @@ class PromptLabV721AuditRegressionTests(TestCase):
             self.assertNotIn("desglose de parcial", low)
             self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en N6 ({level})")
             self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en N6 ({level})")
+
+
+class PromptLabTemplatesCatalogTests(TestCase):
+    """Pruebas del catálogo multivariado de 18 plantillas y su conexión con el Espacio de Trabajo."""
+
+    EXPECTED_CATEGORIES = {
+        "Tecnología y Programación",
+        "Ciencia de Datos e IA",
+        "Negocios y Comercio",
+        "Estudio y Academia",
+        "Redacción y Comunicación",
+        "Carrera y Productividad",
+    }
+    MODE_TO_LEVEL = {
+        "express": "Ligera",
+        "guiado": "Completa",
+        "estudio_pro": "Profunda",
+    }
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_templates_gallery_view_returns_200_and_didactic_ux(self):
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "templates_gallery.js"
+        self.assertTrue(js_path.is_file(), "Falta archivo estático core/static/js/templates_gallery.js")
+        self.assertIsNotNone(finders.find("js/templates_gallery.js"))
+
+        resp = self.client.get(reverse("templates_gallery"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Plantillas Listas para Usar")
+        self.assertContains(resp, "1. Elegí tu caso")
+        self.assertContains(resp, "Usar esta plantilla")
+        self.assertContains(resp, "promptlab.css?v=7.2.2")
+        self.assertContains(resp, "templates_gallery.js?v=7.2.2")
+        self.assertContains(resp, "Mostrando 18 de 18 plantillas")
+        for cat in self.EXPECTED_CATEGORIES:
+            self.assertContains(resp, cat)
+
+        ws = self.client.get(reverse("workspace"))
+        self.assertEqual(ws.status_code, 200)
+        self.assertContains(ws, "promptlab.css?v=7.2.2")
+        self.assertContains(ws, "workspace.js?v=7.2.2")
+
+    def test_catalog_has_18_templates_across_6_categories_with_valid_fields(self):
+        import re as _re
+        from .views import TEMPLATES_CATALOG
+
+        self.assertGreaterEqual(len(TEMPLATES_CATALOG), 18)
+        self.assertEqual(len(TEMPLATES_CATALOG), 18)
+
+        categories_count = {}
+        for slug, tpl in TEMPLATES_CATALOG.items():
+            self.assertEqual(tpl["slug"], slug)
+            self.assertEqual(tpl["id"], slug)
+            self.assertIn(tpl["categoria"], self.EXPECTED_CATEGORIES)
+            categories_count[tpl["categoria"]] = categories_count.get(tpl["categoria"], 0) + 1
+            self.assertTrue(tpl["titulo"].strip(), f"Falta título en {slug}")
+            self.assertTrue(tpl["descripcion"].strip(), f"Falta descripción en {slug}")
+            self.assertIn(tpl["modo"], ("express", "guiado", "estudio_pro"), f"Modo inválido en {slug}")
+            self.assertTrue(tpl["por_que_funciona"].strip(), f"Falta por_que_funciona en {slug}")
+            self.assertTrue(tpl["prompt"].strip(), f"Falta prompt en {slug}")
+            self.assertIsNotNone(
+                _re.search(r"\[[^\[\]\n]+\]", tpl["prompt"]),
+                f"La plantilla {slug} debe incluir placeholders entre [corchetes]",
+            )
+
+        self.assertEqual(set(categories_count.keys()), self.EXPECTED_CATEGORIES)
+        for cat, count in categories_count.items():
+            self.assertEqual(count, 3, f"La categoría {cat} debería tener 3 plantillas")
+
+    def test_all_18_templates_pass_engine_and_load_in_workspace(self):
+        from .services import build_prompt
+        from .views import TEMPLATES_CATALOG
+
+        for slug, tpl in TEMPLATES_CATALOG.items():
+            level = self.MODE_TO_LEVEL[tpl["modo"]]
+            res = build_prompt(tpl["prompt"], level=level)
+            self.assertNotIn("error", res, f"Error en motor para plantilla {slug}: {res.get('error')}")
+            self.assertEqual(res["engine_version"], "v7.2")
+            self.assertTrue(res["improved_prompt"].strip(), f"Salida vacía para {slug}")
+
+            live = analyze_live_preview(tpl["prompt"])
+            self.assertIn("domain", live)
+            self.assertIn("action", live)
+
+        # Verificar carga por ?preset=<slug> en Espacio de Trabajo para modos Express, Guiado y Estudio Pro
+        sample_slugs = [
+            ("explicar-concepto-analogia", 'data-mode="express"'),
+            ("debug-corregir-codigo", 'data-mode="guiado"'),
+            ("python-csv-sin-librerias", 'data-mode="pro"'),
+        ]
+        for slug, expected_attr in sample_slugs:
+            ws_resp = self.client.get(reverse("workspace") + f"?preset={slug}")
+            self.assertEqual(ws_resp.status_code, 200)
+            self.assertContains(ws_resp, expected_attr)
+            self.assertContains(ws_resp, TEMPLATES_CATALOG[slug]["prompt"].splitlines()[0])
+            self.assertContains(ws_resp, "Plantilla cargada:")
+
+
+class PromptLabStatsDashboardTests(TestCase):
+    """Pruebas del dashboard claro de Estadísticas y Datos (v7.2.3)."""
+
+    FORBIDDEN_JARGON = (
+        "anchor_coverage",
+        "noise_ratio",
+        "subintent",
+        "Ligera",
+        "Completa",
+        "Profunda",
+        "delta",
+    )
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="stats_tester", password="123")
+
+    def test_stats_empty_state(self):
+        resp = self.client.get(reverse("analytics"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Todavía no hay estadísticas para mostrar")
+        self.assertContains(resp, reverse("workspace"))
+        self.assertContains(resp, reverse("templates_gallery"))
+        self.assertContains(resp, "promptlab.css?v=7.2.3")
+        for term in self.FORBIDDEN_JARGON:
+            self.assertNotContains(resp, term)
+
+    def test_stats_populated_dashboard_and_no_jargon(self):
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Explicar machine learning con analogía simple",
+            improved_text="# Rol\nDocente\n# Objetivo\nExplicar machine learning.",
+            category="Ciencia de Datos e IA",
+            detected_action="explicar_concepto",
+            improvement_level="Ligera",
+            initial_score=40,
+            final_score=86,
+            quality_gain=46,
+            anchor_coverage=0.95,
+            noise_ratio=0.05,
+            is_favorite=True,
+            has_pii_masked=False,
+        )
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Crear consulta SQL con JOIN para facturación",
+            improved_text="# Rol\nDBA\n# Objetivo\nConsulta SQL en PostgreSQL.",
+            category="Tecnología y Programación",
+            detected_action="generar_codigo",
+            improvement_level="Profunda",
+            initial_score=55,
+            final_score=95,
+            quality_gain=40,
+            anchor_coverage=0.96,
+            noise_ratio=0.04,
+            is_favorite=False,
+            has_pii_masked=True,
+        )
+        # Registro legacy con final_score=0 para probar cálculo en memoria sin mutar BD
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Armar plan de control de stock semanal",
+            improved_text="# Rol\nConsultor\n\n# Objetivo\nPlan de control de stock.\n\n# Formato de salida\n- Lista",
+            category=None,
+            detected_action="planificar_pasos",
+            improvement_level="Completa",
+            initial_score=35,
+            final_score=0,
+            quality_gain=0,
+        )
+
+        resp = self.client.get(reverse("analytics"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Tu resumen rápido")
+        self.assertContains(resp, 'Comparativa "Antes vs. Después"')
+        self.assertContains(resp, "Qué podés aprovechar mejor")
+        self.assertContains(resp, "Últimos 5 prompts evaluados")
+        self.assertContains(resp, "Express")
+        self.assertContains(resp, "Guiado")
+        self.assertContains(resp, "Estudio Pro")
+        self.assertContains(resp, "Prompts Analizados")
+        self.assertContains(resp, "Precisión sin Relleno")
+        self.assertContains(resp, "con privacidad protegida")
+        for term in self.FORBIDDEN_JARGON:
+            self.assertNotContains(resp, term)
+
+    def test_stats_period_filtering_real(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        old_p = Prompt.objects.create(
+            user=self.user,
+            original_text="Pedido antiguo de hace 45 días sobre finanzas",
+            improved_text="# Rol\nAsesor\n# Objetivo\nFinanzas.",
+            category="Negocios y Comercio",
+            improvement_level="Completa",
+            initial_score=40,
+            final_score=84,
+            quality_gain=44,
+        )
+        Prompt.objects.filter(id=old_p.id).update(created_at=timezone.now() - timedelta(days=45))
+
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Pedido reciente de hoy sobre Python CSV",
+            improved_text="# Rol\nDev\n# Objetivo\nPython CSV.",
+            category="Tecnología y Programación",
+            improvement_level="Ligera",
+            initial_score=50,
+            final_score=92,
+            quality_gain=42,
+        )
+
+        resp_7d = self.client.get(reverse("analytics") + "?periodo=7d")
+        self.assertEqual(resp_7d.status_code, 200)
+        self.assertContains(resp_7d, "Pedido reciente de hoy sobre Python CSV")
+        self.assertNotContains(resp_7d, "Pedido antiguo de hace 45 días sobre finanzas")
+
+        resp_30d = self.client.get(reverse("analytics") + "?periodo=30d")
+        self.assertEqual(resp_30d.status_code, 200)
+        self.assertContains(resp_30d, "Pedido reciente de hoy sobre Python CSV")
+        self.assertNotContains(resp_30d, "Pedido antiguo de hace 45 días sobre finanzas")
+
+        resp_all = self.client.get(reverse("analytics") + "?periodo=all")
+        self.assertEqual(resp_all.status_code, 200)
+        self.assertContains(resp_all, "Pedido reciente de hoy sobre Python CSV")
+        self.assertContains(resp_all, "Pedido antiguo de hace 45 días sobre finanzas")
+
+        resp_invalid = self.client.get(reverse("analytics") + "?periodo=invalido")
+        self.assertEqual(resp_invalid.status_code, 200)
+        self.assertContains(resp_invalid, "Pedido reciente de hoy sobre Python CSV")
+        self.assertContains(resp_invalid, "Pedido antiguo de hace 45 días sobre finanzas")
+
+    def test_stats_empty_period_with_old_data(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        old_p = Prompt.objects.create(
+            user=self.user,
+            original_text="Prompt histórico de hace 45 días",
+            improved_text="# Rol\nAsistente\n# Objetivo\nHistórico.",
+            category="Estudio y Academia",
+            improvement_level="Completa",
+            initial_score=45,
+            final_score=88,
+            quality_gain=43,
+        )
+        Prompt.objects.filter(id=old_p.id).update(created_at=timezone.now() - timedelta(days=45))
+
+        resp = self.client.get(reverse("analytics") + "?periodo=7d")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Sin actividad en los últimos 7 días")
+        self.assertContains(resp, "Ver todo el historial")
+        for term in self.FORBIDDEN_JARGON:
+            self.assertNotContains(resp, term)
+
+    def test_stats_chart_json_payload_and_five_chart_containers(self):
+        import re as _re
+
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "analytics_charts.js"
+        self.assertTrue(js_path.is_file(), "Falta archivo estático core/static/js/analytics_charts.js")
+        self.assertIsNotNone(finders.find("js/analytics_charts.js"))
+
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Armar script en Python para procesar ventas",
+            improved_text="# Rol\nDev\n# Objetivo\nScript en Python.",
+            category="Tecnología y Programación",
+            detected_action="generar_codigo",
+            improvement_level="Profunda",
+            technique="Paso a Paso",
+            initial_score=48,
+            final_score=94,
+            quality_gain=46,
+        )
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Explicar qué es una red neuronal",
+            improved_text="# Rol\nDocente\n# Objetivo\nExplicar red neuronal.",
+            category="Ciencia de Datos e IA",
+            detected_action="explicar_concepto",
+            improvement_level="Ligera",
+            technique="Estándar",
+            initial_score=42,
+            final_score=85,
+            quality_gain=43,
+        )
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Planificar estudio semanal de estadística",
+            improved_text="# Rol\nTutor\n# Objetivo\nPlan de estudio.",
+            category="Estudio y Academia",
+            detected_action="planificar_pasos",
+            improvement_level="Completa",
+            technique="Con Ejemplos",
+            initial_score=50,
+            final_score=90,
+            quality_gain=40,
+        )
+
+        resp = self.client.get(reverse("analytics"))
+        self.assertEqual(resp.status_code, 200)
+        html_body = resp.content.decode("utf-8")
+
+        self.assertIn('id="analytics-chart-data"', html_body)
+        self.assertIn("analytics_charts.js?v=7.2.3", html_body)
+        for container_id in (
+            'id="chart-domains-svg"',
+            'id="chart-donut-svg"',
+            'id="chart-tech-grouped-svg"',
+            'id="chart-task-grouped-svg"',
+            'id="chart-evolution-svg"',
+        ):
+            self.assertIn(container_id, html_body)
+
+        match = _re.search(
+            r'<script id="analytics-chart-data" type="application/json">(.*?)</script>',
+            html_body,
+            flags=_re.DOTALL,
+        )
+        self.assertIsNotNone(match, "No se encontró el bloque JSON analytics-chart-data")
+        payload = json.loads(match.group(1))
+        for key in ("total", "domains", "donut", "evolution", "by_technique", "by_mode", "by_task", "quality_bands"):
+            self.assertIn(key, payload)
+        self.assertEqual(payload["total"], 3)
+
+        task_labels = {item["label"] for item in payload["by_task"]}
+        self.assertIn("Generar código", task_labels)
+        self.assertIn("Explicar concepto", task_labels)
+        self.assertIn("Planificar pasos", task_labels)
+        style_labels = {item["label"] for item in payload["donut"]["styles"]}
+        self.assertIn("Estándar", style_labels)
+
+        for forbidden in self.FORBIDDEN_JARGON + ("user_score", "final_score"):
+            self.assertNotIn(forbidden, html_body)
+
+    def test_stats_single_prompt_edge_case(self):
+        import re as _re
+
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Consulta SQL con JOIN para facturación mensual",
+            improved_text="# Rol\nDBA\n# Objetivo\nConsulta SQL.",
+            category="Tecnología y Programación",
+            detected_action="generar_codigo",
+            improvement_level="Completa",
+            technique="Estándar",
+            initial_score=52,
+            final_score=91,
+            quality_gain=39,
+        )
+
+        resp = self.client.get(reverse("analytics"))
+        self.assertEqual(resp.status_code, 200)
+        html_body = resp.content.decode("utf-8")
+        self.assertNotIn("NaN", html_body)
+
+        match = _re.search(
+            r'<script id="analytics-chart-data" type="application/json">(.*?)</script>',
+            html_body,
+            flags=_re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        payload = json.loads(match.group(1))
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(len(payload["donut"]["styles"]), 1)
+        self.assertEqual(payload["donut"]["styles"][0]["pct"], 100)
+        self.assertEqual(len(payload["evolution"]), 1)
+        self.assertEqual(payload["evolution"][0]["before"], 52)
+        self.assertEqual(payload["evolution"][0]["after"], 91)
+
+
+class PromptLabSiteCoherenceTests(TestCase):
+    """Pruebas de coherencia de diseño, lenguaje, cache-busting v7.2.4 y navegación entre las 4 pestañas."""
+
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+    RAW_JARGON = (
+        "anchor_coverage",
+        "noise_ratio",
+        "subintent",
+        "user_score",
+        "final_score",
+    )
+    RAW_MODE_WORDS = ("Ligera", "Completa", "Profunda")
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="coherence_user", password="123")
+
+    def _create_sample_prompts(self):
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Armar script en Python para procesar CSV diario",
+            improved_text="# Rol\nDev\n# Objetivo\nScript en Python.",
+            category="Tecnología y Programación",
+            detected_action="generar_codigo",
+            improvement_level="Profunda",
+            technique="Paso a Paso",
+            initial_score=45,
+            final_score=93,
+            quality_gain=48,
+            is_favorite=True,
+            has_pii_masked=True,
+        )
+        Prompt.objects.create(
+            user=self.user,
+            original_text="Explicar qué es overfitting con analogía cotidiana",
+            improved_text="# Rol\nDocente\n# Objetivo\nExplicar overfitting.",
+            category="Ciencia de Datos e IA",
+            detected_action="explicar_concepto",
+            improvement_level="Ligera",
+            technique="Estándar",
+            initial_score=42,
+            final_score=86,
+            quality_gain=44,
+            is_favorite=False,
+        )
+
+    def test_all_tabs_respond_200_empty_and_populated(self):
+        routes = ("workspace", "templates_gallery", "history", "favorites", "analytics")
+        for route_name in routes:
+            resp = self.client.get(reverse(route_name))
+            self.assertEqual(resp.status_code, 200, f"Falló {route_name} con DB vacía")
+
+        self._create_sample_prompts()
+        for route_name in routes:
+            resp = self.client.get(reverse(route_name))
+            self.assertEqual(resp.status_code, 200, f"Falló {route_name} con datos")
+
+    def test_cache_busting_v724_and_no_external_cdns(self):
+        self._create_sample_prompts()
+        checks = [
+            ("workspace", ["promptlab.css?v=7.2.4", "workspace.js?v=7.2.4"]),
+            ("templates_gallery", ["promptlab.css?v=7.2.4", "templates_gallery.js?v=7.2.4"]),
+            ("history", ["promptlab.css?v=7.2.4"]),
+            ("favorites", ["promptlab.css?v=7.2.4"]),
+            ("analytics", ["promptlab.css?v=7.2.4", "analytics_charts.js?v=7.2.4"]),
+        ]
+        for route_name, expected_assets in checks:
+            resp = self.client.get(reverse(route_name))
+            self.assertEqual(resp.status_code, 200)
+            body = resp.content.decode("utf-8")
+            for asset in expected_assets:
+                self.assertIn(asset, body, f"Falta {asset} en {route_name}")
+            for cdn in self.EXTERNAL_CDNS:
+                self.assertNotIn(cdn, body, f"CDN externo {cdn} detectado en {route_name}")
+
+    def test_no_raw_jargon_or_internal_mode_names_in_ui(self):
+        self._create_sample_prompts()
+        for route_name in ("workspace", "templates_gallery", "history", "favorites", "analytics"):
+            resp = self.client.get(reverse(route_name))
+            body = resp.content.decode("utf-8")
+            for term in self.RAW_JARGON:
+                self.assertNotIn(term, body, f"Jerga cruda '{term}' encontrada en {route_name}")
+
+        for route_name in ("templates_gallery", "history", "favorites", "analytics"):
+            resp = self.client.get(reverse(route_name))
+            body = resp.content.decode("utf-8")
+            for raw_mode in self.RAW_MODE_WORDS:
+                self.assertNotIn(raw_mode, body, f"Modo interno '{raw_mode}' expuesto en {route_name}")
+
+        hist_body = self.client.get(reverse("history")).content.decode("utf-8")
+        self.assertIn("Modo Express", hist_body)
+        self.assertIn("Modo Estudio Pro", hist_body)
+        self.assertIn("Privacidad protegida", hist_body)
+
+    def test_navigation_coherence_titles_and_aria_current(self):
+        expected = [
+            ("workspace", "Espacio de Trabajo · PromptLab", reverse("workspace")),
+            ("templates_gallery", "Plantillas · PromptLab", reverse("templates_gallery")),
+            ("history", "Mi Historial · PromptLab", reverse("history")),
+            ("favorites", "Favoritos · PromptLab", reverse("favorites")),
+            ("analytics", "Estadísticas y Datos · PromptLab", reverse("analytics")),
+        ]
+        for route_name, expected_title, expected_href in expected:
+            resp = self.client.get(expected_href)
+            self.assertEqual(resp.status_code, 200)
+            body = resp.content.decode("utf-8")
+            self.assertIn(f"<title>{expected_title}</title>", body)
+            self.assertIn('aria-current="page"', body)
+            for nav_label in ("Espacio de Trabajo", "Mi Historial", "Favoritos", "Plantillas", "Estadísticas y Datos"):
+                self.assertIn(nav_label, body)
+            self.assertIn("themeChanged", body)
+
