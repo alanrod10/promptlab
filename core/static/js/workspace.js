@@ -1,5 +1,5 @@
 /* ==========================================================================
-   PromptLab v7.0 — Espacio de Trabajo Progresivo (100% Offline)
+   PromptLab v7.2 — Espacio de Trabajo Progresivo (100% Offline)
    Modos: Express (Ligera) | Guiado (Completa) | Estudio Pro (Profunda)
    ========================================================================== */
 
@@ -59,6 +59,7 @@
         "código",
         "tabla",
         "lista",
+        "plan / cronograma",
         "guía paso a paso",
         "email / mensaje",
         "informe estructurado",
@@ -87,6 +88,7 @@
     let slotAnswers = {};
     let activeQuickRules = new Set();
     let pendingChangesCount = 0;
+    let isOutputEditing = false;
 
     function $(id) {
         return document.getElementById(id);
@@ -102,12 +104,140 @@
         output.style.height = `${targetH}px`;
     }
 
+    function formatInlineMarkdown(escapedLine) {
+        const codeTokens = [];
+        let out = escapedLine.replace(/`([^`]+)`/g, (_m, code) => {
+            const idx = codeTokens.length;
+            codeTokens.push(`<code class="pl-fmt-code">${code}</code>`);
+            return `__PL_CODE_TOK_${idx}__`;
+        });
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        out = out.replace(
+            /(\[(?:COMPLETAR[^\]]*|PEG[AÁ]\s+AC[AÁ][^\]]*|PEGA\s+AQU[IÍ][^\]]*)\])/gi,
+            '<span class="pl-fmt-placeholder">$1</span>'
+        );
+        codeTokens.forEach((html, idx) => {
+            out = out.replace(`__PL_CODE_TOK_${idx}__`, html);
+        });
+        return out;
+    }
+
+    function renderFormattedPrompt(text) {
+        const preview = $("formatted-prompt-preview");
+        if (!preview) return;
+        const raw = String(text || "");
+        if (!raw.trim()) {
+            preview.innerHTML = "";
+            return;
+        }
+
+        const payloadBlocks = [];
+        const withTokens = raw.replace(/<datos_entrada>\r?\n?([\s\S]*?)\r?\n?<\/datos_entrada>/g, (_m, inner) => {
+            const idx = payloadBlocks.length;
+            payloadBlocks.push(inner);
+            return `\n__PL_PAYLOAD_FMT_${idx}__\n`;
+        });
+
+        const lines = withTokens.split(/\r?\n/);
+        const htmlParts = [];
+
+        lines.forEach((rawLine) => {
+            const trimmed = rawLine.trim();
+            if (!trimmed) return;
+
+            const payloadMatch = trimmed.match(/^__PL_PAYLOAD_FMT_(\d+)__$/);
+            if (payloadMatch) {
+                const innerText = payloadBlocks[Number(payloadMatch[1])] || "";
+                htmlParts.push(
+                    `<div class="pl-fmt-payload-wrap"><div class="pl-fmt-payload-tag">&lt;datos_entrada&gt;</div><pre class="pl-fmt-payload mb-0">${escapeHtml(innerText)}</pre></div>`
+                );
+                return;
+            }
+
+            const headingMatch = trimmed.match(/^#\s+(.+)$/);
+            if (headingMatch) {
+                htmlParts.push(`<div class="pl-fmt-heading">${formatInlineMarkdown(escapeHtml(headingMatch[1]))}</div>`);
+                return;
+            }
+
+            const stepMatch = trimmed.match(/^(\d+\.)\s+(.+)$/);
+            if (stepMatch) {
+                htmlParts.push(
+                    `<div class="pl-fmt-step"><span class="pl-fmt-step-num">${escapeHtml(stepMatch[1])}</span><span>${formatInlineMarkdown(escapeHtml(stepMatch[2]))}</span></div>`
+                );
+                return;
+            }
+
+            const bulletMatch = trimmed.match(/^-\s+(.+)$/);
+            if (bulletMatch) {
+                htmlParts.push(
+                    `<div class="pl-fmt-bullet"><span class="pl-fmt-bullet-dot">&bull;</span><span>${formatInlineMarkdown(escapeHtml(bulletMatch[1]))}</span></div>`
+                );
+                return;
+            }
+
+            htmlParts.push(`<p class="pl-fmt-para">${formatInlineMarkdown(escapeHtml(trimmed))}</p>`);
+        });
+
+        preview.innerHTML = htmlParts.join("");
+    }
+
+    function setOutputEditMode(editing) {
+        isOutputEditing = Boolean(editing);
+        const preview = $("formatted-prompt-preview");
+        const output = $("generated-prompt-output");
+        const toggleBtn = $("btn-toggle-edit-output");
+        const toggleLabel = $("btn-toggle-edit-label");
+        const toggleIcon = toggleBtn ? toggleBtn.querySelector("i") : null;
+
+        if (!isOutputEditing && output) {
+            renderFormattedPrompt(output.value);
+        }
+        if (preview) preview.classList.toggle("d-none", isOutputEditing);
+        if (output) output.classList.toggle("d-none", !isOutputEditing);
+        if (toggleLabel) toggleLabel.innerText = isOutputEditing ? "Vista lectura" : "Editar texto";
+        if (toggleIcon) toggleIcon.className = isOutputEditing ? "bi bi-eye me-1" : "bi bi-pencil me-1";
+        if (isOutputEditing) {
+            autoResizeOutputTextarea();
+        }
+    }
+
+    function formatAnalysisItem(item) {
+        const raw = String(item || "").trim();
+        if (raw.includes(" | ")) {
+            const parts = raw.split(" | ").map((s) => s.trim()).filter(Boolean);
+            const filtered = parts.filter((p) => !/^Datos útiles:|^Relleno:/i.test(p));
+            const finalParts = filtered.length > 0 ? filtered : parts;
+            const pills = finalParts
+                .map((part) => {
+                    const colonIdx = part.indexOf(":");
+                    if (colonIdx > 0 && colonIdx < 24) {
+                        const k = part.slice(0, colonIdx).trim();
+                        const v = part.slice(colonIdx + 1).trim();
+                        return `<span class="pl-diag-pill"><strong>${escapeHtml(k)}:</strong> ${escapeHtml(v)}</span>`;
+                    }
+                    return `<span class="pl-diag-pill">${escapeHtml(part)}</span>`;
+                })
+                .join("");
+            return `<li class="mb-2"><div class="pl-diag-row">${pills}</div></li>`;
+        }
+        const colonIdx = raw.indexOf(":");
+        if (colonIdx > 0 && colonIdx < 34) {
+            const k = raw.slice(0, colonIdx).trim();
+            const v = raw.slice(colonIdx + 1).trim();
+            return `<li class="mb-1"><strong class="pl-text-primary">${escapeHtml(k)}:</strong> ${escapeHtml(v)}</li>`;
+        }
+        return `<li class="mb-1">${escapeHtml(raw)}</li>`;
+    }
+
     function updatePendingChangesUI() {
         const btn = $("btn-improve-assistant");
         const label = $("btn-improve-assistant-label");
         const badge = $("pending-changes-badge");
         if (!btn) return;
         const hasPending = pendingChangesCount > 0 && lastResultData !== null;
+        btn.classList.toggle("btn-brand", hasPending);
+        btn.classList.toggle("btn-pl-accent-outline", !hasPending);
         btn.classList.toggle("pl-btn-has-changes", hasPending);
         if (label) {
             label.innerText = hasPending ? "Aplicar cambios y regenerar" : "Aplicar y Mejorar Prompt";
@@ -246,6 +376,7 @@
 
     function enfocarDatosPendientes() {
         switchOutputTab("editor");
+        setOutputEditMode(true);
         const output = $("generated-prompt-output");
         if (!output) return;
         const val = output.value || "";
@@ -381,12 +512,22 @@
         if (!container) return;
 
         if (!slots || slots.length === 0) {
-            container.innerHTML = `
-                <div class="pl-analysis-box p-3 small">
-                    <i class="bi bi-stars text-primary me-1"></i>
-                    <strong class="pl-text-primary">Datos que faltan para mejorar tu resultado:</strong>
-                    <span class="pl-text-secondary">Empezá a escribir tu pedido para ver preguntas simples que suman puntos reales.</span>
-                </div>`;
+            const hasInput = getInputText().length >= 3;
+            if (hasInput) {
+                container.innerHTML = `
+                    <div class="pl-analysis-box p-3 small" style="border-color: rgba(16, 185, 129, 0.35);">
+                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                        <strong class="pl-text-primary">¡Pedido muy completo!</strong>
+                        <span class="pl-text-secondary">Tu instrucción ya cubre los datos técnicos clave. Podés sumar Reglas rápidas abajo si querés afinar más.</span>
+                    </div>`;
+            } else {
+                container.innerHTML = `
+                    <div class="pl-analysis-box p-3 small">
+                        <i class="bi bi-stars text-primary me-1"></i>
+                        <strong class="pl-text-primary">Datos que faltan para mejorar tu resultado:</strong>
+                        <span class="pl-text-secondary">Empezá a escribir tu pedido para ver preguntas simples que suman puntos reales.</span>
+                    </div>`;
+            }
             return;
         }
 
@@ -405,7 +546,7 @@
                 .join("");
 
             html += `
-                <div class="pl-analysis-box p-3 mb-2">
+                <div class="pl-analysis-box py-2 px-3 mb-2">
                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                         <span class="small fw-semibold pl-text-primary">${escapeHtml(slot.question)}</span>
                         <span class="pl-impact-badge flex-shrink-0">+${Number(slot.impact_pts || 5)} pts</span>
@@ -493,10 +634,22 @@
     }
 
     function updateExpressBridgeBanner(slots) {
+        const textEl = $("express-bridge-text");
+        const list = slots || [];
+        if (textEl) {
+            if (list.length === 0) {
+                textEl.innerHTML = "¿Querés estructurarlo por secciones completas con Rol y Criterio de éxito?";
+            } else {
+                const n = list.length;
+                const totalPts = list.reduce((acc, s) => acc + Number(s.impact_pts || 6), 0);
+                const plural = n === 1 ? "" : "s";
+                textEl.innerHTML = `¿Querés afinarlo respondiendo <strong id="bridge-slots-count">${n}</strong> pregunta${plural} rápida${plural} (<span id="bridge-slots-pts" class="fw-bold text-success">+${totalPts} pts</span>)?`;
+            }
+            return;
+        }
         const countEl = $("bridge-slots-count");
         const ptsEl = $("bridge-slots-pts");
         if (!countEl || !ptsEl) return;
-        const list = slots || [];
         const n = list.length || 3;
         const totalPts = list.reduce((acc, s) => acc + Number(s.impact_pts || 6), 0) || 18;
         countEl.innerText = String(n);
@@ -540,6 +693,11 @@
             return;
         }
 
+        const SOURCE_LABELS_ES = {
+            user: "Tus palabras",
+            inferred: "Deducido por PromptLab",
+            scaffold: "Estructura agregada",
+        };
         segContainer.innerHTML = "";
         segments.forEach((seg) => {
             const cls =
@@ -548,12 +706,13 @@
                     : seg.source === "inferred"
                       ? "origin-inferred"
                       : "origin-scaffold";
+            const badgeLabel = SOURCE_LABELS_ES[seg.source] || seg.source;
             const div = document.createElement("div");
             div.className = `origin-block ${cls}`;
             div.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <strong class="small text-uppercase">${escapeHtml(seg.block)}</strong>
-                    <span class="badge bg-secondary bg-opacity-10 pl-text-secondary" style="font-size: 0.7rem;">${escapeHtml(seg.source)}</span>
+                    <span class="badge bg-secondary bg-opacity-25 pl-text-primary" style="font-size: 0.7rem;">${escapeHtml(badgeLabel)}</span>
                 </div>
                 <div class="small" style="white-space: pre-wrap;">${escapeHtml(seg.text)}</div>`;
             div.addEventListener("click", () => {
@@ -606,8 +765,81 @@
             .filter(Boolean);
     }
 
+    function detectPiiClientSide(text) {
+        if (!text) return [];
+        const warnings = [];
+        let working = String(text);
+
+        const cbuMatches = working.match(/\b\d{22}\b/g) || [];
+        if (cbuMatches.length) {
+            working = working.replace(/\b\d{22}\b/g, "[CBU_OCULTO]");
+            warnings.push({ type: "cbu", label: "CBU bancario (22 dígitos)", count: cbuMatches.length });
+        }
+
+        const aliasMatches = working.match(/\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b/gi) || [];
+        if (aliasMatches.length) {
+            working = working.replace(/\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b/gi, "alias: [ALIAS_OCULTO]");
+            warnings.push({ type: "alias_bancario", label: "Alias bancario", count: aliasMatches.length });
+        }
+
+        const emailMatches = working.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g) || [];
+        if (emailMatches.length) {
+            working = working.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, "[EMAIL_OCULTO]");
+            warnings.push({ type: "email", label: "Correo electrónico", count: emailMatches.length });
+        }
+
+        let phoneCount = 0;
+        const phoneLabeledRe = /\b((?:tel(?:[eé]fono)?|cel(?:ular)?|wa|wsp|whatsapp|contacto|llamar\s+al)\.?\s*[:=-]?\s*)((?:\+?54\s*9?\s*)?(?:\d{10,11}|\d{2,4}\s+\d{6,8}))(?![\d-])/gi;
+        working = working.replace(phoneLabeledRe, (_m, label) => {
+            phoneCount += 1;
+            return `${label}[TELEFONO_OCULTO]`;
+        });
+
+        const dniRe = /(?:^|[^$\d])\b(?:\d{2}-\d{7,8}-\d|\d{2}\.\d{3}\.\d{3}|\d{7,8})\b/g;
+        const dniMatches = working.match(dniRe) || [];
+        if (dniMatches.length) {
+            working = working.replace(dniRe, (m) => {
+                const prefix = m.length && /\D/.test(m[0]) ? m[0] : "";
+                return `${prefix}[DNI_CUIL_OCULTO]`;
+            });
+            warnings.push({ type: "dni_cuil", label: "DNI / CUIL / CUIT", count: dniMatches.length });
+        }
+
+        const phoneSepRe = /(?:^|[^\d])(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-])\d{3,4}[\s.-]?\d{4}(?!\d)/g;
+        working = working.replace(phoneSepRe, (m) => {
+            phoneCount += 1;
+            const prefix = m.length && /\D/.test(m[0]) && m[0] !== "+" && m[0] !== "(" ? m[0] : "";
+            return `${prefix}[TELEFONO_OCULTO]`;
+        });
+
+        if (phoneCount > 0) {
+            warnings.push({ type: "telefono", label: "Teléfono", count: phoneCount });
+        }
+
+        return warnings;
+    }
+
+    function renderPiiBanner(warnings) {
+        const piiBanner = $("pii-alert-banner");
+        if (!piiBanner) return;
+        if (warnings && warnings.length > 0) {
+            $("pii-alert-details").innerText = warnings
+                .map((w) => `${w.label} (${w.count})`)
+                .join(", ");
+            piiBanner.classList.remove("d-none");
+        } else {
+            piiBanner.classList.add("d-none");
+        }
+    }
+
     function triggerLiveAnalyze() {
         clearTimeout(liveDebounceTimer);
+        const immediateText = getInputText();
+        if (immediateText && immediateText.length >= 3) {
+            renderPiiBanner(detectPiiClientSide(immediateText));
+        } else {
+            renderPiiBanner([]);
+        }
         liveDebounceTimer = setTimeout(async () => {
             const text = getInputText();
             if (!text || text.length < 3) {
@@ -697,17 +929,10 @@
                 }
 
                 // Alerta PII (siempre visible en los 3 modos)
-                const piiBanner = $("pii-alert-banner");
-                if (piiBanner) {
-                    if (data.pii_warnings && data.pii_warnings.length > 0) {
-                        $("pii-alert-details").innerText = data.pii_warnings
-                            .map((w) => `${w.label} (${w.count})`)
-                            .join(", ");
-                        piiBanner.classList.remove("d-none");
-                    } else {
-                        piiBanner.classList.add("d-none");
-                    }
-                }
+                const mergedPii = (data.pii_warnings && data.pii_warnings.length > 0)
+                    ? data.pii_warnings
+                    : detectPiiClientSide(text);
+                renderPiiBanner(mergedPii);
 
                 // Contradicciones
                 const contraBanner = $("contradiction-banner");
@@ -727,10 +952,9 @@
                 pruneStaleSlotAnswers(data);
 
                 // Smart Slots + contador en puente Express -> Guiado
-                if (data.suggested_slots && data.suggested_slots.length > 0) {
-                    renderSmartSlots(data.suggested_slots);
-                    updateExpressBridgeBanner(data.suggested_slots);
-                }
+                const activeSlots = data.suggested_slots || [];
+                renderSmartSlots(activeSlots);
+                updateExpressBridgeBanner(activeSlots);
             } catch (err) {
                 console.error("Error en live analyze:", err);
             }
@@ -858,6 +1082,7 @@
             if (outputCard) {
                 outputCard.classList.remove("d-none");
             }
+            setOutputEditMode(false);
             autoResizeOutputTextarea();
 
             // Botón completar placeholders pendientes
@@ -884,13 +1109,13 @@
 
             // Panel completo de Rúbrica v2 (Estudio Pro)
             if ($("init-score-lbl")) $("init-score-lbl").innerText = userScore;
-            if ($("info-gain-lbl")) $("info-gain-lbl").innerText = `+${infoGain} pts sumados`;
+            if ($("info-gain-lbl")) $("info-gain-lbl").innerText = `+${infoGain} pts tuyos`;
             if ($("final-score-lbl")) $("final-score-lbl").innerText = finalScore;
             if ($("score-band-lbl")) $("score-band-lbl").innerText = `(${bandLabel})`;
-            if ($("gain-badge")) $("gain-badge").innerText = `+${qualityGain} pts`;
+            if ($("gain-badge")) $("gain-badge").innerText = `Mejora total: +${qualityGain} pts`;
 
-            const anchorPct = Math.round((data.anchor_coverage ?? 0.95) * 100);
-            const noisePct = Math.round((data.noise_ratio ?? 0.04) * 100);
+            const anchorPct = data.anchor_coverage_pct ?? Math.round((data.anchor_coverage ?? 0.95) * 100);
+            const noisePct = data.noise_ratio_pct ?? Math.round((data.noise_ratio ?? 0.04) * 100);
             if ($("anchor-coverage-badge")) $("anchor-coverage-badge").innerText = `${anchorPct}%`;
             const noiseEl = $("noise-ratio-badge");
             if (noiseEl) {
@@ -906,7 +1131,7 @@
             const analysisList = $("analysis-list");
             if (analysisList && data.analysis && data.analysis.length > 0) {
                 analysisList.innerHTML = data.analysis
-                    .map((item) => `<li class="mb-1">${escapeHtml(item)}</li>`)
+                    .map((item) => formatAnalysisItem(item))
                     .join("");
             }
 
@@ -1018,6 +1243,7 @@
     function limpiarEditor() {
         if ($("prompt-input")) $("prompt-input").value = "";
         if ($("generated-prompt-output")) $("generated-prompt-output").value = "";
+        setOutputEditMode(false);
         if ($("category-select")) $("category-select").value = "";
         if ($("technique-select")) $("technique-select").value = "Estándar";
         if ($("negative-constraints-input")) $("negative-constraints-input").value = "";
@@ -1160,6 +1386,9 @@
         if ($("btn-improve-assistant")) $("btn-improve-assistant").addEventListener("click", mejorarPrompt);
         if ($("btn-clear-all")) $("btn-clear-all").addEventListener("click", limpiarEditor);
         if ($("btn-copy")) $("btn-copy").addEventListener("click", copiarAlPortapapeles);
+        if ($("btn-toggle-edit-output")) {
+            $("btn-toggle-edit-output").addEventListener("click", () => setOutputEditMode(!isOutputEditing));
+        }
         if ($("btn-favorite")) $("btn-favorite").addEventListener("click", toggleCurrentFavorite);
         if ($("btn-compare")) $("btn-compare").addEventListener("click", abrirComparador);
         if ($("btn-export-md")) $("btn-export-md").addEventListener("click", () => descargarArchivo("md"));
@@ -1182,8 +1411,11 @@
                 renderRubricBars(boot.loaded_rubric);
             }
             const outEl = $("generated-prompt-output");
-            if (outEl && $("btn-fill-placeholders")) {
-                $("btn-fill-placeholders").classList.toggle("d-none", !hasPendingPlaceholders(outEl.value));
+            if (outEl) {
+                setOutputEditMode(false);
+                if ($("btn-fill-placeholders")) {
+                    $("btn-fill-placeholders").classList.toggle("d-none", !hasPendingPlaceholders(outEl.value));
+                }
             }
             autoResizeOutputTextarea();
             lastResultData = {

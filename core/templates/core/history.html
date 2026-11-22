@@ -65,7 +65,7 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">{{ p.category|default:"General" }}</span>
-                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1"><i class="bi bi-lightning-charge me-1"></i>{{ p.detected_action|default:"explicar_concepto" }}</span>
+                                <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1 action-label-badge" data-action-key="{{ p.detected_action|default:'explicar_concepto' }}"><i class="bi bi-lightning-charge me-1"></i><span class="action-label-text">{{ p.detected_action|default:"explicar_concepto" }}</span></span>
                                 <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-1"><i class="bi bi-file-earmark-text me-1"></i>{{ p.detected_deliverable|default:"informe estructurado" }}</span>
                                 <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">{{ p.technique|default:"Estándar" }}</span>
                                 <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1"><i class="bi bi-award me-1"></i>{{ p.initial_score }} → {{ p.final_score }}/100</span>
@@ -91,18 +91,23 @@
                                 <a href="{% url 'workspace' %}?load={{ p.id }}" class="btn btn-sm btn-pl-secondary px-3">
                                     <i class="bi bi-pencil-square me-1"></i> Abrir
                                 </a>
-                                <form method="post" action="{% url 'delete_prompt' p.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este prompt del historial?')">
+                                <form method="post" action="{% url 'delete_prompt' p.id %}" class="d-inline delete-prompt-form">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.resolver_match.url_name }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2" title="Eliminar">
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 btn-delete-init" title="Eliminar" onclick="pedirConfirmacionEliminar(this)">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    <span class="d-none align-items-center gap-1 delete-confirm-group">
+                                        <span class="small text-danger fw-semibold me-1">¿Eliminar?</span>
+                                        <button type="submit" class="btn btn-sm btn-danger rounded-pill px-2 py-0" style="font-size: 0.74rem;">Sí</button>
+                                        <button type="button" class="btn btn-sm btn-pl-secondary rounded-pill px-2 py-0" style="font-size: 0.74rem;" onclick="cancelarConfirmacionEliminar(this)">No</button>
+                                    </span>
                                 </form>
                             </div>
                         </div>
                         <p class="pl-text-secondary small mb-3"><strong class="pl-text-primary">Idea original (Puntaje inicial {{ p.initial_score }}/100):</strong> {{ p.original_text }}</p>
                         <div class="p-3 pl-code-block position-relative">
-                            <pre id="prompt-text-{{ p.id }}" class="mb-0 pl-text-primary" style="white-space: pre-wrap; font-family: inherit; font-size: 0.92rem; line-height: 1.65; max-height: 150px; overflow: hidden;">{{ p.improved_text }}</pre>
+                            <pre id="prompt-text-{{ p.id }}" class="mb-0 pl-text-primary pl-pre-collapsed" style="white-space: pre-wrap; font-family: inherit; font-size: 0.92rem; line-height: 1.65;">{{ p.improved_text }}</pre>
                             <button type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none fw-medium toggle-expand-btn" onclick="toggleExpand('prompt-text-{{ p.id }}', this)">
                                 <i class="bi bi-chevron-down me-1"></i>Ver más
                             </button>
@@ -138,14 +143,61 @@ function copyText(elementId, btn) {
 
 function toggleExpand(elementId, btn) {
     const pre = document.getElementById(elementId);
-    if (pre.style.maxHeight && pre.style.maxHeight !== 'none') {
-        pre.style.maxHeight = 'none';
+    if (pre.classList.contains('pl-pre-collapsed')) {
+        pre.classList.remove('pl-pre-collapsed');
         btn.innerHTML = '<i class="bi bi-chevron-up me-1"></i>Ver menos';
     } else {
-        pre.style.maxHeight = '150px';
+        pre.classList.add('pl-pre-collapsed');
         btn.innerHTML = '<i class="bi bi-chevron-down me-1"></i>Ver más';
     }
 }
+
+function pedirConfirmacionEliminar(btn) {
+    const form = btn.closest('.delete-prompt-form');
+    if (!form) return;
+    btn.classList.add('d-none');
+    const grp = form.querySelector('.delete-confirm-group');
+    if (grp) {
+        grp.classList.remove('d-none');
+        grp.classList.add('d-inline-flex');
+    }
+}
+
+function cancelarConfirmacionEliminar(btn) {
+    const form = btn.closest('.delete-prompt-form');
+    if (!form) return;
+    const grp = form.querySelector('.delete-confirm-group');
+    const initBtn = form.querySelector('.btn-delete-init');
+    if (grp) {
+        grp.classList.add('d-none');
+        grp.classList.remove('d-inline-flex');
+    }
+    if (initBtn) initBtn.classList.remove('d-none');
+}
+
+const ACTION_LABELS_MAP = {
+    depurar_error: 'Depurar error',
+    generar_codigo: 'Generar código',
+    analizar_datos: 'Analizar datos',
+    comparar_evaluar: 'Comparar y evaluar',
+    resumir_sintetizar: 'Resumir y sintetizar',
+    planificar_pasos: 'Planificar pasos',
+    redactar_contenido: 'Redactar contenido',
+    explicar_concepto: 'Explicar concepto',
+    transformar_formato: 'Transformar datos',
+    extraer_informacion: 'Extraer información',
+    clasificar_categorizar: 'Clasificar / etiquetar',
+    traducir_adaptar: 'Traducir / adaptar',
+    reescribir_mejorar: 'Mejorar redacción',
+    auditar_criticar: 'Revisar riesgos',
+    simular_practicar: 'Simular diálogo',
+    idear_alternativas: 'Generar ideas',
+    calcular_modelar: 'Calcular escenarios',
+    razonar_resolver: 'Resolver lógica',
+    decidir_recomendar: 'Evaluar y recomendar',
+    diagnosticar_resolver: 'Diagnosticar fallas',
+    consultar_dato: 'Consulta breve',
+};
 
 function filtrarHistorial() {
     const query = (document.getElementById('history-search').value || '').trim().toLowerCase();
@@ -178,10 +230,18 @@ function filtrarHistorial() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.action-label-badge').forEach(badge => {
+        const key = badge.getAttribute('data-action-key') || '';
+        const textEl = badge.querySelector('.action-label-text');
+        if (textEl && key) {
+            textEl.textContent = ACTION_LABELS_MAP[key] || (key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()));
+        }
+    });
     document.querySelectorAll('.history-item').forEach(item => {
         const pre = item.querySelector('pre');
         const btn = item.querySelector('.toggle-expand-btn');
         if (pre && btn && pre.scrollHeight <= 155) {
+            pre.classList.remove('pl-pre-collapsed');
             btn.classList.add('d-none');
         }
     });

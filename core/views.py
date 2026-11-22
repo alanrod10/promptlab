@@ -275,7 +275,7 @@ def improve_prompt_api(request):
                     subintent=result.get('subintent', 'general'),
                     improvement_level=level,
                     technique=result.get('technique', technique),
-                    engine_version=result.get('engine_version', 'v7.0'),
+                    engine_version=result.get('engine_version', 'v7.2'),
                     initial_score=result.get('initial_score', 25),
                     information_gain=result.get('information_gain', 0),
                     final_score=result.get('final_score', 90),

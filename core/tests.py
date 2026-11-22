@@ -202,7 +202,7 @@ class PromptLabViewsAndIntegrationTests(TestCase):
         resp_live = self.client.post("/api/analyze-live/", data=json.dumps(live_payload), content_type="application/json")
         self.assertEqual(resp_live.status_code, 200)
         live_data = resp_live.json()
-        self.assertEqual(live_data["engine_version"], "v7.0")
+        self.assertEqual(live_data["engine_version"], "v7.2")
         self.assertIn("python", live_data["entities"])
         self.assertIn("pandas", live_data["entities"])
         self.assertTrue(live_data["has_pii"])
@@ -398,7 +398,7 @@ class PromptLabV6UniversalEngineTests(TestCase):
             "Aceite Natura 2100"
         )
         res = get_gemini_response(raw, level="Completa")
-        self.assertEqual(res["engine_version"], "v7.0")
+        self.assertEqual(res["engine_version"], "v7.2")
         self.assertEqual(res["detected_action"], "transformar_formato")
         self.assertEqual(res["detected_deliverable"], "json")
         self.assertEqual(res["payload_kind"], "lista_registros")
@@ -766,3 +766,280 @@ class PromptLabV7EngineAndWorkspaceTests(TestCase):
             technique="Pedagógico",
         )
         self.assertNotIn("3 preguntas de autoevaluación o examen sobre ciencia de datos", prof_ped["improved_prompt"].lower())
+
+
+class PromptLabV72RegressionTests(TestCase):
+    """Suite dorada de regresión para PromptLab v7.2 (Express, Guiado y Estudio Pro)."""
+
+    def _assert_studio_pro_invariants(self, res: dict, label: str = ""):
+        out = res["improved_prompt"]
+        self.assertEqual(res["engine_version"], "v7.2", label)
+
+        # 1. 100% de viñetas bajo # Qué no hacer deben iniciar con negación clara
+        if "# Qué no hacer" in out:
+            qnh_block = out.split("# Qué no hacer", 1)[1].split("# ", 1)[0]
+            bullets = [ln.strip()[2:].strip() for ln in qnh_block.splitlines() if ln.strip().startswith("- ")]
+            self.assertTrue(bullets, f"# Qué no hacer vacío en {label}")
+            for b in bullets:
+                self.assertTrue(
+                    b.startswith(("No ", "Evita ", "Nunca ", "Prohibido ")),
+                    f"Ítem positivo en # Qué no hacer ({label}): {b}",
+                )
+
+        # 2. % Datos útiles idéntico en tarjeta y diagnóstico (fuente única de verdad)
+        expected_pct = res["anchor_coverage_pct"]
+        self.assertEqual(round(res["anchor_coverage"] * 100), expected_pct, label)
+        self.assertIn(f"Datos útiles: {expected_pct}%", res["analysis"][1], label)
+        self.assertIn("Motor v7.2", res["analysis"][0], label)
+
+        # 3. Calidad sin relleno excesivo
+        self.assertLess(res["noise_ratio"], 0.10, label)
+        self.assertGreaterEqual(res["anchor_coverage"], 0.90, label)
+
+    def test_01_json_custom_fields_and_presentation_split(self):
+        raw = (
+            "pasame esta lista a un json limpio con producto, presentacion y precio unitario:\n"
+            "Coca Cola 2.25lt - $3.450\n"
+            "Yerba Playadito 1kg $4.800\n"
+            "Galletitas Toddy 180g - $1.650\n"
+            "Agua Villavicencio 2lt $1.200"
+        )
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertIn("producto", low)
+            self.assertIn("presentacion", low)
+            self.assertIn("precio", low)
+            self.assertIn("4 objetos", low)
+            self.assertIn("<datos_entrada>\nCoca Cola 2.25lt - $3.450", out)
+            self.assertNotIn("precio unitario:.", out)
+            self.assertNotIn("dentro del campo `nombre`", out)
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 2 ({level})")
+
+    def test_02_formal_claim_argentine_pii_python_and_js_sync(self):
+        raw = (
+            "redactame un reclamo formal a la empresa de internet por 4 dias sin servicio, "
+            "mi nombre es Juan Perez DNI 33.456.789 tel 3885123456 y mail juanperez@gmail.com"
+        )
+        live = analyze_live_preview(raw)
+        self.assertTrue(live["has_pii"])
+        pii_types = {w["type"] for w in live["pii_warnings"]}
+        self.assertEqual(pii_types, {"dni_cuil", "telefono", "email"})
+        self.assertNotIn("sin servicio", [nc.lower() for nc in live["neg_constraints"]])
+
+        # Verificar sincronía en frontend JS (workspace.js)
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "workspace.js"
+        js_src = js_path.read_text(encoding="utf-8")
+        self.assertIn("detectPiiClientSide", js_src)
+        self.assertIn("[TELEFONO_OCULTO]", js_src)
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level, mask_pii=True)
+            out = res["improved_prompt"]
+            self.assertIn("[DNI_CUIL_OCULTO]", out)
+            self.assertIn("[TELEFONO_OCULTO]", out)
+            self.assertIn("[EMAIL_OCULTO]", out)
+            self.assertNotIn("3885123456", out)
+            self.assertNotIn("Restricción del usuario:", out)
+            if "# Restricciones" in out:
+                restr_blk = out.split("# Restricciones", 1)[1].split("# ", 1)[0].lower()
+                self.assertNotIn("sin servicio", restr_blk)
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 3 ({level})")
+
+    def test_03_debugging_python_traceback_preserves_indentation(self):
+        raw = (
+            "tengo este error en mi script de python y no se como arreglarlo:\n"
+            "Traceback (most recent call last):\n"
+            '  File "reporte.py", line 14, in <module>\n'
+            '    total += fila["sucursal"]\n'
+            "KeyError: 'sucursal'"
+        )
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            self.assertIn("KeyError", out)
+            self.assertIn("código corregido", out.lower())
+            self.assertIn('  File "reporte.py", line 14, in <module>', out)
+            self.assertIn('    total += fila["sucursal"]', out)
+            self.assertNotIn("por sucursal: (involucrando:", out)
+            self.assertNotIn("arreglarlo: (involucrando:", out)
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 4 ({level})")
+
+    def test_04_tech_comparison_sqlite_vs_postgresql_no_business_leak(self):
+        raw = (
+            "comparame SQLite vs PostgreSQL para un sistema de ventas de un negocio chico, "
+            "decime ventajas, desventajas y cual me conviene"
+        )
+        live = analyze_live_preview(raw)
+        self.assertEqual(live["domain"], "Tecnología y programación")
+        self.assertEqual(live["action"], "comparar_evaluar")
+        slot_q = " ".join(s["question"].lower() for s in live["suggested_slots"])
+        self.assertNotIn("cuántas opciones comparas", slot_q)
+        self.assertNotIn("escala de negocio", slot_q)
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["domain"], "Tecnología y programación")
+            self.assertEqual(res["detected_action"], "comparar_evaluar")
+            self.assertIn("recomendación", low)
+            for forbidden in (
+                "planilla simple",
+                "semáforo",
+                "join explícitos",
+                "desglose de ventas",
+                "ventas fiadas",
+                "horarios pico",
+            ):
+                self.assertNotIn(forbidden, low, f"Contaminación '{forbidden}' en Prueba 6 ({level})")
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 6 ({level})")
+
+    def test_05_interview_simulation_adaptive_no_anger_no_de_el(self):
+        raw = (
+            "simula una entrevista laboral para un puesto de analista de datos junior, "
+            "haceme preguntas de a una y al final dame feedback de mis respuestas"
+        )
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertIn("entrevista laboral", low)
+            self.assertIn("`FIN`", out)
+            self.assertIn("turno", low)
+            self.assertNotIn("enojo", low)
+            self.assertNotIn("de el canal", low)
+            self.assertNotIn("el canal indicado", low)
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 7 ({level})")
+
+    def test_06_four_week_promo_plan_whatsapp_and_posters(self):
+        raw = (
+            "armame un plan de 4 semanas para lanzar una promocion de combos en mi negocio "
+            "sin gastar en publicidad paga, tengo 1 hora por dia y solo uso whatsapp y carteles impresos"
+        )
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["detected_action"], "planificar_pasos")
+            self.assertIn("plan", res["detected_deliverable"].lower())
+            self.assertIn("4 semanas", low)
+            self.assertIn("1 hora", low)
+            self.assertIn("carteles impresos", low)
+            for forbidden in (
+                "Asunto",
+                "Correos demasiado largos",
+                "email / mensaje",
+                "planilla simple",
+                "semáforo",
+                "al abordar 4 semanas",
+                "Tema principal: 4 semanas",
+            ):
+                self.assertNotIn(forbidden, out, f"Fuga '{forbidden}' en Prueba 9 ({level})")
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 9 ({level})")
+
+    def test_07_meeting_minutes_extraction_table_lane_isolation(self):
+        raw = (
+            "extraeme en una tabla las tareas pendientes, el responsable y la fecha limite de esta minuta:\n"
+            "Hoy revisamos el avance del local. Martin queda a cargo de actualizar la lista de precios "
+            "del proveedor antes del viernes 15. Laura tiene que revisar el stock de bebidas y llamar "
+            "al tecnico de la heladera (urgente, sin fecha definida). Yo me encargo de mandar el resumen por mail el lunes 18."
+        )
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["detected_action"], "extraer_informacion")
+            self.assertIn("tareas", low)
+            self.assertIn("responsable", low)
+            self.assertIn("fecha", low)
+            self.assertIn("sin asignar", low)
+            self.assertIn("sin inventar", low)
+            for forbidden in (
+                "(involucrando: proveedor, stock)",
+                "tabla comparativa con al menos 5 criterios",
+                "punto mínimo de reposición",
+                "Define campos por venta",
+            ):
+                self.assertNotIn(forbidden, out, f"Contaminación '{forbidden}' en Prueba 10 ({level})")
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 10 ({level})")
+
+    def test_08_python_script_no_external_libs_anti_contradiction(self):
+        raw = (
+            "escribime un script en python sin librerias externas que lea un csv de ventas "
+            "y muestre el total vendido por categoria, comentado en español y que maneje el caso de archivo vacio"
+        )
+        live = analyze_live_preview(raw)
+        self.assertEqual(live["action"], "generar_codigo")
+        self.assertFalse(live["needs_disambiguation"])
+        self.assertGreaterEqual(live["confidence"], 0.85)
+        self.assertEqual(live["neg_constraints"], ["sin librerias externas"])
+        slot_q = " ".join(s["question"].lower() for s in live["suggested_slots"])
+        self.assertNotIn("qué lenguaje", slot_q)
+        self.assertNotIn("restricción técnica", slot_q)
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["detected_action"], "generar_codigo")
+            self.assertEqual(res["neg_constraints"], ["sin librerias externas"])
+            self.assertIn("librería estándar", low)
+            self.assertIn("vacío", low)
+            self.assertIn("español", low)
+            for forbidden in (
+                "df.info()",
+                "df.shape",
+                "df.isna()",
+                "Pandas",
+                "NumPy",
+                "SciPy",
+                "Desglose de ventas",
+                "Desglose de dataset",
+            ):
+                self.assertNotIn(forbidden, out, f"Contradicción '{forbidden}' en Prueba 11 ({level})")
+            # Verificar que la restricción extraída en Restricciones / Qué no hacer se cortó en 'sin librerias externas'
+            non_goal_lines = "\n".join(
+                ln for ln in out.splitlines()
+                if not ln.startswith("Objetivo:") and "Desarrollar un script" not in ln
+            )
+            self.assertNotIn("sin librerias externas que lea un csv", non_goal_lines)
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 11 ({level})")
+
+    def test_09_vague_sales_improvement_routes_to_diagnosis_or_plan(self):
+        raw = "necesito mejorar las ventas de mi negocio porque este mes estuvo flojo"
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            self.assertIn(res["detected_action"], ("diagnosticar_resolver", "planificar_pasos"))
+            self.assertNotIn("Reescribe el texto", out)
+            self.assertNotIn("versión pulida", out)
+            self.assertNotIn("Asunto", out)
+            if level == "Profunda":
+                self._assert_studio_pro_invariants(res, f"Prueba 12 ({level})")
+
+    def test_10_api_improve_persists_v72_and_consistent_metrics(self):
+        client = Client()
+        resp = client.post(
+            "/api/improve/",
+            data=json.dumps({
+                "text": "escribime un script en python sin librerias externas que lea un csv de ventas y muestre el total vendido por categoria, comentado en español y que maneje el caso de archivo vacio",
+                "level": "Profunda",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["engine_version"], "v7.2")
+        self._assert_studio_pro_invariants(data, "API Profunda")
+        saved = Prompt.objects.get(id=data["prompt_id"])
+        self.assertEqual(saved.engine_version, "v7.2")

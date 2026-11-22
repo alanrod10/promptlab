@@ -59,7 +59,7 @@
       "role": "Actúa como un Científico de Datos Senior e Ingeniero de Machine Learning, experto en estadística aplicada, análisis exploratorio riguroso, modelado predictivo y comunicación clara de hallazgos.",
       "guardrails": [
         "No inventes métricas, p-valores ni resultados de modelos; si faltan datos o columnas, indícalo explícitamente antes de asumir.",
-        "Justifica cada transformación o elección de algoritmo según la naturaleza de los datos, evitando fugas de información (data leakage)."
+        "No apliques transformaciones ni elijas algoritmos sin justificarlos según la naturaleza de los datos, y evita fugas de información (data leakage)."
       ]
     },
     "Tecnología y programación": {
@@ -124,8 +124,8 @@
       ],
       "role": "Actúa como un Arquitecto de Software y Desarrollador Senior, especializado en código limpio, modular, seguro, mantenible y buenas prácticas de ingeniería.",
       "guardrails": [
-        "Entrega código sintácticamente válido, con manejo de errores/casos borde y sin usar librerías o funciones inexistentes.",
-        "Indica claramente dependencias, supuestos técnicos y cómo probar o ejecutar la solución propuesta."
+        "No entregues código incompleto, con errores de sintaxis ni utilizando librerías, métodos o funciones inexistentes.",
+        "Evita omitir supuestos técnicos, manejo de casos borde o instrucciones breves sobre cómo ejecutar la solución."
       ]
     },
     "Estudio y academia": {
@@ -180,8 +180,8 @@
       ],
       "role": "Actúa como un Docente Universitario y Especialista en Pedagogía, capaz de explicar conceptos complejos de lo simple a lo profundo con rigor académico y ejemplos claros.",
       "guardrails": [
-        "Verifica la precisión conceptual y matemática; nunca inventes citas bibliográficas, autores ni fechas.",
-        "Adapta el vocabulario al nivel educativo indicado y acompaña las definiciones abstractas con ejemplos o analogías concretas."
+        "Nunca inventes citas bibliográficas, autores, fechas ni afirmaciones conceptuales o matemáticas sin verificar.",
+        "Evita usar vocabulario fuera del nivel educativo indicado o dejar definiciones abstractas sin ejemplos concretos."
       ]
     },
     "Negocios y comercio": {
@@ -231,8 +231,8 @@
       ],
       "role": "Actúa como un Consultor Senior de Negocios y Estrategia Comercial, enfocado en rentabilidad, eficiencia operativa, experiencia del cliente y métricas accionables.",
       "guardrails": [
-        "Basa las recomendaciones en supuestos financieros explícitos y señala qué datos reales del negocio se necesitan para validar los números.",
-        "Prioriza acciones prácticas y medibles con impacto directo en costos, ventas o flujo de caja."
+        "No formules recomendaciones sin explicitar los supuestos comerciales o financieros ni ocultes qué datos reales del negocio faltan validar.",
+        "Evita propuestas teóricas o genéricas que no tengan impacto medible en ventas, costos o ejecución operativa."
       ]
     },
     "Redacción y comunicación": {
@@ -282,8 +282,8 @@
       ],
       "role": "Actúa como un Especialista en Comunicación Corporativa y Redacción Profesional, experto en claridad, estructura persuasiva y adaptación precisa del tono al destinatario.",
       "guardrails": [
-        "Cuida la ortografía, la cohesión y el tono solicitado, evitando clichés vacíos o relleno innecesario.",
-        "Respeta la intención comunicativa original sin inventar compromisos, fechas ni datos del remitente que no fueron provistos."
+        "Evita clichés vacíos, frases de relleno, errores ortográficos o desviaciones respecto al tono solicitado.",
+        "No inventes compromisos, fechas, montos ni datos del remitente o destinatario que no hayan sido provistos."
       ]
     },
     "Investigar y analizar": {
@@ -326,8 +326,8 @@
       ],
       "role": "Actúa como un Analista de Investigación Senior, especializado en pensamiento crítico, evaluación objetiva basada en evidencia y síntesis estructurada.",
       "guardrails": [
-        "Distingue claramente entre hechos observables, inferencias razonadas y supuestos pendientes de verificación.",
-        "Presenta múltiples perspectivas o criterios explícitos antes de emitir una conclusión o recomendación."
+        "No mezcles hechos observables con suposiciones o inferencias sin distinguirlos explícitamente.",
+        "Evita emitir conclusiones sesgadas o recomendaciones sin antes contrastar criterios y evidencia explícita."
       ]
     },
     "Trámites y documentos": {
@@ -368,8 +368,8 @@
       ],
       "role": "Actúa como un Especialista en Gestión Documental y Redacción Administrativa, experto en claridad procedimental, estructura formal y requisitos documentales.",
       "guardrails": [
-        "Aclara cuando un documento o trámite requiera validación legal, contable o normativa oficial vigente según la jurisdicción.",
-        "Usa marcadores explícitos como [COMPLETAR DATO] para campos personales o legales sensibles en lugar de inventarlos."
+        "No des por válida normativa legal o contable sin aclarar cuándo requiere revisión oficial según la jurisdicción.",
+        "Nunca inventes datos personales, números de expediente ni referencias legales; usa siempre [COMPLETAR: ...] para datos faltantes."
       ]
     },
     "Planificación y productividad": {
@@ -413,7 +413,7 @@
       ],
       "role": "Actúa como un Especialista en Planificación Estratégica y Productividad Operativa, enfocado en desglosar metas en pasos realistas, secuenciales y medibles.",
       "guardrails": [
-        "Estructura el plan con dependencias lógicas, prioridades claras y estimaciones realistas de esfuerzo o tiempo.",
+        "No propongas pasos desordenados sin prioridades claras ni estimaciones irreales de esfuerzo o tiempo.",
         "Evita listas genéricas; adapta cada etapa a las restricciones de tiempo, recursos o contexto indicadas."
       ]
     },
@@ -449,8 +449,8 @@
       ],
       "role": "Actúa como un Asesor Estratégico en Análisis de Decisiones, experto en estructurar dilemas complejos mediante criterios ponderados, análisis de riesgos y escenarios.",
       "guardrails": [
-        "Evalúa cada alternativa con criterios explícitos, trade-offs y riesgos asociados, sin sesgar la respuesta sin justificación.",
-        "Identifica qué información adicional podría cambiar la decisión recomendada."
+        "No sesgues la evaluación a favor de una alternativa sin contrastar criterios explícitos, trade-offs y riesgos.",
+        "Evita presentar una recomendación cerrada sin indicar qué condición o dato adicional cambiaría la decisión."
       ]
     },
     "Otro / General": {
@@ -483,8 +483,8 @@
       ],
       "role": "Actúa como un Asistente Experto Multidisciplinario, capaz de comprender solicitudes abiertas, estructurarlas con claridad y entregar respuestas prácticas y precisas.",
       "guardrails": [
-        "Si la solicitud es amplia o ambigua, responde cubriendo lo esencial con claridad e indica qué detalles permitirían afinarla.",
-        "Mantén un enfoque directo, verificable y libre de relleno innecesario."
+        "No asumas hechos no declarados ante solicitudes amplias sin aclarar qué supuestos tomaste.",
+        "Evita introducciones vacías, rodeos o explicaciones de relleno que no aporten valor directo al objetivo."
       ]
     }
   },
@@ -1507,6 +1507,21 @@
         "enumeracion"
       ],
       "format_instruction": "Organiza la respuesta como una lista con viñetas o checklist accionable, priorizando frases breves y directas."
+    },
+    "plan / cronograma": {
+      "keywords": [
+        "plan",
+        "cronograma",
+        "hoja de ruta",
+        "roadmap",
+        "plan de accion",
+        "plan comercial",
+        "plan de trabajo",
+        "plan de estudio",
+        "calendario",
+        "itinerario"
+      ],
+      "format_instruction": "Estructura la respuesta como un plan o cronograma organizado por etapas o semanas, detallando en cada una objetivos, acciones concretas, recursos y criterio de avance."
     },
     "guía paso a paso": {
       "keywords": [
@@ -2547,6 +2562,10 @@
         "keywords": [
           "proyecto",
           "lanzar",
+          "lanzamiento",
+          "promocion",
+          "combos",
+          "campaña",
           "app",
           "aplicacion",
           "roadmap",
@@ -2554,7 +2573,7 @@
           "sprint"
         ],
         "regex": [
-          "\\b(?:proyecto|roadmap|hitos|lanzamiento)\\b"
+          "\\b(?:proyecto|roadmap|hitos|lanzamiento|lanzar|promocion|combos|campa[nñ]a)\\b"
         ]
       },
       "estudio": {
@@ -2587,17 +2606,16 @@
       },
       "rutina_negocio": {
         "keywords": [
-          "negocio",
-          "comercio",
-          "local",
-          "tienda",
-          "ventas",
+          "controlar",
           "stock",
+          "inventario",
           "vencimientos",
-          "rutina"
+          "reposicion",
+          "rutina",
+          "caja"
         ],
         "regex": [
-          "\\b(?:negocio|comercio|local|stock|vencimientos|ventas)\\b"
+          "\\b(?:controlar\\s+(?:el\\s+|las\\s+)?(?:stock|ventas|vencimientos|caja)|stock|inventario|vencimientos|reposicion|rutina)\\b"
         ]
       }
     },
@@ -2667,6 +2685,7 @@
       "by_deliverable": {
         "código": "Desarrollar {obj}",
         "email / mensaje": "Redactar {obj}",
+        "plan / cronograma": "Planificar {obj}",
         "guía paso a paso": "Elaborar una guía paso a paso sobre {obj}",
         "tabla": "Elaborar una tabla comparativa sobre {obj}",
         "lista": "Elaborar una lista accionable sobre {obj}"
@@ -2840,7 +2859,10 @@
           "action:analizar_datos"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "neg:sin_librerias",
+        "action:generar_codigo"
+      ],
       "phase": "preparar",
       "priority": 85,
       "levels": [
@@ -2863,7 +2885,8 @@
         ]
       },
       "when_not": [
-        "sub:correlacion"
+        "sub:correlacion",
+        "neg:sin_librerias"
       ],
       "phase": "preparar",
       "priority": 75,
@@ -2885,7 +2908,9 @@
           "action:analizar_datos"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "neg:sin_librerias"
+      ],
       "phase": "ejecutar",
       "priority": 90,
       "levels": [
@@ -2908,7 +2933,9 @@
           "entity:pandas"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "neg:sin_librerias"
+      ],
       "phase": "validar",
       "priority": 80,
       "levels": [
@@ -2929,7 +2956,12 @@
           "entity:csv"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "neg:sin_librerias",
+        "action:comparar_evaluar",
+        "action:extraer_informacion",
+        "action:transformar_formato"
+      ],
       "phase": "entregar",
       "priority": 70,
       "levels": [
@@ -2954,7 +2986,12 @@
           "sub:error_sql"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "action:comparar_evaluar",
+        "action:explicar_concepto",
+        "action:decidir_recomendar",
+        "action:planificar_pasos"
+      ],
       "phase": "ejecutar",
       "priority": 80,
       "levels": [
@@ -2976,7 +3013,12 @@
           "entity:sql"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "action:comparar_evaluar",
+        "action:explicar_concepto",
+        "action:decidir_recomendar",
+        "action:planificar_pasos"
+      ],
       "phase": "validar",
       "priority": 72,
       "levels": [
@@ -2997,7 +3039,12 @@
           "sub:consulta_sql"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "action:comparar_evaluar",
+        "action:explicar_concepto",
+        "action:decidir_recomendar",
+        "action:planificar_pasos"
+      ],
       "phase": "validar",
       "priority": 68,
       "levels": [
@@ -3061,7 +3108,9 @@
           "sub:modelado_predictivo"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "neg:sin_librerias"
+      ],
       "phase": "ejecutar",
       "priority": 82,
       "levels": [
@@ -3084,7 +3133,9 @@
           "sub:inferencia"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "neg:sin_librerias"
+      ],
       "phase": "validar",
       "priority": 70,
       "levels": [
@@ -3262,11 +3313,16 @@
       "when": {
         "any": [
           "sub:comparacion",
-          "action:comparar_evaluar",
-          "deliv:tabla"
+          "action:comparar_evaluar"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:clasificar_categorizar",
+        "action:calcular_modelar",
+        "action:auditar_criticar"
+      ],
       "phase": "ejecutar",
       "priority": 86,
       "levels": [
@@ -3312,7 +3368,14 @@
       },
       "when_not": [
         "domain:Ciencia de Datos e IA",
-        "domain:Tecnología y programación"
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:redactar_contenido",
+        "action:simular_practicar",
+        "sub:proyecto"
       ],
       "phase": "ejecutar",
       "priority": 82,
@@ -3337,7 +3400,14 @@
       },
       "when_not": [
         "domain:Ciencia de Datos e IA",
-        "domain:Tecnología y programación"
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:redactar_contenido",
+        "action:simular_practicar",
+        "sub:proyecto"
       ],
       "phase": "ejecutar",
       "priority": 88,
@@ -3362,7 +3432,16 @@
       },
       "when_not": [
         "domain:Ciencia de Datos e IA",
-        "domain:Tecnología y programación"
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:redactar_contenido",
+        "action:simular_practicar",
+        "action:diagnosticar_resolver",
+        "action:calcular_modelar",
+        "sub:proyecto"
       ],
       "phase": "ejecutar",
       "priority": 85,
@@ -3385,7 +3464,15 @@
           "obj:vencimientos"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "domain:Ciencia de Datos e IA",
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "sub:proyecto"
+      ],
       "phase": "validar",
       "priority": 90,
       "levels": [
@@ -3409,7 +3496,14 @@
       },
       "when_not": [
         "domain:Ciencia de Datos e IA",
-        "domain:Tecnología y programación"
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:redactar_contenido",
+        "action:simular_practicar",
+        "sub:proyecto"
       ],
       "phase": "ejecutar",
       "priority": 78,
@@ -3427,13 +3521,21 @@
       "id": "neg.rutina",
       "when": {
         "any": [
-          "domain:Negocios y comercio",
           "sub:rutina_negocio"
         ]
       },
       "when_not": [
         "domain:Ciencia de Datos e IA",
-        "domain:Tecnología y programación"
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:redactar_contenido",
+        "action:simular_practicar",
+        "action:diagnosticar_resolver",
+        "action:calcular_modelar",
+        "sub:proyecto"
       ],
       "phase": "entregar",
       "priority": 76,
@@ -3451,13 +3553,21 @@
       "id": "neg.herramienta",
       "when": {
         "any": [
-          "domain:Negocios y comercio",
           "sub:rutina_negocio"
         ]
       },
       "when_not": [
         "domain:Ciencia de Datos e IA",
-        "domain:Tecnología y programación"
+        "domain:Tecnología y programación",
+        "action:comparar_evaluar",
+        "action:generar_codigo",
+        "action:extraer_informacion",
+        "action:transformar_formato",
+        "action:redactar_contenido",
+        "action:simular_practicar",
+        "action:diagnosticar_resolver",
+        "action:calcular_modelar",
+        "sub:proyecto"
       ],
       "phase": "preparar",
       "priority": 74,
@@ -3718,6 +3828,7 @@
       "código": "Incluye bloque Markdown con lenguaje especificado, sin dependencias fantasma ni placeholders sin explicar.",
       "tabla": "Tabla Markdown válida con columnas homogéneas y celdas breves.",
       "lista": "Lista accionable donde cada ítem inicia con verbo o dato verificable.",
+      "plan / cronograma": "Cronograma estructurado por etapas o semanas con acciones concretas, tiempos o recursos asignados y resultados esperados.",
       "guía paso a paso": "Pasos numerados en orden secuencial con resultado esperado en cada uno.",
       "email / mensaje": "Listo para enviar (Asunto si aplica, saludo, cuerpo directo y cierre).",
       "informe estructurado": "Secciones con títulos claros en Markdown, datos concretos y cierre accionable.",

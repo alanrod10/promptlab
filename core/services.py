@@ -10,13 +10,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .universal_engine import (
     compute_control_values,
+    extract_negative_constraints,
     extract_semantic_roles,
     inspect_attached_payload,
     split_request_payload,
     synthesize_universal_directives,
 )
 
-ENGINE_VERSION = "v7.0"
+ENGINE_VERSION = "v7.2"
 
 KB_PATH = Path(__file__).resolve().parent / "rules" / "knowledge_base.json"
 
@@ -396,6 +397,7 @@ class ParsedRequest:
     payload_info: Dict[str, Any] = field(default_factory=dict)
     roles: Dict[str, Any] = field(default_factory=dict)
     calc_info: Dict[str, Any] = field(default_factory=dict)
+    is_single_clause: bool = True
 
     # Etapa 5 & 6: Trazabilidad
     trace: List[Dict[str, Any]] = field(default_factory=list)
@@ -413,9 +415,14 @@ class ParsedRequest:
 _RE_CBU = re.compile(r"\b\d{22}\b")
 _RE_ALIAS_BANK = re.compile(r"\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b", re.IGNORECASE)
 _RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-_RE_CUIL_DNI = re.compile(r"\b(?:\d{2}-\d{7,8}-\d|\d{2}\.\d{3}\.\d{3}|\d{7,8})\b")
+_RE_CUIL_DNI = re.compile(r"(?<!\$)\b(?:\d{2}-\d{7,8}-\d|\d{2}\.\d{3}\.\d{3}|\d{7,8})\b")
 _RE_PHONE = re.compile(
     r"(?<!\d)(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-])\d{3,4}[\s.-]?\d{4}(?!\d)"
+)
+_RE_LABELED_PHONE = re.compile(
+    r"(\b(?:tel(?:[eé]fono)?|cel(?:ular)?|wa|wsp|whatsapp|contacto|llamar\s+al)\.?\s*[:=-]?\s*)"
+    r"((?:\+?54\s*9?\s*)?(?:\d{10,11}|\d{2,4}\s+\d{6,8}))(?![\d-])",
+    flags=re.IGNORECASE,
 )
 
 
@@ -441,6 +448,12 @@ def detect_and_mask_pii(text: str) -> Tuple[str, List[Dict[str, Any]]]:
         masked = _RE_EMAIL.sub("[EMAIL_OCULTO]", masked)
         warnings.append({"type": "email", "label": "Correo electrónico", "count": len(email_matches)})
 
+    phone_count = 0
+    labeled_phone_matches = _RE_LABELED_PHONE.findall(masked)
+    if labeled_phone_matches:
+        masked = _RE_LABELED_PHONE.sub(r"\1[TELEFONO_OCULTO]", masked)
+        phone_count += len(labeled_phone_matches)
+
     dni_matches = _RE_CUIL_DNI.findall(masked)
     if dni_matches:
         masked = _RE_CUIL_DNI.sub("[DNI_CUIL_OCULTO]", masked)
@@ -449,7 +462,10 @@ def detect_and_mask_pii(text: str) -> Tuple[str, List[Dict[str, Any]]]:
     phone_matches = _RE_PHONE.findall(masked)
     if phone_matches:
         masked = _RE_PHONE.sub("[TELEFONO_OCULTO]", masked)
-        warnings.append({"type": "telefono", "label": "Teléfono", "count": len(phone_matches)})
+        phone_count += len(phone_matches)
+
+    if phone_count:
+        warnings.append({"type": "telefono", "label": "Teléfono", "count": phone_count})
 
     return masked, warnings
 
@@ -539,35 +555,34 @@ def _extract_entities_and_constraints(
     form_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    v7.0/v7.1: las entidades se buscan en todo el texto (pedido + insumo), pero las
-    restricciones negativas/cuantitativas y contradicciones SOLO en el pedido
-    (`constraint_text`), para que frases dentro del insumo pegado no contaminen el prompt.
+    v7.2 Carril A vs Carril B:
+    - Entidades de negocio/tecnología y restricciones negativas/cuantitativas se extraen
+      ÚNICAMENTE de `constraint_text` (`instruction_text`), nunca de `payload_text`.
+    - Filenames/errores/snippets también se extraen aquí, y `parse_request` decide qué
+      conservar del Carril B según el inspector de payload y el arquetipo.
     """
     constr_src = raw_text if constraint_text is None else constraint_text
     constr_norm = normalized_text if constraint_text is None else normalize_and_lemmatize(constraint_text)[0]
+    constr_norm_no_al_final = re.sub(r"\b(?:al|hasta\s+el|hacia\s+el|por\s+el)\s+final\b", " ", constr_norm)
     entities: List[str] = []
     seen_ent = set()
 
     for term, _group in _ENTITY_INDEX:
+        target_norm = constr_norm_no_al_final if term == "final" else constr_norm
         pattern = r"(?<![a-z0-9_])" + re.escape(term) + r"(?![a-z0-9_])"
-        if re.search(pattern, normalized_text) and term not in seen_ent:
+        if re.search(pattern, target_norm) and term not in seen_ent:
             seen_ent.add(term)
             entities.append(term)
 
-    versions = list(dict.fromkeys(_RE_VERSION.findall(raw_text)))
-    filenames = list(dict.fromkeys(_RE_FILENAME.findall(raw_text)))
-    errors_detected = list(dict.fromkeys(_RE_ERROR.findall(raw_text)))
+    versions = list(dict.fromkeys(_RE_VERSION.findall(constr_src)))
+    filenames = list(dict.fromkeys(_RE_FILENAME.findall(constr_src)))
+    errors_detected = list(dict.fromkeys(_RE_ERROR.findall(constr_src)))
 
     code_snippets = re.findall(r"```[\s\S]*?```|`[^`]+`", raw_text)
     if not code_snippets and re.search(r"\b(?:def |SELECT |import |const |function )", raw_text):
         code_snippets = ["inline_code_fragment"]
 
-    neg_constraints: List[str] = []
-    for kw, phrase in _RE_NEG_CONSTRAINT.findall(constr_src):
-        clean_phrase = re.split(r"[,.;\n]", phrase)[0].strip()
-        words = clean_phrase.split()[:6]
-        if words:
-            neg_constraints.append(f"{kw.lower()} {' '.join(words)}")
+    neg_constraints = extract_negative_constraints(constr_src)
 
     quant_constraints: List[str] = []
     for match in _RE_QUANT_CONSTRAINT.findall(constr_src):
@@ -812,10 +827,11 @@ def _score_actions_detailed(
     normalized_text: str,
     tokens: Optional[List[str]] = None,
     learned_action_boosts: Optional[Dict[str, float]] = None,
+    has_payload: bool = False,
 ) -> Tuple[Dict[str, float], Dict[str, Dict[str, Any]]]:
     """
-    v7.0: Combina reglas normalizadas (saturadas en 2.0 hits), TF-IDF con bigramas,
-    desempates de pares cercanos y refuerzos aprendidos de SQLite (<= +0.12).
+    v7.2: Combina reglas normalizadas (saturadas en 2.0 hits), TF-IDF con bigramas,
+    desempates semánticos de pares cercanos y refuerzos aprendidos de SQLite (<= +0.12).
     """
     tfidf_scores = _TFIDF_INDEX.score_text(text)
     actions_cfg = KNOWLEDGE_BASE.get("actions", {})
@@ -872,6 +888,46 @@ def _score_actions_detailed(
     if re.search(r"\bdiferencias?\s+entre\b", normalized_text) and "comparar_evaluar" in combined:
         combined["comparar_evaluar"] = round(min(max(combined["comparar_evaluar"] + 0.18, combined.get("explicar_concepto", 0.0) + 0.10), 0.98), 4)
         details["comparar_evaluar"]["tiebreak"] = "diferencia_entre"
+
+    # Desempate 3 (v7.2 P0.2.2): creación de artefactos técnicos ("escribime un script" / "haceme una consulta")
+    has_tech_creation = bool(re.search(
+        r"\b(?:escribir|hacer|armar|crear|generar|desarrollar|implementar)\s+(?:un|una|el|la)?\s*(?:script|codigo|funcion|consulta|query|programa|endpoint|api|bot)\b",
+        normalized_text,
+    ))
+    if has_tech_creation and "generar_codigo" in combined:
+        combined["generar_codigo"] = round(max(combined["generar_codigo"], 0.90), 4)
+        if "redactar_contenido" in combined:
+            combined["redactar_contenido"] = round(min(combined["redactar_contenido"], 0.25), 4)
+        if "analizar_datos" in combined and "analizar" not in normalized_text and "pandas" not in normalized_text:
+            combined["analizar_datos"] = round(min(combined["analizar_datos"], 0.35), 4)
+        details["generar_codigo"]["tiebreak"] = "tech_creation"
+
+    # Desempate 4 (v7.2 P0.2.3): "mejorar"/"optimizar" sin artefacto textual ni payload NO puede activar reescribir_mejorar
+    has_text_artifact = bool(re.search(
+        r"\b(?:texto|mensaje|redaccion|mail|email|correo|nota|parrafo|respuesta|cv|curriculum|carta|borrador|post|publicacion|comunicado)\b",
+        normalized_text,
+    ))
+    has_improve_verb = bool(re.search(r"\b(?:mejorar|optimizar|pulir|reescribir)\b", normalized_text))
+    if has_improve_verb and not has_text_artifact and not has_payload:
+        if "reescribir_mejorar" in combined:
+            combined["reescribir_mejorar"] = 0.0
+        if re.search(r"\b(?:ventas?|rentabilidad|margen|negocio|local|ingresos|conversion|flojo|cayo|bajaron|clientes?)\b", normalized_text):
+            if "diagnosticar_resolver" in combined:
+                combined["diagnosticar_resolver"] = round(max(combined["diagnosticar_resolver"], 0.72), 4)
+                details["diagnosticar_resolver"]["tiebreak"] = "improve_metric_to_diagnose"
+        elif "planificar_pasos" in combined:
+            combined["planificar_pasos"] = round(max(combined["planificar_pasos"], 0.68), 4)
+            details["planificar_pasos"]["tiebreak"] = "improve_process_to_plan"
+
+    # Desempate 5 (v7.2 P0.2.4): pedido explícito de plan / cronograma no debe caer en redactar_contenido
+    if re.search(
+        r"\b(?:armar|hacer|crear|disenar|elaborar|planificar)\s+(?:un\s+)?(?:plan|cronograma|hoja\s+de\s+ruta|roadmap)\b",
+        normalized_text,
+    ) and "planificar_pasos" in combined:
+        combined["planificar_pasos"] = round(max(combined["planificar_pasos"], 0.85), 4)
+        if "redactar_contenido" in combined:
+            combined["redactar_contenido"] = round(min(combined["redactar_contenido"], 0.25), 4)
+        details["planificar_pasos"]["tiebreak"] = "explicit_plan"
 
     return combined, details
 
@@ -953,6 +1009,21 @@ _DOMAIN_ANCHORS: Dict[str, Tuple[set, float]] = {
 }
 
 
+_EXPLICIT_TECH_RE = re.compile(
+    r"\b(?:sqlite|postgresql|postgres|mysql|python|pandas|django|flask|fastapi|react|vue|"
+    r"javascript|typescript|api|rest|graphql|sql|script|traceback|keyerror|typeerror|"
+    r"valueerror|syntaxerror|docker|git)\b",
+    flags=re.IGNORECASE,
+)
+
+_EXPLICIT_DS_RE = re.compile(
+    r"\b(?:pandas|numpy|scipy|scikit-learn|sklearn|dataset|machine\s+learning|"
+    r"deep\s+learning|regresion\s+(?:lineal|logistica)|random\s+forest|xgboost|"
+    r"clustering|eda|analisis\s+exploratorio|valores\s+nulos|outliers|correlacion)\b",
+    flags=re.IGNORECASE,
+)
+
+
 def _classify_domain(
     normalized_text: str,
     explicit_category: str,
@@ -969,13 +1040,21 @@ def _classify_domain(
 
     ent_set = set(entities or [])
     learned = learned_domain_boosts or {}
-    best_domain = "Otro / General"
-    best_score = 0.0
-    matched_kws: List[str] = []
+    norm_no_al_final = re.sub(r"\b(?:al|hasta\s+el|hacia\s+el|por\s+el)\s+final\b", " ", normalized_text)
+    has_no_ext_lib = bool(re.search(
+        r"\b(?:sin\s+librerias\s+externas|libreria\s+estandar|python\s+puro|sin\s+paquetes\s+externos)\b",
+        normalized_text,
+    ))
+    has_explicit_tech = bool(_EXPLICIT_TECH_RE.search(normalized_text))
+    has_explicit_ds = bool(_EXPLICIT_DS_RE.search(normalized_text)) and not has_no_ext_lib
+
+    domain_scores: Dict[str, float] = {}
+    domain_hits: Dict[str, List[str]] = {}
 
     for dom_name, cfg in domains_cfg.items():
         if dom_name == "Otro / General":
             continue
+        target_norm = norm_no_al_final if dom_name == "Estudio y academia" else normalized_text
         raw_hits = 0.0
         hits: List[str] = []
         seen_norms = set()
@@ -985,11 +1064,11 @@ def _classify_domain(
                 continue
             seen_norms.add(kw_norm)
             if " " in kw_norm:
-                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", target_norm):
                     raw_hits += 1.5
                     hits.append(kw)
             else:
-                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", target_norm):
                     raw_hits += 1.0
                     hits.append(kw)
 
@@ -1001,7 +1080,9 @@ def _classify_domain(
         anchors, anchor_w = _DOMAIN_ANCHORS.get(dom_name, (set(), 0.0))
         anchor_hits = 0
         for anch in anchors:
-            if anch in ent_set or re.search(rf"(?<![a-z0-9]){re.escape(anch)}(?![a-z0-9])", normalized_text):
+            if anch == "csv" and has_no_ext_lib and dom_name == "Ciencia de Datos e IA":
+                continue
+            if anch in ent_set or re.search(rf"(?<![a-z0-9]){re.escape(anch)}(?![a-z0-9])", target_norm):
                 anchor_hits += 1
                 if anch not in hits:
                     hits.append(anch)
@@ -1013,10 +1094,36 @@ def _classify_domain(
         if learned_b > 0.0:
             score += learned_b
 
+        domain_scores[dom_name] = score
+        domain_hits[dom_name] = hits
+
+    # Desempate P0.2.1: tecnología explícita sin señales DS/ML gana sobre Negocios y Comunicación
+    if (has_explicit_tech or "json" in normalized_text) and not has_explicit_ds:
+        tech_sc = domain_scores.get("Tecnología y programación", 0.0)
+        biz_sc = domain_scores.get("Negocios y comercio", 0.0)
+        red_sc = domain_scores.get("Redacción y comunicación", 0.0)
+        ds_sc = domain_scores.get("Ciencia de Datos e IA", 0.0)
+        if tech_sc > 0.0:
+            domain_scores["Tecnología y programación"] = max(tech_sc + 0.35, biz_sc + 0.15, red_sc + 0.15, ds_sc + 0.15)
+
+    # En simulaciones de entrevista laboral, no clasificar como Planificación ni Ciencia de Datos
+    if re.search(r"\b(?:entrevista\s+(?:laboral|t[eé]cnica|de\s+trabajo)|puesto\s+de)\b", normalized_text) and not has_explicit_ds:
+        trace.append({
+            "stage": "domain",
+            "rule": "Simulación de entrevista laboral -> Otro / General",
+            "score": 0.5,
+            "matched_keywords": ["entrevista"],
+        })
+        return "Otro / General", trace
+
+    best_domain = "Otro / General"
+    best_score = 0.0
+    matched_kws: List[str] = []
+    for dom_name, score in domain_scores.items():
         if score > best_score:
             best_score = score
             best_domain = dom_name
-            matched_kws = hits[:5]
+            matched_kws = domain_hits.get(dom_name, [])[:5]
 
     trace.append({
         "stage": "domain",
@@ -1044,9 +1151,21 @@ def _classify_deliverable(normalized_text: str, action: str, form_data: Dict[str
     if re.search(r"\b(?:(?:a|formato)\s+(?:una\s+)?tabla|en\s+una\s+tabla|en\s+tabla)\b", normalized_text):
         return "tabla"
 
+    # P0.2.4: Prioridad de entregable 'plan / cronograma' sobre mención de canales (WhatsApp/correo)
+    if re.search(
+        r"\b(?:armar|hacer|disenar|elaborar|planificar|quiero|necesito)?\s*(?:un\s+)?(?:plan(?:\s+de\s+(?:\d+\s+\w+|accion|marketing|trabajo|estudio|lanzamiento))?|cronograma|hoja\s+de\s+ruta|roadmap)\b",
+        normalized_text,
+    ) and not re.search(r"\bpaso\s+a\s+paso\b", normalized_text):
+        return "plan / cronograma"
+
+    if action == "diagnosticar_resolver" and not re.search(r"\b(?:en\s+tabla|en\s+json|correo|mail)\b", normalized_text):
+        return "informe estructurado"
+
     best_deliv = ""
     best_hits = 0
     for deliv_key, cfg in KNOWLEDGE_BASE.get("deliverables", {}).items():
+        if action in ("comparar_evaluar", "transformar_formato", "extraer_informacion") and deliv_key == "email / mensaje":
+            continue
         seen_norms = set()
         hits = 0
         for kw in cfg.get("keywords", []):
@@ -1123,23 +1242,55 @@ def _detect_subintents(raw_text: str, normalized_text: str, action: str) -> Tupl
         if name not in all_matched:
             all_matched.append(name)
 
-    for act_k, group in subintents_cfg.items():
-        if act_k == action:
-            continue
-        for name, sc in _score_group(group):
-            if sc >= 1.5 and name not in all_matched:
-                all_matched.append(name)
+    # Solo permitir subintenciones académicas de estudio en explicar/comparar, nunca filtrar subintenciones ajenas (rutina_negocio, email_formal, sql, etc.)
+    if action in ("explicar_concepto", "comparar_evaluar"):
+        for act_k in ("explicar_concepto",):
+            if act_k == action:
+                continue
+            for name, sc in _score_group(subintents_cfg.get(act_k, {})):
+                if sc >= 1.5 and name not in all_matched:
+                    all_matched.append(name)
 
     return primary, all_matched
 
 
-def _detect_ontology_objects(normalized_text: str) -> List[str]:
+def _detect_ontology_objects(
+    normalized_text: str,
+    action: str = "",
+    subintent: str = "",
+) -> List[str]:
     ontology = KNOWLEDGE_BASE.get("object_ontology", {})
     matched: List[str] = []
+    norm_no_al_final = re.sub(r"\b(?:al|hasta\s+el|hacia\s+el|por\s+el)\s+final\b", " ", normalized_text)
+    has_no_ext_lib = bool(re.search(
+        r"\b(?:sin\s+librerias\s+externas|libreria\s+estandar|python\s+puro|sin\s+paquetes\s+externos)\b",
+        normalized_text,
+    ))
+    is_biz_ops_intent = (
+        subintent == "rutina_negocio"
+        or (
+            action == "planificar_pasos"
+            and subintent != "proyecto"
+            and bool(re.search(r"\b(?:controlar|gestionar|registrar|llevar|administrar|manejar|caja|stock|vencimientos?)\b", normalized_text))
+        )
+    )
+    disallowed_biz_actions = {
+        "comparar_evaluar", "generar_codigo", "extraer_informacion",
+        "transformar_formato", "diagnosticar_resolver", "calcular_modelar",
+        "redactar_contenido", "simular_practicar",
+    }
+
     for obj_key, cfg in ontology.items():
+        if obj_key in ("ventas", "stock", "vencimientos", "precios"):
+            if action in disallowed_biz_actions or not is_biz_ops_intent:
+                continue
+        if obj_key == "dataset":
+            if has_no_ext_lib or (action == "generar_codigo" and "pandas" not in normalized_text and "dataframe" not in normalized_text):
+                continue
+        target_norm = norm_no_al_final if obj_key == "parcial" else normalized_text
         for alias in cfg.get("aliases", []):
             al_norm = _strip_accents(alias.lower())
-            if re.search(rf"(?<![a-z0-9]){re.escape(al_norm)}(?![a-z0-9])", normalized_text):
+            if re.search(rf"(?<![a-z0-9]){re.escape(al_norm)}(?![a-z0-9])", target_norm):
                 if obj_key not in matched:
                     matched.append(obj_key)
                 break
@@ -1216,11 +1367,61 @@ def _check_conceptual_no_data(
     )
 
 
+def _is_slot_already_covered(slot_id: str, classify_norm: str, req: Optional[ParsedRequest] = None) -> bool:
+    if not classify_norm:
+        return False
+    roles = req.roles if req else {}
+    if slot_id == "tech_stack":
+        return bool(re.search(
+            r"\b(?:python|django|flask|fastapi|javascript|typescript|react|vue|sql|sqlite|postgresql|postgres|mysql|bash|linux|java|c#|go|rust)\b",
+            classify_norm,
+        ))
+    if slot_id == "code_io":
+        has_in = bool(re.search(r"\b(?:lea|leer|reciba|recibe|entrada|archivo|csv|json|tabla|input|parametro)\b", classify_norm))
+        has_out = bool(re.search(r"\b(?:muestre|mostrar|devuelva|devolver|retorne|retornar|imprima|genere|calcule|total|salida|output)\b", classify_norm))
+        return has_in and has_out
+    if slot_id == "code_constraints":
+        return bool(
+            (req and req.neg_constraints)
+            or re.search(r"\b(?:sin\s+librerias|libreria\s+estandar|python\s+puro|sin\s+paquetes|archivo\s+vacio|produccion|casos?\s+borde)\b", classify_norm)
+        )
+    if slot_id == "error_context":
+        return bool((req and req.errors_detected) or re.search(r"\b(?:traceback|keyerror|typeerror|valueerror|syntaxerror|error\s+500)\b", classify_norm))
+    if slot_id == "compare_axes":
+        has_two = bool(re.search(r"\b(?:vs\.?|versus|contra|entre\s+\S+\s+y\s+\S+)\b", classify_norm))
+        has_axes = bool(re.search(r"\b(?:ventajas|desventajas|pros|contras|criterios|cual\s+(?:me\s+)?conviene|diferencias)\b", classify_norm))
+        return has_two and has_axes
+    if slot_id == "biz_scale":
+        return bool(re.search(
+            r"\b(?:negocio\s+chico|pyme|emprendimiento|kiosco|drugstore|minorista|local\s+chico|tienda|comercio\s+chico|b2b|ecommerce|e-commerce)\b",
+            classify_norm,
+        ))
+    if slot_id in ("biz_horizon", "plan_timeframe"):
+        return bool(
+            roles.get("plazo")
+            or roles.get("dedicacion")
+            or re.search(r"\b(?:\d+\s+(?:semanas?|dias?|meses?|horas?)|mensual|semanal|trimestral|esta\s+semana|este\s+mes|sin\s+gastar|bajo\s+presupuesto)\b", classify_norm)
+        )
+    if slot_id in ("target_schema", "extract_fields"):
+        return bool(roles.get("campos_esquema"))
+    if slot_id == "sim_channel":
+        return bool(roles.get("canal") or roles.get("es_entrevista"))
+    if slot_id == "audit_role":
+        return bool(roles.get("perspectiva"))
+    if slot_id == "idea_channel":
+        return bool(roles.get("canal"))
+    if slot_id == "margin_base":
+        return bool(re.search(r"\b(?:sobre\s+(?:venta|precio\s+de\s+venta|costo))\b", classify_norm))
+    return False
+
+
 def _get_slots_for_request(
     domain: str,
     action: str,
     form_data: Dict[str, Any],
     conceptual_no_data: bool = False,
+    classify_norm: str = "",
+    req: Optional[ParsedRequest] = None,
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
     catalog = KNOWLEDGE_BASE.get("slot_catalog", {})
     candidates: List[Dict[str, Any]] = []
@@ -1236,7 +1437,6 @@ def _get_slots_for_request(
         candidates.extend(catalog.get("by_action", {}).get(action, []))
         candidates.extend(catalog.get("by_domain", {}).get(domain, []))
 
-    answered_keys = {_strip_accents(str(k).lower()) for k, v in form_data.items() if v}
     eligible_all: List[Dict[str, Any]] = []
     seen_all = set()
     for slot in candidates:
@@ -1244,6 +1444,8 @@ def _get_slots_for_request(
         if sid in seen_all:
             continue
         seen_all.add(sid)
+        if _is_slot_already_covered(sid, classify_norm, req=req):
+            continue
         eligible_all.append(slot)
 
     eligible_all.sort(key=lambda s: s.get("impact_pts", 5), reverse=True)
@@ -1262,6 +1464,7 @@ def _select_suggested_slots(
 
 
 def _extract_context_modifiers(normalized_text: str) -> Dict[str, Any]:
+    norm_no_al_final = re.sub(r"\b(?:al|hasta\s+el|hacia\s+el|por\s+el)\s+final\b", " ", normalized_text)
     audience = ""
     if any(w in normalized_text for w in ("principiante", "desde cero", "basico", "no se nada", "facil")):
         audience = "Principiante / Sin conocimientos previos"
@@ -1269,7 +1472,7 @@ def _extract_context_modifiers(normalized_text: str) -> Dict[str, Any]:
         audience = "Nivel avanzado / Técnico"
     elif any(w in normalized_text for w in ("cliente", "gerencia", "directivo", "jefe")):
         audience = "Directivo / Cliente"
-    elif any(w in normalized_text for w in ("universitario", "facultad", "examen", "parcial", "final")):
+    elif any(w in norm_no_al_final for w in ("universitario", "facultad", "examen", "parcial", "final")):
         audience = "Académico / Universitario"
 
     tone = ""
@@ -1306,15 +1509,16 @@ def _extract_context_modifiers(normalized_text: str) -> Dict[str, Any]:
     }
 
 
-def _build_facets(req: ParsedRequest) -> List[str]:
+def _build_facets(req: ParsedRequest, classify_norm: str = "") -> List[str]:
     facets = {
         f"domain:{req.domain}",
         f"action:{req.action}",
         f"sub:{req.subintent}",
         f"deliv:{req.deliverable}",
     }
-    for sec in req.secondary_actions:
-        facets.add(f"action:{sec}")
+    if not req.is_single_clause:
+        for sec in req.secondary_actions:
+            facets.add(f"action:{sec}")
     for sub_m in req.subintents_matched:
         facets.add(f"sub:{sub_m}")
     for ent in req.entities:
@@ -1338,7 +1542,10 @@ def _build_facets(req: ParsedRequest) -> List[str]:
         facets.add("neg:sin_graficos")
     if any(k in neg_joined for k in ("tecnicismo", "jerga")):
         facets.add("neg:sin_tecnicismos")
-    if any(k in neg_joined for k in ("libreria", "paquete", "externa")):
+    if any(k in neg_joined for k in ("libreria", "paquete", "externa")) or re.search(
+        r"\b(?:sin\s+librerias\s+externas|libreria\s+estandar|python\s+puro|sin\s+paquetes\s+externos)\b",
+        classify_norm or "",
+    ):
         facets.add("neg:sin_librerias")
     if "ejemplo" in neg_joined:
         facets.add("neg:sin_ejemplos")
@@ -1380,13 +1587,26 @@ def rewrite_goal(parsed: ParsedRequest, mask_pii: bool = False) -> Tuple[str, Li
     else:
         src = parsed.masked_text if mask_pii else parsed.raw_text
 
-    cleaned = re.sub(r"\s+", " ", src or "").strip()
+    cleaned = re.sub(r"\s+", " ", src or "").strip().rstrip(":").strip()
 
     for frame_rgx in KNOWLEDGE_BASE.get("request_frames", []):
         cleaned = re.sub(frame_rgx, "", cleaned, flags=re.IGNORECASE).strip()
 
     if not cleaned:
-        cleaned = src.strip()
+        cleaned = (src or "").strip().rstrip(":").strip()
+
+    # Normalización de aperturas coloquiales e imperativas (v7.2 P2.3)
+    if parsed.action == "diagnosticar_resolver" and re.match(r"^necesito\s+mejorar\b", cleaned, flags=re.IGNORECASE):
+        cleaned = re.sub(r"^necesito\s+mejorar\b", "Diagnosticar y mejorar", cleaned, flags=re.IGNORECASE).strip()
+    elif parsed.action == "depurar_error" and re.match(r"^tengo\s+(?:este\s+)?error\b", cleaned, flags=re.IGNORECASE):
+        cleaned = re.sub(r"^tengo\s+(?:este\s+)?error\b", "Depurar y corregir este error", cleaned, flags=re.IGNORECASE).strip()
+    else:
+        cleaned = re.sub(
+            r"^necesito\s+(mejorar|revisar|comparar|escribir|armar|pasar|planificar|simular|extraer|analizar|explicar)\b",
+            r"\1",
+            cleaned,
+            flags=re.IGNORECASE,
+        ).strip()
 
     abbr_map = KNOWLEDGE_BASE.get("abbreviations_map", {})
     words_out: List[str] = []
@@ -1404,21 +1624,31 @@ def rewrite_goal(parsed: ParsedRequest, mask_pii: bool = False) -> Tuple[str, Li
     promoted = False
 
     infinitive = CLITIC_STEM_MAP.get(first_norm, first_norm)
-    rest = " ".join(cleaned.split(" ")[1:]).strip()
+    rest = " ".join(cleaned.split(" ")[1:]).strip().rstrip(":").strip()
 
     if rest:
-        for vclass_name, vcfg in verb_classes.items():
-            if infinitive in vcfg.get("verbs", []):
-                if vclass_name == "produccion":
-                    tpl = vcfg.get("by_deliverable", {}).get(
-                        parsed.deliverable, vcfg.get("default_template", "Elaborar {obj}")
-                    )
-                    cleaned = tpl.format(inf=infinitive, obj=rest)
-                else:
-                    tpl = vcfg.get("template", "{inf} {obj}")
-                    cleaned = tpl.format(inf=infinitive, obj=rest)
-                promoted = True
-                break
+        if parsed.action == "transformar_formato" and infinitive in ("pasar", "convertir", "transformar"):
+            cleaned = f"Transformar {rest}"
+            promoted = True
+        elif parsed.action == "planificar_pasos" and infinitive in ("armar", "planificar", "hacer", "disenar"):
+            if re.match(r"^(?:un\s+plan|una\s+hoja|un\s+cronograma)\b", rest, flags=re.IGNORECASE):
+                cleaned = f"Diseñar {rest}"
+            else:
+                cleaned = f"Planificar {rest}"
+            promoted = True
+        else:
+            for vclass_name, vcfg in verb_classes.items():
+                if infinitive in vcfg.get("verbs", []):
+                    if vclass_name == "produccion":
+                        tpl = vcfg.get("by_deliverable", {}).get(
+                            parsed.deliverable, vcfg.get("default_template", "Elaborar {obj}")
+                        )
+                        cleaned = tpl.format(inf=infinitive, obj=rest)
+                    else:
+                        tpl = vcfg.get("template", "{inf} {obj}")
+                        cleaned = tpl.format(inf=infinitive, obj=rest)
+                    promoted = True
+                    break
 
         if not promoted and infinitive != first_norm:
             cleaned = f"{infinitive.capitalize()} {rest}"
@@ -1431,6 +1661,7 @@ def rewrite_goal(parsed: ParsedRequest, mask_pii: bool = False) -> Tuple[str, Li
             adj_notes.append(f"Criterio de '{adj}': {translation}.")
 
     if cleaned:
+        cleaned = re.sub(r":+(\s*[.!?])?$", r"\1", cleaned).strip()
         cleaned = cleaned[0].upper() + cleaned[1:]
         if cleaned[-1] not in ".!?":
             cleaned += "."
@@ -1457,7 +1688,8 @@ def check_fidelity(user_text: str, rewritten_goal: str, parsed: ParsedRequest) -
 
     repaired_goal = rewritten_goal
     if missing:
-        repaired_goal = f"{rewritten_goal.rstrip('.')} (involucrando: {', '.join(missing)})."
+        base_goal = rewritten_goal.rstrip(".").rstrip(":").strip()
+        repaired_goal = f"{base_goal} (involucrando: {', '.join(missing)})."
 
     return {
         "fidelity_ok": len(missing) == 0,
@@ -1561,15 +1793,24 @@ def parse_request(
     req.trace.extend(dom_trace)
 
     segments_raw = _split_segments_safe(classify_src)
+    req.is_single_clause = len(segments_raw) <= 1
 
     global_scores, score_details = _score_actions_detailed(
-        classify_src, classify_norm, tokens=classify_tokens, learned_action_boosts=learned_act_boosts
+        classify_src,
+        classify_norm,
+        tokens=classify_tokens,
+        learned_action_boosts=learned_act_boosts,
+        has_payload=bool(payload_part),
     )
     if len(segments_raw) > 1:
         seg0 = segments_raw[0]
         seg0_norm, seg0_toks, _ = normalize_and_lemmatize(seg0)
         seg0_scores, seg0_details = _score_actions_detailed(
-            seg0, seg0_norm, tokens=seg0_toks, learned_action_boosts=learned_act_boosts
+            seg0,
+            seg0_norm,
+            tokens=seg0_toks,
+            learned_action_boosts=learned_act_boosts,
+            has_payload=bool(payload_part),
         )
         # En pedidos multi-cláusula ("X; y además Y"), la primera cláusula define la intención principal
         blended_scores = {
@@ -1592,7 +1833,11 @@ def parse_request(
         for seg in segments_raw[1:]:
             seg_norm, seg_toks, _ = normalize_and_lemmatize(seg)
             seg_scores, _ = _score_actions_detailed(
-                seg, seg_norm, tokens=seg_toks, learned_action_boosts=learned_act_boosts
+                seg,
+                seg_norm,
+                tokens=seg_toks,
+                learned_action_boosts=learned_act_boosts,
+                has_payload=bool(payload_part),
             )
             seg_top, seg_val = max(seg_scores.items(), key=lambda kv: kv[1])
             if seg_top != top1_action and seg_val >= max(0.55 * top1_score, 0.20) and seg_top not in secondary:
@@ -1612,7 +1857,16 @@ def parse_request(
     req.action_label = actions_cfg.get(req.action, {}).get("label", req.action)
     req.secondary_actions = secondary
 
-    # Calibración v7.0 de confianza y margen
+    # Carril B: conservar filenames/errores del Inspector de Tracebacks cuando es código/error o depurar/diagnosticar
+    if req.payload_info.get("payload_kind") in ("error_consola", "codigo") or req.action in ("depurar_error", "diagnosticar_resolver"):
+        for fn in req.payload_info.get("payload_filenames", []):
+            if fn not in req.filenames:
+                req.filenames.append(fn)
+        for err in req.payload_info.get("payload_errors", []):
+            if err not in req.errors_detected:
+                req.errors_detected.append(err)
+
+    # Calibración v7.0/v7.2 de confianza y margen
     raw_margin = max(top1_score - top2_score, 0.0)
     req.margin = round(raw_margin, 3)
 
@@ -1660,14 +1914,14 @@ def parse_request(
         req.needs_placeholder = mods["needs_placeholder"] or (req.action == "depurar_error" and not req.code_snippets and not payload_part)
         req.placeholder_label = mods["placeholder_label"]
 
-    req.subintent, req.subintents_matched = _detect_subintents(req.raw_text, norm_text, req.action)
-    req.ontology_objects = _detect_ontology_objects(norm_text)
+    req.subintent, req.subintents_matched = _detect_subintents(classify_src, classify_norm, req.action)
+    req.ontology_objects = _detect_ontology_objects(classify_norm, action=req.action, subintent=req.subintent)
 
-    # Extractor de roles semánticos y calculador determinístico (v6.0/v7.1)
+    # Extractor de roles semánticos y calculador determinístico (Carril A para roles/cálculo)
     req.roles = extract_semantic_roles(classify_src, payload_info=req.payload_info)
-    req.calc_info = compute_control_values(req.raw_text, roles=req.roles)
+    req.calc_info = compute_control_values(classify_src, roles=req.roles)
 
-    # v7.1: Ancla temática visible cuando el pedido tiene tema explícito sin entidades técnicas
+    # v7.1/v7.2: Ancla temática visible cuando el pedido tiene tema explícito limpio
     tema_cand = (req.roles.get("tema") or "").strip()
     if tema_cand and len(tema_cand) >= 3 and tema_cand.lower() != "el tema solicitado":
         req.topic_anchor = tema_cand
@@ -1683,7 +1937,7 @@ def parse_request(
         req.is_vague = True
         req.suggested_paths = _build_suggested_paths(req.raw_text)
 
-    if req.margin < 0.15 or req.word_count < 5 or req.is_vague:
+    if (req.margin < 0.15 or req.word_count < 5 or req.is_vague) and not (score_details.get(top1_action, {}).get("tiebreak") == "tech_creation" and req.confidence >= 0.85):
         req.needs_disambiguation = True
         cand_pair = [(top1_action, top1_score)]
         alt_action = top2_action if top2_score > 0.0 and top2_action != top1_action else (
@@ -1702,9 +1956,14 @@ def parse_request(
         ]
 
     req.suggested_slots, req.active_slot_ids = _get_slots_for_request(
-        req.domain, req.action, form_data, conceptual_no_data=req.is_conceptual_no_data
+        req.domain,
+        req.action,
+        form_data,
+        conceptual_no_data=req.is_conceptual_no_data,
+        classify_norm=classify_norm,
+        req=req,
     )
-    req.facets = _build_facets(req)
+    req.facets = _build_facets(req, classify_norm=classify_norm)
 
     rewritten, _ = rewrite_goal(req)
     req.rewritten_goal = check_fidelity(req.raw_text, rewritten, req)["goal"]
@@ -1731,6 +1990,48 @@ def parse_request(
 # ETAPA 5: Selector de Micro-Directivas + Linter Anti-Relleno + Rúbrica v2
 # ---------------------------------------------------------------------------
 
+_PANDAS_TEXT_RE = re.compile(r"\b(?:pandas|numpy|scipy|sklearn)\b|df\.", flags=re.IGNORECASE)
+
+
+def _directive_allowed_by_compatibility(d: Dict[str, Any], parsed: ParsedRequest, facet_set: set) -> bool:
+    did = d.get("id", "")
+    # Guarda Anti-Contradicción: sin librerías externas / librería estándar / generar código sin pandas
+    if "neg:sin_librerias" in facet_set or (
+        parsed.action == "generar_codigo"
+        and "entity:pandas" not in facet_set
+        and "entity:sklearn" not in facet_set
+        and "entity:scikit-learn" not in facet_set
+    ):
+        if did.startswith(("pandas.", "sklearn.", "regresion.")):
+            return False
+        blob = " ".join(str(d.get(k, "")) for k in ("text", "text_short", "verifiable", "edge_cases"))
+        if _PANDAS_TEXT_RE.search(blob):
+            return False
+
+    # Compuerta SQL: solo en generar_codigo, depurar_error o diagnosticar_resolver
+    if did.startswith("sql.") and parsed.action not in ("generar_codigo", "depurar_error", "diagnosticar_resolver"):
+        return False
+
+    # Compuerta Negocios/Planilla de ventas: solo en gestión/control de ventas/caja, nunca en comparar/código/extracción/promoción
+    if did.startswith("neg."):
+        if parsed.action in (
+            "comparar_evaluar", "generar_codigo", "extraer_informacion",
+            "transformar_formato", "redactar_contenido", "simular_practicar",
+            "diagnosticar_resolver", "calcular_modelar", "auditar_criticar",
+        ):
+            return False
+        if parsed.subintent == "proyecto":
+            return False
+        if did in ("neg.rutina", "neg.herramienta") and "sub:rutina_negocio" not in facet_set:
+            return False
+
+    # Compuerta tabla comparativa: nunca en extracción/transformación/cálculo/clasificación/auditoría
+    if did == "estudio.comparar" and parsed.action not in ("comparar_evaluar", "explicar_concepto", "decidir_recomendar"):
+        return False
+
+    return True
+
+
 def select_directives(parsed: ParsedRequest, level: str = "Completa") -> List[Dict[str, Any]]:
     level_key = (level or "Completa").lower()
     if level_key not in ("ligera", "completa", "profunda"):
@@ -1741,6 +2042,8 @@ def select_directives(parsed: ParsedRequest, level: str = "Completa") -> List[Di
 
     for d in KNOWLEDGE_BASE.get("directives", []):
         if level_key not in d.get("levels", ["completa"]):
+            continue
+        if not _directive_allowed_by_compatibility(d, parsed, facet_set):
             continue
         when = d.get("when", {})
         all_req = when.get("all", [])
@@ -1783,9 +2086,18 @@ def lint_prompt(
     Elimina frases de relleno genérico (banned_patterns) y calcula:
     - noise_ratio (< 0.10 objetivo)
     - anchor_coverage (>= 0.90 objetivo)
+    Preserva intacta la indentación dentro de <datos_entrada>...</datos_entrada>.
     """
+    payload_blocks: List[str] = []
+
+    def _hide_payload(match: re.Match) -> str:
+        idx = len(payload_blocks)
+        payload_blocks.append(match.group(0))
+        return f"__PL_PAYLOAD_BLOCK_{idx}__"
+
+    protected = re.sub(r"<datos_entrada>[\s\S]*?</datos_entrada>", _hide_payload, text)
     banned = KNOWLEDGE_BASE.get("lint_rules", {}).get("banned_patterns", [])
-    cleaned = text
+    cleaned = protected
     removed_hits = 0
     for pat in banned:
         new_cleaned, n = re.subn(pat, "", cleaned, flags=re.IGNORECASE)
@@ -1793,14 +2105,25 @@ def lint_prompt(
             removed_hits += n
             cleaned = new_cleaned
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r"\bde el\b", "del", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+    for idx, orig_block in enumerate(payload_blocks):
+        cleaned = cleaned.replace(f"__PL_PAYLOAD_BLOCK_{idx}__", orig_block)
 
     content_lines = [
         ln.strip() for ln in cleaned.splitlines()
         if ln.strip() and not ln.strip().startswith("#") and ln.strip() not in ("<datos_entrada>", "</datos_entrada>")
     ]
     if not content_lines:
-        return {"text": cleaned, "noise_ratio": 0.0, "anchor_coverage": 1.0, "removed_hits": removed_hits}
+        return {
+            "text": cleaned,
+            "noise_ratio": 0.0,
+            "anchor_coverage": 1.0,
+            "anchor_coverage_pct": 100,
+            "noise_ratio_pct": 0,
+            "removed_hits": removed_hits,
+        }
 
     anchor_terms = set(
         [e.lower() for e in parsed.entities]
@@ -1844,12 +2167,16 @@ def lint_prompt(
         if has_anchor:
             anchored += 1
 
-    anchor_coverage = round(anchored / len(content_lines), 3)
-    noise_ratio = round(max(1.0 - anchor_coverage, 0.0), 3)
+    anchor_coverage_pct = int(round((anchored / len(content_lines)) * 100))
+    noise_ratio_pct = max(100 - anchor_coverage_pct, 0)
+    anchor_coverage = round(anchor_coverage_pct / 100.0, 2)
+    noise_ratio = round(noise_ratio_pct / 100.0, 2)
     return {
         "text": cleaned,
         "noise_ratio": noise_ratio,
         "anchor_coverage": anchor_coverage,
+        "anchor_coverage_pct": anchor_coverage_pct,
+        "noise_ratio_pct": noise_ratio_pct,
         "removed_hits": removed_hits,
     }
 
@@ -1940,6 +2267,18 @@ def calculate_rubric_v2(
     if noise_ratio >= 0.10:
         # v7.1: ningún prompt con >=10% de relleno puede mostrar 100/100
         penalties += max(6, int(round((noise_ratio - 0.08) * 60)))
+    # v7.2: penalizar contradicción estándar vs Pandas o ítems positivos en # Qué no hacer
+    if "neg:sin_librerias" in parsed.facets and _PANDAS_TEXT_RE.search(improved_prompt):
+        penalties += 12
+    if "# Qué no hacer" in improved_prompt:
+        qnh_block = improved_prompt.split("# Qué no hacer", 1)[1].split("# ", 1)[0]
+        for qln in qnh_block.splitlines():
+            qclean = qln.strip()
+            if qclean.startswith("- "):
+                qbody = _strip_accents(qclean[2:].strip().lower())
+                if not qbody.startswith(("no ", "evita ", "nunca ", "prohibido ")):
+                    penalties += 6
+                    break
 
     final_score = int(round(max(min(weighted_total - penalties, 100), 10)))
     if noise_ratio >= 0.10:
@@ -2243,6 +2582,13 @@ def _assemble_prompt_with_segments(
         ctx_lines.append(f"- **Perspectiva:** {parsed.roles['perspectiva']}")
     if parsed.roles.get("canal"):
         ctx_lines.append(f"- **Canal:** {parsed.roles['canal']}")
+    if parsed.action == "planificar_pasos":
+        if parsed.roles.get("plazo"):
+            ctx_lines.append(f"- **Plazo disponible:** {parsed.roles['plazo']}")
+        if parsed.roles.get("dedicacion"):
+            ctx_lines.append(f"- **Dedicación:** {parsed.roles['dedicacion']}")
+        if parsed.roles.get("recursos"):
+            ctx_lines.append(f"- **Canales / recursos disponibles:** {', '.join(parsed.roles['recursos'])}")
     if parsed.roles.get("formato_destino"):
         ctx_lines.append(f"- **Formato solicitado:** {parsed.roles['formato_destino']}")
     if parsed.roles.get("campos_esquema"):
@@ -2258,6 +2604,19 @@ def _assemble_prompt_with_segments(
     if parsed.ontology_objects and not use_universal:
         ontology = KNOWLEDGE_BASE.get("object_ontology", {})
         for obj_k in parsed.ontology_objects:
+            if obj_k in ("ventas", "stock", "vencimientos", "precios") and (
+                parsed.subintent != "rutina_negocio"
+                or parsed.action in (
+                    "comparar_evaluar", "generar_codigo", "extraer_informacion",
+                    "transformar_formato", "diagnosticar_resolver", "calcular_modelar",
+                )
+            ):
+                continue
+            if obj_k == "dataset" and (
+                "neg:sin_librerias" in parsed.facets
+                or (parsed.action == "generar_codigo" and "pandas" not in parsed.entities)
+            ):
+                continue
             delivs = ontology.get(obj_k, {}).get("deliverables", [])
             if delivs:
                 ctx_lines.append(f"- **Desglose de {obj_k}:** {'; '.join(delivs)}")
@@ -2275,6 +2634,55 @@ def _assemble_prompt_with_segments(
         active_directives = [d for d in directives if d.get("priority", 0) >= 95]
     else:
         active_directives = directives
+
+    classify_low = _strip_accents((parsed.instruction_text or parsed.raw_text).lower())
+
+    # P0.3: Python librería estándar sin librerías externas
+    if parsed.action == "generar_codigo" and "neg:sin_librerias" in parsed.facets:
+        raw_inst_lines.append(
+            "Usa exclusivamente módulos de la librería estándar de Python (como `csv` y `collections`) sin importar paquetes externos."
+        )
+        if "vacio" in classify_low or "csv" in classify_low:
+            raw_inst_lines.append(
+                "Valida y maneja explícitamente el caso de archivo vacío, sin filas de datos o con encabezados faltantes."
+            )
+        if parsed.language == "Español" or "espanol" in classify_low:
+            raw_inst_lines.append(
+                "Escribe todos los comentarios del código y mensajes de salida en español claro."
+            )
+        raw_inst_lines.append("Incluye un ejemplo mínimo de uso o ejecución esperada.")
+
+    # P0.3: Decisión justificada explícita en comparar_evaluar cuando el usuario pide recomendación
+    if parsed.action == "comparar_evaluar" and re.search(
+        r"\b(?:cual\s+(?:me\s+)?conviene|recomendame|que\s+elegir|mejor\s+opcion|cual\s+es\s+mejor)\b",
+        classify_low,
+    ):
+        raw_inst_lines.append(
+            "Detalla ventajas, desventajas y casos de uso de cada alternativa y cierra con una recomendación final justificada para el contexto planteado."
+        )
+
+    # P0.3: Código corregido listo para ejecutar en depurar_error (también en Express)
+    if parsed.action == "depurar_error":
+        raw_inst_lines.append(
+            "Identifica la causa raíz exacta del fallo y entrega el fragmento o código corregido listo para ejecutar."
+        )
+
+    # P1.4: Reflejar plazo, dedicación y recursos/canales explícitos en planes
+    if parsed.action == "planificar_pasos":
+        plazo = parsed.roles.get("plazo")
+        dedicacion = parsed.roles.get("dedicacion")
+        recursos = parsed.roles.get("recursos") or []
+        if plazo or dedicacion or recursos:
+            partes_plan = []
+            if plazo:
+                partes_plan.append(f"en un cronograma de {plazo}")
+            if dedicacion:
+                partes_plan.append(f"ajustado a una dedicación de {dedicacion}")
+            if recursos:
+                partes_plan.append(f"apoyándote únicamente en {', '.join(recursos)}")
+            raw_inst_lines.append(
+                f"Organiza el plan {', '.join(partes_plan)}, detallando tareas semanales concretas y métricas simples de avance."
+            )
 
     for d in active_directives:
         if d["id"] == "estudio.errores_comunes" and not exam_ctx:
@@ -2348,7 +2756,10 @@ def _assemble_prompt_with_segments(
         if qr not in restr_lines:
             restr_lines.append(qr)
     for nc in parsed.neg_constraints:
-        line_nc = f"- Restricción del usuario: {nc}."
+        nc_clean = nc.strip().rstrip(".")
+        if not nc_clean:
+            continue
+        line_nc = f"- {nc_clean[0].upper()}{nc_clean[1:]}."
         if line_nc not in restr_lines:
             restr_lines.append(line_nc)
     for qc in parsed.quant_constraints:
@@ -2532,14 +2943,20 @@ def _assemble_prompt_with_segments(
                 )
                 sections.append(f"# Supuestos y datos faltantes\n{sup_txt}")
 
-            # 2. Casos borde anclados naturalmente al tema
-            edge_list = [d["edge_cases"] for d in directives if d.get("edge_cases")]
+            # 2. Casos borde anclados naturalmente al tema (solo de directivas activas)
+            edge_list = [d["edge_cases"] for d in active_directives if d.get("edge_cases")]
             if univ and univ.get("edge_cases"):
                 edge_list.extend(univ["edge_cases"])
+            if parsed.action == "generar_codigo" and "neg:sin_librerias" in parsed.facets:
+                edge_list.extend([
+                    "Archivo de entrada vacío, sin filas de datos o con encabezados inexistentes.",
+                    "Filas con separador `;`, encoding UTF-8/Latin-1 o montos no numéricos.",
+                ])
             if edge_list:
                 anchored_edges = []
-                for ec in edge_list[:5]:
-                    if tema_label.lower() not in ec.lower() and not any(e in ec.lower() for e in parsed.entities):
+                valid_tema_anchor = bool(tema_label) and not re.match(r"^\d+\s+\w+$", tema_label.strip())
+                for ec in list(dict.fromkeys(edge_list))[:5]:
+                    if valid_tema_anchor and tema_label.lower() not in ec.lower() and not any(e in ec.lower() for e in parsed.entities):
                         anchored_edges.append(f"- {ec.rstrip('.')} al abordar {tema_label}.")
                     else:
                         anchored_edges.append(f"- {ec}")
@@ -2568,7 +2985,7 @@ def _assemble_prompt_with_segments(
                 val_txt = "\n".join(f"- {v}" for v in val_unique[:4])
                 sections.append(f"# Validación previa a responder\n{val_txt}")
 
-            # 4. Guardrails (# Qué no hacer): conceptuales cuando no hay datos/modelos
+            # 4. Guardrails (# Qué no hacer): 100% en negativo
             if parsed.is_conceptual_no_data:
                 dont_list = [
                     f"No asumas conocimientos previos no declarados sobre {tema_label} ni uses jerga técnica sin definirla en su primera aparición.",
@@ -2577,9 +2994,18 @@ def _assemble_prompt_with_segments(
             else:
                 dont_list = list(dom_info.get("guardrails", []))
             if parsed.neg_constraints:
-                dont_list.extend(f"No violar: {nc}" for nc in parsed.neg_constraints)
-            if dont_list:
-                dont_txt = "\n".join(f"- {dl}" for dl in dont_list[:4])
+                dont_list.extend(f"No violar la restricción: {nc.rstrip('.')}." for nc in parsed.neg_constraints)
+            normalized_dont: List[str] = []
+            for dl in dont_list:
+                clean_dl = (dl or "").strip()
+                if not clean_dl:
+                    continue
+                low_dl = _strip_accents(clean_dl.lower())
+                if not low_dl.startswith(("no ", "evita ", "nunca ", "prohibido ")):
+                    clean_dl = f"No omitas esta regla: {clean_dl[0].lower()}{clean_dl[1:]}"
+                normalized_dont.append(clean_dl)
+            if normalized_dont:
+                dont_txt = "\n".join(f"- {dl}" for dl in normalized_dont[:4])
                 sections.append(f"# Qué no hacer\n{dont_txt}")
 
         sections.append(f"# Formato de salida\n- {fmt_instruction}")
@@ -2607,6 +3033,8 @@ def _assemble_prompt_with_segments(
             })
 
     extra_anchors = list(parsed.roles.get("campos_esquema") or [])
+    extra_anchors.extend(parsed.filenames)
+    extra_anchors.extend(parsed.errors_detected)
     if parsed.topic_anchor:
         extra_anchors.append(parsed.topic_anchor)
         for tw in re.findall(r"[a-záéíóúñ0-9]{4,}", parsed.topic_anchor.lower()):
@@ -2616,10 +3044,26 @@ def _assemble_prompt_with_segments(
         extra_anchors.append(parsed.roles["tema"])
     if parsed.roles.get("canal"):
         extra_anchors.append(parsed.roles["canal"])
+    if parsed.roles.get("plazo"):
+        extra_anchors.append(parsed.roles["plazo"])
+    if parsed.roles.get("dedicacion"):
+        extra_anchors.append(parsed.roles["dedicacion"])
+    for rec in parsed.roles.get("recursos") or []:
+        extra_anchors.append(rec)
     if parsed.roles.get("perspectiva"):
         extra_anchors.append(parsed.roles["perspectiva"])
     if parsed.roles.get("rol_simular"):
         extra_anchors.append(parsed.roles["rol_simular"])
+    if "neg:sin_librerias" in parsed.facets:
+        extra_anchors.extend(["librería estándar", "estándar", "vacío", "csv", "collections", "comentarios"])
+    if parsed.action == "extraer_informacion":
+        extra_anchors.extend(["sin asignar", "no especificado", "responsable", "fecha"])
+    if parsed.action == "comparar_evaluar":
+        extra_anchors.extend(["recomendación", "ventajas", "desventajas", "alternativas"])
+    if parsed.action == "simular_practicar":
+        extra_anchors.extend(["entrevista", "repregunta", "profundidad", "turno"])
+    if parsed.action in ("depurar_error", "diagnosticar_resolver"):
+        extra_anchors.extend(["corregido", "ejecutar", "hipótesis", "causa"])
     if parsed.payload_info.get("extracted_prices"):
         extra_anchors.extend(str(p) for p in parsed.payload_info["extracted_prices"])
     if parsed.calc_info.get("has_calculation"):
@@ -2628,12 +3072,14 @@ def _assemble_prompt_with_segments(
             parsed.calc_info["ventas_sobre_costo_fmt"],
         ])
 
-    linted = lint_prompt(raw_improved, parsed, directives, extra_anchors=extra_anchors)
+    linted = lint_prompt(raw_improved, parsed, active_directives, extra_anchors=extra_anchors)
     meta = {
-        "directives_used": [d["id"] for d in directives],
-        "n_directives": len(directives),
+        "directives_used": [d["id"] for d in active_directives],
+        "n_directives": len(active_directives),
         "noise_ratio": linted["noise_ratio"],
         "anchor_coverage": linted["anchor_coverage"],
+        "anchor_coverage_pct": linted["anchor_coverage_pct"],
+        "noise_ratio_pct": linted["noise_ratio_pct"],
         "verifiable_ratio": verifiable_ratio,
         "fidelity_ok": fidelity["fidelity_ok"],
         "used_universal": use_universal,
@@ -2770,8 +3216,8 @@ def get_gemini_response(
     )
 
     analysis = [
-        f"Motor {ENGINE_VERSION} | Dominio: '{parsed.domain}' | Arquetipo: '{parsed.action_label}' ({parsed.subintent}) — confianza {int(parsed.confidence * 100)}%.",
-        f"Directivas: {meta['n_directives']} | Datos útiles: {int(meta['anchor_coverage'] * 100)}% | Relleno: {int(meta['noise_ratio'] * 100)}% | Verificables: {int(meta['verifiable_ratio'] * 100)}%.",
+        f"Motor {ENGINE_VERSION} | Dominio: '{parsed.domain}' | Arquetipo: '{parsed.action_label}' ({parsed.subintent}) — confianza {int(round(parsed.confidence * 100))}%.",
+        f"Directivas: {meta['n_directives']} | Datos útiles: {meta['anchor_coverage_pct']}% | Relleno: {meta['noise_ratio_pct']}% | Verificables: {int(round(meta['verifiable_ratio'] * 100))}%.",
         f"Puntaje: entrada {rubric['user_score']}/100 → final {rubric['final_score']}/100 (+{rubric['quality_gain']} pts, aporte usuario +{rubric['information_gain']} pts).",
     ]
     if parsed.payload_info.get("payload_kind") != "sin_insumo":
@@ -2824,6 +3270,8 @@ def get_gemini_response(
         "info_density": rubric["info_density"],
         "noise_ratio": meta["noise_ratio"],
         "anchor_coverage": meta["anchor_coverage"],
+        "anchor_coverage_pct": meta["anchor_coverage_pct"],
+        "noise_ratio_pct": meta["noise_ratio_pct"],
         "verifiable_ratio": meta["verifiable_ratio"],
         "payload_kind": parsed.payload_info.get("payload_kind", "sin_insumo"),
         "payload_summary": parsed.payload_info.get("summary_label", "Sin insumo pegado"),

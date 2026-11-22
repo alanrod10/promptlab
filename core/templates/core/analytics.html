@@ -140,7 +140,7 @@
         </div>
     </div>
 
-    <!-- Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline v6.0) -->
+    <!-- Descubrimiento de Nuevos Temas (Bucle de Aprendizaje Offline v7.2) -->
     <div class="pl-card mb-4">
         <div class="card-body p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
@@ -206,7 +206,7 @@
             <div id="collapseAcademicDetail" class="accordion-collapse collapse">
                 <div class="accordion-body px-4 pb-4 pt-2">
                     <div class="pl-analysis-box p-3 mb-3 small pl-text-secondary">
-                        <strong class="pl-text-primary d-block mb-1">Variables y Fórmulas del Motor Universal v6.0:</strong>
+                        <strong class="pl-text-primary d-block mb-1">Variables y Fórmulas del Motor Universal v7.2:</strong>
                         <code>user_score</code> (0–100, riqueza de entrada) •
                         <code>information_gain</code> (0–40, slots + restricciones + ejemplos) •
                         <code>final_score</code> (0–100, rúbrica ponderada por acción menos penalizaciones) •
@@ -219,7 +219,7 @@
                     </div>
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                         <div>
-                            <h6 class="fw-bold pl-text-primary mb-1"><i class="bi bi-table text-primary me-2"></i>Esquema del Dataset Exportado v6.0 (<code>promptlab_dataset.csv</code>)</h6>
+                            <h6 class="fw-bold pl-text-primary mb-1"><i class="bi bi-table text-primary me-2"></i>Esquema del Dataset Exportado v7.2 (<code>promptlab_dataset.csv</code>)</h6>
                             <p class="pl-text-secondary small mb-0">Variables estructuradas listas para cargar en Python con <code>pd.read_csv('promptlab_dataset.csv')</code>.</p>
                         </div>
                         <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">38 columnas • UTF-8</span>
@@ -237,7 +237,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td><code>id</code> / <code>engine_version</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int/str</span></td><td>Identificador y versión del motor (v6.0)</td><td><code>intent_confidence</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Confianza del clasificador TF-IDF + léxico (0–1)</td></tr>
+                                <tr><td><code>id</code> / <code>engine_version</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int/str</span></td><td>Identificador y versión del motor (v7.2)</td><td><code>intent_confidence</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Confianza del clasificador TF-IDF + léxico (0–1)</td></tr>
                                 <tr><td><code>categoria</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Dominio especializado asignado o inferido</td><td><code>intent_margin</code></td><td><span class="badge bg-primary bg-opacity-10 text-primary">float</span></td><td>Margen entre top-1 y top-2 de intención</td></tr>
                                 <tr><td><code>detected_action</code> / <code>subintent</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Arquetipo cognitivo (21 posibles) y sub-intención</td><td><code>n_entities</code> / <code>n_intents</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de entidades e intenciones detectadas</td></tr>
                                 <tr><td><code>detected_deliverable</code></td><td><span class="badge bg-info bg-opacity-10 text-info">string</span></td><td>Entregable objetivo (código, tabla, diálogo, json, etc.)</td><td><code>n_neg_constraints</code></td><td><span class="badge bg-secondary bg-opacity-10 pl-text-secondary">int</span></td><td>Cantidad de restricciones negativas extraídas</td></tr>

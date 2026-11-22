@@ -12,7 +12,7 @@ class Prompt(models.Model):
     subintent = models.CharField(max_length=50, default='general')
     improvement_level = models.CharField(max_length=20, default='Completa')
     technique = models.CharField(max_length=50, default='Estándar')
-    engine_version = models.CharField(max_length=20, default='v7.0')
+    engine_version = models.CharField(max_length=20, default='v7.2')
 
     # Métricas de Rúbrica v2 (no circular)
     initial_score = models.IntegerField(default=25)      # Puntaje de la idea cruda del usuario

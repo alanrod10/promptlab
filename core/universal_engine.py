@@ -118,20 +118,20 @@ def split_request_payload(text: str) -> Tuple[str, str]:
                     break
 
         if split_idx is not None:
-            instr = " ".join(l.strip() for l in lines[:split_idx] if l.strip())
+            instr = " ".join(l.strip() for l in lines[:split_idx] if l.strip()).rstrip(":")
             payload = "\n".join(l.rstrip() for l in lines[split_idx:] if l.strip())
             return instr, payload
 
     # 3. Separación por marcador explícito ("Cláusula:", "Texto:", "---")
     marker = re.split(r"\n\s*---+\s*\n|\b(?:cl[aá]usula|texto a revisar|datos):\s*\n", raw, maxsplit=1, flags=re.IGNORECASE)
     if len(marker) == 2 and marker[1].strip():
-        return marker[0].strip(), marker[1].strip()
+        return marker[0].strip().rstrip(":"), marker[1].strip("\r\n")
 
-    # 4. (v7.0) Bloques pegados de 1-2 párrafos tras ':' + salto de línea, encabezados de mail/cláusula o comillas largas
+    # 4. (v7.2) Bloques pegados de 1-2 párrafos tras ':' + salto de línea, encabezados de mail/cláusula o comillas largas
     colon_nl = re.split(r":\s*\n+", raw, maxsplit=1)
     if len(colon_nl) == 2:
         cand_instr = colon_nl[0].strip()
-        cand_pay = colon_nl[1].strip()
+        cand_pay = "\n".join(l.rstrip() for l in colon_nl[1].splitlines() if l.strip())
         if len(cand_instr) >= 8 and len(cand_pay) >= 20:
             return cand_instr, cand_pay
 
@@ -145,7 +145,7 @@ def split_request_payload(text: str) -> Tuple[str, str]:
                 ln,
                 flags=re.IGNORECASE,
             ):
-                instr = " ".join(l.strip() for l in lines[:idx] if l.strip())
+                instr = " ".join(l.strip() for l in lines[:idx] if l.strip()).rstrip(":")
                 payload = "\n".join(l.rstrip() for l in lines[idx:] if l.strip())
                 if instr and payload:
                     return instr, payload
@@ -165,10 +165,10 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
     Clasifica estructuralmente el insumo pegado y extrae metadatos verificables
     sin confundir unidades de presentación (2.25lt, 500g, x1l) con precios.
     """
-    payload = (payload_text or "").strip()
+    payload = (payload_text or "").strip("\r\n")
     instr = (instruction_text or "").strip()
 
-    if not payload:
+    if not payload.strip():
         missing_clause = bool(_DEICTIC_CLAUSE_RE.search(instr))
         missing_generic = bool(_DEICTIC_GENERIC_RE.search(instr))
         placeholder_tag = "[PEGÁ ACÁ EL TEXTO DE LA CLÁUSULA]" if missing_clause else "[PEGÁ ACÁ LOS DATOS O TEXTO]"
@@ -180,6 +180,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": placeholder_tag,
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": [],
+            "payload_errors": [],
             "items_preview": [],
             "summary_label": "Sin insumo pegado",
         }
@@ -187,9 +189,15 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
     lines = [ln.strip() for ln in payload.splitlines() if ln.strip()]
     n_lines = len(lines)
     low_payload = _strip_accents(payload.lower())
+    payload_filenames = list(dict.fromkeys(
+        re.findall(r"\b[\w-]+\.(?:csv|xlsx|py|sql|json|pdf|docx|txt)\b", payload, flags=re.IGNORECASE)
+    ))
+    payload_errors = list(dict.fromkeys(
+        re.findall(r"\b(?:Traceback|[A-Z][a-zA-Z]+(?:Error|Exception)|HTTP\s*(?:4\d{2}|5\d{2}))\b", payload)
+    ))
 
     # 1. JSON / Log JSON
-    if payload.startswith(("{", "[")) and (":" in payload or "}" in payload):
+    if payload.lstrip().startswith(("{", "[")) and (":" in payload or "}" in payload):
         return {
             "payload_kind": "json_log",
             "n_lineas": n_lines,
@@ -198,6 +206,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": lines[:3],
             "summary_label": f"JSON / Log ({n_lines} líneas)",
         }
@@ -212,12 +222,14 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": lines[:3],
             "summary_label": f"Error de consola ({n_lines} líneas)",
         }
 
     # 3. Código fuente
-    if payload.startswith("```") or re.search(r"^\s*(?:def |class |import |from |SELECT |const |function )", payload, flags=re.MULTILINE):
+    if payload.lstrip().startswith("```") or re.search(r"^\s*(?:def |class |import |from |SELECT |const |function )", payload, flags=re.MULTILINE):
         return {
             "payload_kind": "codigo",
             "n_lineas": n_lines,
@@ -226,6 +238,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": lines[:3],
             "summary_label": f"Bloque de código ({n_lines} líneas)",
         }
@@ -261,6 +275,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": extracted_prices,
             "extracted_units": list(dict.fromkeys(extracted_units)),
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": items_preview,
             "summary_label": f"Lista de {n_lines} registros",
         }
@@ -275,6 +291,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": lines[:3],
             "summary_label": f"Tabla ({n_lines} filas)",
         }
@@ -289,6 +307,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": lines[:3],
             "summary_label": f"Cláusula / texto legal ({n_lines} líneas)",
         }
@@ -303,6 +323,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "placeholder_tag": "",
             "extracted_prices": [],
             "extracted_units": [],
+            "payload_filenames": payload_filenames,
+            "payload_errors": payload_errors,
             "items_preview": lines[:3],
             "summary_label": f"Correo / diálogo ({n_lines} líneas)",
         }
@@ -315,6 +337,8 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
         "placeholder_tag": "",
         "extracted_prices": [],
         "extracted_units": [],
+        "payload_filenames": payload_filenames,
+        "payload_errors": payload_errors,
         "items_preview": lines[:3],
         "summary_label": f"Texto adjunto ({n_lines} líneas)",
     }
@@ -389,6 +413,273 @@ _VERB_STEM_RE = re.compile(
 )
 
 
+_RE_NEG_CLAUSE = re.compile(
+    r"\b(sin|no\s+uses|no\s+usar|evita|evitar|nada\s+de|excepto|no\s+incluyas|no\s+incluir)\s+([^\n.;:]+)",
+    flags=re.IGNORECASE,
+)
+
+_NEG_CLAUSE_CUT_RE = re.compile(
+    r"[,.;:\n]|\s+(?:que|para|donde|cuando|si|porque|pero|y)\s+",
+    flags=re.IGNORECASE,
+)
+
+_FACTUAL_SIN_EXACT = {
+    "sin datos",
+    "sin datos previos",
+    "sin datos reales",
+    "sin dinero",
+    "sin presupuesto",
+    "sin experiencia",
+    "sin conocimientos",
+    "sin conocimientos previos",
+    "sin turno",
+    "sin sistema",
+    "sin previo aviso",
+    "sin solucion",
+}
+
+_FACTUAL_SIN_PREFIXES = (
+    "sin servicio",
+    "sin stock",
+    "sin respuesta",
+    "sin conexion",
+    "sin internet",
+    "sin senal",
+    "sin luz",
+    "sin agua",
+    "sin gas",
+    "sin saldo",
+    "sin acceso",
+    "sin derecho",
+    "sin fecha definida",
+    "sin fecha limite",
+)
+
+
+def extract_negative_constraints(text: str) -> List[str]:
+    """
+    Extrae restricciones negativas cortando en conectores de cláusula e ignorando
+    estados fácticos descriptivos ('sin servicio', 'sin stock', etc.).
+    """
+    if not text:
+        return []
+    results: List[str] = []
+    for kw, phrase in _RE_NEG_CLAUSE.findall(text):
+        clean_phrase = _NEG_CLAUSE_CUT_RE.split(phrase)[0].strip()
+        words = clean_phrase.split()[:6]
+        if not words:
+            continue
+        candidate = f"{re.sub(r'\s+', ' ', kw.lower())} {' '.join(words)}".strip()
+        cand_norm = _strip_accents(candidate.lower())
+        if cand_norm in _FACTUAL_SIN_EXACT or any(
+            cand_norm == pref or cand_norm.startswith(pref + " ")
+            for pref in _FACTUAL_SIN_PREFIXES
+        ):
+            continue
+        if candidate not in results:
+            results.append(candidate)
+    return results
+
+
+_TECH_NO_FIELDS = {
+    "python", "pandas", "numpy", "scipy", "sql", "sqlite", "postgresql", "postgres",
+    "mysql", "django", "flask", "react", "javascript", "librerias", "librerias externas",
+    "ejemplos", "graficos", "whatsapp", "carteles impresos", "ventajas", "desventajas",
+    "comentarios", "espanol", "ingles", "archivo vacio", "casos borde",
+}
+
+_DURATION_ONLY_RE = re.compile(
+    r"^\d+\s+(?:semanas?|d[ií]as?|mes(?:es)?|horas?|hs?|minutos?|min|a[nñ]os?)$",
+    flags=re.IGNORECASE,
+)
+
+_BAD_TOPIC_CLAUSE_RE = re.compile(
+    r"\b(?:porque|y\s+(?:muestre|no\s+se|al\s+final|cual)|como\s+arreglarlo|estuvo\s+flojo|hace(?:me)?\s+preguntas|dame\s+feedback)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _is_bad_topic(cand: str) -> bool:
+    c = (cand or "").strip(" .,:;")
+    if not c or len(c) < 3:
+        return True
+    if _DURATION_ONLY_RE.match(c):
+        return True
+    if _BAD_TOPIC_CLAUSE_RE.search(_strip_accents(c.lower())):
+        return True
+    if len(c.split()) > 9:
+        return True
+    return False
+
+
+def _extract_clean_topic(
+    raw: str,
+    norm: str,
+    payload_info: Optional[Dict[str, Any]],
+    situacion: str,
+    es_entrevista: bool,
+) -> str:
+    # 1. Comparación explícita A vs B / diferencia entre A y B
+    m_vs = re.search(
+        r"\b([A-Za-z0-9_+.#-]+(?:\s+[A-Za-z0-9_+.#-]+){0,1})\s+(?:vs\.?|versus)\s+([A-Za-z0-9_+.#-]+(?:\s+[A-Za-z0-9_+.#-]+){0,1}?)(?=\s+(?:para|en|de|con|sin|por|segun|decime|cual)\b|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_vs:
+        left = re.sub(
+            r"^(?:compar(?:a|ar|ame)|diferencias?\s+entre|entre|elegir\s+entre)\s+",
+            "",
+            m_vs.group(1).strip(),
+            flags=re.IGNORECASE,
+        ).strip()
+        right = m_vs.group(2).strip()
+        cand = f"{left} vs {right}".strip()
+        if left and right and not _is_bad_topic(cand):
+            return cand
+
+    # 2. Entrevista laboral / técnica
+    if es_entrevista:
+        m_ent = re.search(
+            r"\b(entrevista\s+(?:laboral|t[eé]cnica|de\s+trabajo|simulada)(?:\s+para\s+(?:un\s+)?(?:puesto\s+de\s+)?[^.,;\n]+)?)",
+            raw,
+            flags=re.IGNORECASE,
+        )
+        if m_ent:
+            cand = re.sub(r"\bun\s+puesto\s+de\s+", "", m_ent.group(1), flags=re.IGNORECASE).strip(" .,:;")
+            if not _is_bad_topic(cand):
+                return cand
+
+    # 3. Tema explícito con 'sobre / acerca de'
+    m_sobre = re.search(
+        r"\b(?:sobre|acerca\s+de)\s+([^.,;\n]+?)(?=[.,;\n]|$|\s+sin\b|\s+para\b|\s+que\b)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_sobre:
+        cand = m_sobre.group(1).strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
+    # 4. Verbos conceptuales ("entender la ciencia de datos desde cero")
+    m_conc = re.search(
+        r"\b(?:entender|aprender|estudiar|explicar(?:me|melo)?|comprender|conocer|definir|qu[eé]\s+es|c[oó]mo\s+funciona)\s+(?:sobre\s+|la\s+|el\s+|los\s+|las\s+|un\s+|una\s+)?([^.,;\n]+?)(?=\s+desde\s+cero\b|\s+para\b|\s+sin\b|\s+con\s+(?:ejemplos?|analog)|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_conc:
+        cand = re.sub(r"\s+desde\s+cero\b.*$", "", m_conc.group(1), flags=re.IGNORECASE).strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
+    # 5. Planes con propósito ("plan de 4 semanas para lanzar una promocion de combos")
+    m_plan = re.search(
+        r"\b(?:plan(?:\s+de\s+\d+\s+\w+)?|cronograma|hoja\s+de\s+ruta)\s+para\s+(?:lanzar|crear|armar|organizar|promocionar|mejorar)?\s*(?:una?\s+|el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ0-9\s]{3,45}?)(?=\s+(?:en\s+mi|sin|con|tengo)\b|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_plan:
+        cand = m_plan.group(1).strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
+    # 6. Reclamo / nota formal
+    m_rec = re.search(
+        r"\b(reclamo(?:\s+formal)?(?:\s+a\s+(?:la\s+)?empresa\s+de\s+\w+)?(?:\s+por\s+[^.,;\n]+)?)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_rec and "reclamo" in norm:
+        if "internet" in norm and "servicio" in norm:
+            return "reclamo por corte de servicio de internet"
+        cand = re.split(r"[,;\n]|\s+mi\s+nombre\b", m_rec.group(1), flags=re.IGNORECASE)[0].strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
+    # 7. Script / error de código
+    if payload_info and payload_info.get("payload_kind") == "error_consola":
+        errs = payload_info.get("payload_errors") or []
+        lang = "Python" if "python" in norm else ""
+        if errs and lang:
+            return f"error {errs[-1]} en script de {lang}"
+        if lang:
+            return f"error en script de {lang}"
+    if re.search(r"\b(?:script|codigo|funcion|programa)\b", norm):
+        if "csv" in norm and "venta" in norm:
+            return "script CSV de ventas"
+        if "python" in norm:
+            return "script en Python"
+
+    # 8. Mejora / diagnóstico de negocio ("mejorar las ventas de mi negocio")
+    m_neg = re.search(
+        r"\b(?:mejorar|aumentar|diagnosticar|controlar)\s+(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ0-9\s]{3,35}?)(?=\s+(?:de\s+mi|porque|si\s+tengo)\b|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_neg:
+        cand = m_neg.group(1).strip(" .,:;")
+        if "ventas" in _strip_accents(cand.lower()) and "negocio" in norm and "vencimientos" not in norm:
+            return "ventas del negocio"
+        if not _is_bad_topic(cand):
+            return cand
+
+    # 9. Extracción de minuta / transformación de lista
+    if "minuta" in norm:
+        return "tareas pendientes de minuta"
+    if payload_info and payload_info.get("payload_kind") == "lista_registros":
+        return "lista de productos"
+
+    # 10. Cláusula / fallback 'de <NP>' validado
+    m_de = re.search(
+        r"\b(?:cl[aá]usula\s+de|lista\s+(?:desordenada\s+)?de)\s+([^.,;\n]+?)(?=[.,;\n]|$|\s+sin\b|\s+para\b|\s+que\b)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_de:
+        cand = m_de.group(1).strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
+    if situacion and not _is_bad_topic(situacion):
+        return situacion
+    if payload_info and payload_info.get("payload_kind") not in (None, "sin_insumo"):
+        lbl = payload_info.get("summary_label", "")
+        if not _is_bad_topic(lbl):
+            return lbl
+    return ""
+
+
+def _extract_plan_constraints(raw: str, norm: str) -> Tuple[str, str, List[str]]:
+    plazo = ""
+    m_plazo = re.search(r"\b(\d+\s+(?:semanas?|d[ií]as?|mes(?:es)?|a[nñ]os?))\b", raw, flags=re.IGNORECASE)
+    if m_plazo:
+        plazo = m_plazo.group(1).strip()
+
+    dedicacion = ""
+    m_ded = re.search(
+        r"\b(\d+(?:[.,]\d+)?\s*(?:horas?|hs?|minutos?|min)\s+(?:por|al)\s+(?:d[ií]a|semana|mes))\b",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_ded:
+        dedicacion = m_ded.group(1).strip()
+
+    recursos: List[str] = []
+    resource_patterns = [
+        (r"\b(?:whatsapp|wsp)\b", "WhatsApp"),
+        (r"\bcarteles?\s+impresos?\b", "carteles impresos"),
+        (r"\bfolletos?\b", "folletos"),
+        (r"\bvolantes?\b", "volantes"),
+        (r"\binstagram\b", "Instagram"),
+        (r"\bvidriera\b", "vidriera"),
+        (r"\bcorreo(?:\s+electronico)?\b|\bemail\b|\bmail\b", "correo electrónico"),
+    ]
+    for pat, label in resource_patterns:
+        if re.search(pat, norm) and label not in recursos:
+            recursos.append(label)
+
+    return plazo, dedicacion, recursos
+
+
 def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Extractor heurístico de roles semánticos (Frame Semantics) sin dependencias externas.
@@ -403,12 +694,22 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
     # Perspectiva ("como inquilino", "para mi como inquilino", "desde el rol de...")
     perspectiva = ""
     m_persp = re.search(
-        r"(?:para\s+m[ií]\s+como|como|desde\s+el\s+rol\s+de|en\s+calidad\s+de)\s+([a-záéíóúñ\s]{3,30}?)(?=[,.;\n]|$|\s+que\b|\s+y\b|\s+para\b)",
+        r"(?:para\s+m[ií]\s+como|(?<!\bs[eé]\s)(?<!\bsaber\s)(?<!\bver\s)\bcomo|desde\s+el\s+rol\s+de|en\s+calidad\s+de)\s+([a-záéíóúñ\s]{3,30}?)(?=[,.;\n]|$|\s+que\b|\s+y\b|\s+para\b)",
         raw,
         flags=re.IGNORECASE,
     )
     if m_persp:
-        perspectiva = m_persp.group(1).strip()
+        cand_persp = m_persp.group(1).strip()
+        cand_persp_norm = _strip_accents(cand_persp.lower())
+        # Ignorar construcciones verbales ("como arreglarlo", "como empezar") que no son roles
+        if not re.search(r"(?:lo|la|los|las|me|te|se)$|\b(?:hacer|arreglar|empezar|funciona|usar|crear|resolver|armar)\b", cand_persp_norm):
+            perspectiva = cand_persp
+
+    # Subescenario entrevista laboral/técnica
+    es_entrevista = bool(re.search(
+        r"\b(?:entrevista\s+(?:laboral|t[eé]cnica|de\s+trabajo|simulada)|entrevistador|puesto\s+de|candidato|rrhh)\b",
+        norm,
+    ))
 
     # Rol a simular + situación + propósito
     rol_simular = ""
@@ -419,6 +720,8 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
     )
     if m_rol:
         rol_simular = m_rol.group(1).strip()
+    elif es_entrevista:
+        rol_simular = "entrevistador laboral y técnico"
 
     situacion = ""
     m_sit = re.search(
@@ -428,17 +731,25 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
     )
     if m_sit:
         situacion = m_sit.group(1).strip()
+    elif es_entrevista:
+        m_ent_sit = re.search(
+            r"\b(entrevista\s+(?:laboral|t[eé]cnica|de\s+trabajo|simulada)(?:\s+para\s+(?:un\s+)?puesto\s+de\s+[^.,;\n]+|\s+para\s+[^.,;\n]+)?)",
+            raw,
+            flags=re.IGNORECASE,
+        )
+        if m_ent_sit:
+            situacion = m_ent_sit.group(1).strip()
 
     proposito = ""
     m_prop = re.search(
-        r"\bpara\s+(practicar|aprender|cubrir|responder|preparar|evaluar|vender|evitar)([^.,;\n]*)",
+        r"\bpara\s+(practicar|aprender|cubrir|responder|preparar|evaluar|vender|evitar|lanzar)([^.,;\n]*)",
         raw,
         flags=re.IGNORECASE,
     )
     if m_prop:
         proposito = (m_prop.group(1) + m_prop.group(2)).strip()
 
-    # Canal
+    # Canal (solo si aparece en instruction_text)
     canal = ""
     for kw, label in _CANAL_MAP.items():
         if re.search(rf"\b{re.escape(kw)}\b", norm):
@@ -452,18 +763,43 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
             formato_destino = label
             break
 
-    # Campos de esquema ("con nombre, precio numérico y categoría")
+    # Campos de esquema ("con producto, presentacion y precio unitario" / "las tareas pendientes, el responsable y la fecha limite")
     campos_esquema: List[str] = []
     m_campos = re.search(
-        r"\b(?:con|campos|columnas|atributos)\s+([a-záéíóúñ0-9_,\s]+?)(?=\n|$|\s+sin\b|\s+para\b)",
+        r"\b(?:con\s+(?:los\s+|las\s+)?(?:campos|columnas|atributos)|campos|columnas|atributos)\s+([a-záéíóúñ0-9_,\s]+?)(?=[.;:\n]|$|\s+(?:sin|para|de\s+est[aeo])\b)",
         raw,
         flags=re.IGNORECASE,
     )
-    if m_campos and formato_destino in ("JSON", "CSV", "tabla", ""):
+    if not m_campos and (
+        formato_destino in ("JSON", "CSV", "tabla")
+        or re.search(r"\b(?:pasa(?:r|me)?|convert[ií]|transforma(?:r)?)\b", norm)
+    ):
+        m_campos = re.search(
+            r"\bcon\s+(?:los\s+|las\s+)?([a-záéíóúñ0-9_,\s]+?)(?=[.;:\n]|$|\s+(?:sin|para|de\s+est[aeo])\b)",
+            raw,
+            flags=re.IGNORECASE,
+        )
+    if not m_campos and (
+        formato_destino in ("JSON", "CSV", "tabla", "")
+        or re.search(r"\b(?:extrae(?:r|me)?|saca(?:r|me)?)\b", norm)
+    ):
+        m_campos = re.search(
+            r"\b(?:extrae(?:r|me)?|saca(?:r|me)?|obten(?:er)?|identifica(?:r)?)\s+(?:en\s+(?:una\s+)?tabla\s+)?(?:los\s+|las\s+)?([a-záéíóúñ0-9_,\s]+?)(?=\s+de\s+(?:est[aeo]|la|el)\b|[.;:\n]|$)",
+            raw,
+            flags=re.IGNORECASE,
+        )
+    if m_campos:
         chunk = m_campos.group(1)
         if "," in chunk or " y " in chunk:
             parts = re.split(r"\s*,\s*|\s+y\s+", chunk)
-            campos_esquema = [p.strip(" .:") for p in parts if 2 <= len(p.strip()) <= 35]
+            cleaned_parts = []
+            for p in parts:
+                p_clean = re.sub(r"^(?:el|la|los|las|un|una)\s+", "", p.strip(" .:"), flags=re.IGNORECASE).strip()
+                p_norm = _strip_accents(p_clean.lower())
+                if 2 <= len(p_clean) <= 35 and p_norm not in _TECH_NO_FIELDS:
+                    cleaned_parts.append(p_clean)
+            if len(cleaned_parts) >= 2:
+                campos_esquema = cleaned_parts
 
     # Cantidad N ("5 ideas", "3 opciones")
     cantidad: Optional[int] = None
@@ -479,38 +815,14 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
     if val_m is not None:
         parametros_numericos["margen_pct"] = str(val_m)
 
-    # Restricciones especiales ("sin humo ni promesas falsas")
-    restricciones_especiales: List[str] = []
-    for m_res in re.finditer(r"\b(sin\s+[^.,;\n]+|no\s+uses\s+[^.,;\n]+|evita\s+[^.,;\n]+)", raw, flags=re.IGNORECASE):
-        phrase = m_res.group(1).strip()
-        if phrase not in restricciones_especiales:
-            restricciones_especiales.append(phrase)
+    # Restricciones especiales limpias
+    restricciones_especiales = extract_negative_constraints(raw)
 
-    # Tema nuclear (priorizar 'sobre / acerca de' y objetos de verbos conceptuales antes que 'de' genérico)
-    tema = ""
-    m_tema = re.search(
-        r"\b(?:sobre|acerca\s+de)\s+([^.,;\n]+?)(?=[.,;\n]|$|\s+sin\b|\s+para\b|\s+que\b)",
-        raw,
-        flags=re.IGNORECASE,
-    )
-    if not m_tema:
-        m_tema = re.search(
-            r"\b(?:entender|aprender|estudiar|explicar(?:me|melo)?|comprender|conocer|definir|qu[eé]\s+es|c[oó]mo\s+funciona)\s+(?:sobre\s+|la\s+|el\s+|los\s+|las\s+|un\s+|una\s+)?([^.,;\n]+?)(?=\s+desde\s+cero\b|\s+para\b|\s+sin\b|\s+con\s+(?:ejemplos?|analog)|[.,;\n]|$)",
-            raw,
-            flags=re.IGNORECASE,
-        )
-    if not m_tema:
-        m_tema = re.search(
-            r"\b(?:cl[aá]usula\s+de|lista\s+desordenada\s+de|de)\s+([^.,;\n]+?)(?=[.,;\n]|$|\s+sin\b|\s+para\b|\s+que\b)",
-            raw,
-            flags=re.IGNORECASE,
-        )
-    if m_tema:
-        tema = re.sub(r"\s+desde\s+cero\b.*$", "", m_tema.group(1), flags=re.IGNORECASE).strip(" .,:;")
-    elif payload_info and payload_info.get("payload_kind") != "sin_insumo":
-        tema = payload_info.get("summary_label", "")
-    elif situacion:
-        tema = situacion
+    # Plazo, dedicación y recursos (para planes)
+    plazo, dedicacion, recursos = _extract_plan_constraints(raw, norm)
+
+    # Tema nuclear limpio
+    tema = _extract_clean_topic(raw, norm, payload_info, situacion, es_entrevista)
 
     # Destinatario
     destinatario = ""
@@ -523,8 +835,8 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
         bool(verbo_nuclear),
         bool(tema or (payload_info and payload_info.get("payload_kind") != "sin_insumo")),
         bool(perspectiva or rol_simular or destinatario or canal),
-        bool(formato_destino or campos_esquema or cantidad is not None or parametros_numericos),
-        bool(proposito or situacion or restricciones_especiales),
+        bool(formato_destino or campos_esquema or cantidad is not None or parametros_numericos or plazo or dedicacion),
+        bool(proposito or situacion or restricciones_especiales or recursos),
     ]
     roles_filled = round(sum(1 for s in signals if s) / len(signals), 2)
 
@@ -535,12 +847,16 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
         "destinatario": destinatario,
         "perspectiva": perspectiva,
         "rol_simular": rol_simular,
+        "es_entrevista": es_entrevista,
         "situacion": situacion,
         "proposito": proposito,
         "canal": canal,
         "formato_destino": formato_destino,
         "campos_esquema": campos_esquema,
         "cantidad": cantidad,
+        "plazo": plazo,
+        "dedicacion": dedicacion,
+        "recursos": recursos,
         "parametros_numericos": parametros_numericos,
         "restricciones_especiales": restricciones_especiales,
         "roles_filled": roles_filled,
@@ -648,11 +964,33 @@ def synthesize_universal_directives(
         campos_str = ", ".join(campos) if campos else "nombre, precio numérico y categoría"
         prices = payload_info.get("extracted_prices") or []
         units = payload_info.get("extracted_units") or []
+        has_unit_field = any(
+            any(uk in _strip_accents(c.lower()) for uk in ("presentacion", "unidad", "tamano", "medida", "envase", "peso"))
+            for c in campos
+        )
+        has_category_field = any(
+            "categor" in _strip_accents(c.lower())
+            for c in campos
+        ) or not campos
 
         instructions.append(
             f"Convierte cada línea del insumo en exactamente 1 objeto ({n_items} objetos en total) con los campos: {campos_str}."
         )
-        if units:
+        if has_unit_field:
+            unit_field_name = next(
+                c for c in campos
+                if any(uk in _strip_accents(c.lower()) for uk in ("presentacion", "unidad", "tamano", "medida", "envase", "peso"))
+            )
+            prod_field_name = campos[0] if campos else "producto"
+            if units:
+                instructions.append(
+                    f"Separa limpiamente el nombre del producto en `{prod_field_name}` y su presentación o unidad ({', '.join(units[:5])}) en `{unit_field_name}`, sin confundir la unidad con el precio."
+                )
+            else:
+                instructions.append(
+                    f"Separa limpiamente el nombre del producto en `{prod_field_name}` y su presentación o unidad en `{unit_field_name}`, sin confundirla con el precio."
+                )
+        elif units:
             instructions.append(
                 f"Conserva las unidades o presentaciones ({', '.join(units[:5])}) dentro del campo `nombre` y nunca las tomes como precio."
             )
@@ -663,9 +1001,14 @@ def synthesize_universal_directives(
         instructions.append(
             "Normaliza precios con punto de miles y coma decimal a número puro (ej. `$3.200` -> `3200`, `$1.900,50` -> `1900.5`)."
         )
-        instructions.append(
-            "Si falta categoría o dato opcional, asigna `'sin_categoria'` o `null` sin descartar ninguna fila."
-        )
+        if has_category_field:
+            instructions.append(
+                "Si falta categoría o dato opcional, asigna `'sin_categoria'` o `null` sin descartar ninguna fila."
+            )
+        else:
+            instructions.append(
+                "Si falta algún dato opcional en una línea, asigna `null` o `'No especificado'` sin descartar ninguna fila."
+            )
         if prices:
             prices_str = ", ".join(str(p) for p in prices)
             instructions.append(
@@ -711,29 +1054,49 @@ def synthesize_universal_directives(
         format_override = "Organiza en: Resumen de obligación, Tabla (`Frase de la cláusula | Riesgo | Gravedad | Cambio sugerido`), Preguntas previas y Puntos para abogado."
 
     elif archetype == "simular_practicar":
-        instructions.append(
-            f"Actúa estrictamente en el personaje de {rol_sim} ante esta situación: {situacion}; no rompas el rol durante la práctica."
-        )
-        instructions.append(
-            f"Envía 1 solo mensaje por turno (máximo 3 oraciones) con tono y formato realista de {canal}."
-        )
-        instructions.append(
-            "Gradúa tu nivel de enojo o apertura en el siguiente turno según la empatía, claridad y solución concreta que ofrezca el usuario."
-        )
+        es_entrevista = bool(roles.get("es_entrevista"))
+        has_explicit_channel = bool(roles.get("canal"))
+        contexto_turno = roles["canal"] if has_explicit_channel else ("la entrevista" if es_entrevista else "la conversación")
+
+        if es_entrevista:
+            instructions.append(
+                f"Actúa estrictamente en el personaje de {rol_sim} conduciendo esta situación: {situacion}; no rompas el rol durante la práctica."
+            )
+            instructions.append(
+                f"Envía 1 sola pregunta o intervención por turno (máximo 3 oraciones) con tono profesional realista acorde a {contexto_turno}."
+            )
+            instructions.append(
+                "Gradúa la profundidad técnica, repreguntas y apertura en el siguiente turno según la claridad, precisión y solidez de las respuestas del usuario."
+            )
+            edge_cases.extend([
+                "Respuesta vaga o incompleta del candidato: profundizar con una repregunta técnica concreta.",
+                "Usuario solicita finalizar la entrevista anticipadamente escribiendo `FIN`.",
+            ])
+        else:
+            instructions.append(
+                f"Actúa estrictamente en el personaje de {rol_sim} ante esta situación: {situacion}; no rompas el rol durante la práctica."
+            )
+            instructions.append(
+                f"Envía 1 solo mensaje por turno (máximo 3 oraciones) con tono y formato realista acorde a {contexto_turno}."
+            )
+            instructions.append(
+                "Gradúa tu nivel de enojo o apertura en el siguiente turno según la empatía, claridad y solución concreta que ofrezca el usuario."
+            )
+            edge_cases.extend([
+                "Usuario da una respuesta evasiva o agresiva: escalar reclamo de forma realista.",
+                "Usuario pide cerrar antes de llegar a un acuerdo usando `FIN`.",
+            ])
         instructions.append(
             "Cuando el usuario escriba exactamente `FIN`, detén el roleplay y entrega una devolución con: 3 aciertos, 3 mejoras citando frases textuales del usuario y la reescritura de su respuesta más débil."
         )
         restrictions.append("No des consejos ni explicaciones fuera del personaje antes de recibir la palabra `FIN`.")
         restrictions.append("No escribas más de 3 oraciones por turno ni simules la respuesta del usuario.")
         success_criteria.extend([
-            "Mantiene 1 mensaje por turno (<= 3 oraciones) en formato realista de " + canal + ".",
+            f"Mantiene 1 mensaje por turno (<= 3 oraciones) con formato realista acorde a {contexto_turno}.",
             "Al recibir `FIN`, entrega 3 aciertos, 3 mejoras con citas textuales y 1 reescritura.",
         ])
-        edge_cases.extend([
-            "Usuario da una respuesta evasiva o agresiva: escalar reclamo de forma realista.",
-            "Usuario pide cerrar antes de llegar a un acuerdo usando `FIN`.",
-        ])
-        format_override = f"Inicia directamente con el primer mensaje de {rol_sim} por {canal} (máx. 3 oraciones) esperando la respuesta del usuario."
+        prep_canal = f"por {roles['canal']}" if has_explicit_channel else f"en {contexto_turno}"
+        format_override = f"Inicia directamente con el primer mensaje de {rol_sim} {prep_canal} (máx. 3 oraciones) esperando la respuesta del usuario."
 
     elif archetype == "calcular_modelar":
         instructions.append(
@@ -760,7 +1123,7 @@ def synthesize_universal_directives(
         else:
             success_criteria.append("Incluye fórmula explícita, diferencia margen sobre venta vs costo y tabla de 3 escenarios.")
 
-        restrictions.append("No confundas margen sobre venta con margen sobre costo (markup); muestra ambos o aclara cuál usás.")
+        restrictions.append("No confundas margen sobre venta con margen sobre costo (markup); muestra ambos o aclara cuál usas.")
         edge_cases.extend([
             "Impuestos (IVA / Ingresos Brutos) o comisiones de medios de pago no incluidos en el margen bruto.",
             "Meses con feriados o menor cantidad de días hábiles.",
@@ -805,11 +1168,17 @@ def synthesize_universal_directives(
         if archetype == "extraer_informacion":
             campos_txt = ", ".join(campos) if campos else "entidades, fechas, montos y responsables"
             instructions = [
-                f"Extrae únicamente los campos ({campos_txt}) presentes en el material provisto.",
-                "Si un campo no figura en el texto, escribe `NO CONSTA` sin suponerlo.",
-                "Incluye referencia breve al fragmento origen cuando el dato requiera contexto.",
+                f"Extrae únicamente los campos pedidos ({campos_txt}) presentes en el material provisto en una tabla fiel al texto.",
+                "Si falta algún dato en el texto (ej. responsable o fecha), indica `'Sin asignar'` o `'No especificado'` (`NO CONSTA`) sin inventar ni suponer información.",
+                "Incluye referencia breve al fragmento origen cuando el dato requiera aclaración.",
             ]
-            success_criteria.append("100% de los datos extraídos trazables al texto origen; ausentes marcados como `NO CONSTA`.")
+            edge_cases.extend([
+                "Tareas urgentes o sin fecha límite explícita que deben indicarse como `'No especificado'` sin inventar plazos.",
+                "Responsables indicados en primera persona ('Yo me encargo') o ausentes que deben marcarse como `'Sin asignar'`.",
+            ])
+            success_criteria.append(
+                f"Tabla con columnas ({campos_txt}), 100% trazable al texto origen y faltantes marcados como `'Sin asignar'` / `'No especificado'`."
+            )
         elif archetype == "clasificar_categorizar":
             instructions = [
                 f"Clasifica cada elemento sobre {tema} en categorías mutuamente excluyentes.",
@@ -845,12 +1214,27 @@ def synthesize_universal_directives(
             ]
             success_criteria.append("Tabla homogénea y recomendación justificada con condición de cambio.")
         elif archetype == "diagnosticar_resolver":
-            instructions = [
-                f"Propone 3 a 5 causas probables ordenadas por verosimilitud para {tema}.",
-                "Para cada causa indica qué evidencia o prueba rápida la confirma o descarta.",
-                "Prioriza acciones correctivas de menor costo y mayor impacto inmediato.",
-            ]
-            success_criteria.append("Cada hipótesis tiene una prueba verificable asociada.")
+            if payload_info.get("payload_kind") in ("error_consola", "codigo"):
+                instructions = [
+                    f"Identifica la causa raíz verificable del fallo en {tema} analizando el traceback o código delimitado.",
+                    "Explica por qué ocurre la falla y qué condición de entrada o estructura la dispara.",
+                    "Entrega el código corregido listo para ejecutar junto con una prueba mínima de validación.",
+                ]
+                edge_cases.extend([
+                    "Encabezados o claves con espacios ocultos, diferencias de mayúsculas o datos faltantes.",
+                ])
+                success_criteria.append("Identifica la causa raíz exacta y entrega el código corregido listo para ejecutar.")
+            else:
+                instructions = [
+                    f"Propone 3 a 5 causas probables ordenadas por verosimilitud para {tema}.",
+                    "Para cada causa indica qué evidencia o prueba rápida la confirma o descarta.",
+                    "Prioriza acciones correctivas de menor costo y mayor impacto inmediato.",
+                ]
+                edge_cases.extend([
+                    "Estacionalidad, feriados o cambios externos no reflejados en el pedido inicial.",
+                    "Falta de histórico comparativo para aislar la caída respecto a meses previos.",
+                ])
+                success_criteria.append("Cada hipótesis tiene una prueba verificable asociada.")
 
     # Calcular proporción de directivas con predicado verificable
     total_items = max(len(instructions) + len(success_criteria), 1)
@@ -858,7 +1242,8 @@ def synthesize_universal_directives(
         1 for ln in (instructions + success_criteria)
         if any(k in ln.lower() for k in (
             "exactamente", "máx", "max", "tabla", "json", "fin", "abogado",
-            "control", "verif", "no const", "null", "sin_categoria", "3 ", "5 ", "24", "26", "30", "prohibido", "cita"
+            "control", "verif", "no const", "null", "sin_categoria", "sin asignar", "no especificado",
+            "3 ", "5 ", "24", "26", "30", "prohibido", "cita"
         )) or bool(re.search(r"\d", ln))
     )
     verifiable_ratio = round(min(max(verifiable_hits / total_items, 0.70), 1.0), 3)

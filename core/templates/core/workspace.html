@@ -26,15 +26,24 @@
 
         <div class="pl-mode-switcher" role="group" aria-label="Modo del Espacio de Trabajo">
             <button type="button" id="mode-btn-express" class="pl-mode-btn" data-mode="express" aria-pressed="true">
-                <span class="pl-mode-title">⚡ Express</span>
+                <span class="pl-mode-title">
+                    <span class="pl-mode-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+                    Express
+                </span>
                 <span class="pl-mode-sub">Breve (Directo)</span>
             </button>
             <button type="button" id="mode-btn-guiado" class="pl-mode-btn" data-mode="guiado" aria-pressed="false">
-                <span class="pl-mode-title">🎯 Guiado</span>
+                <span class="pl-mode-title">
+                    <span class="pl-mode-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="21" y1="12" x2="18" y2="12"/></svg></span>
+                    Guiado
+                </span>
                 <span class="pl-mode-sub">Por Secciones (Recomendado)</span>
             </button>
             <button type="button" id="mode-btn-pro" class="pl-mode-btn" data-mode="pro" aria-pressed="false">
-                <span class="pl-mode-title">🧪 Estudio Pro</span>
+                <span class="pl-mode-title">
+                    <span class="pl-mode-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg></span>
+                    Estudio Pro
+                </span>
                 <span class="pl-mode-sub">Máximo Detalle (Con Casos Borde)</span>
             </button>
         </div>
@@ -115,7 +124,13 @@
                         <span class="small fw-bold pl-text-secondary">
                             <i class="bi bi-activity text-primary me-1"></i>Detección en vivo (tocá una etiqueta para corregirla):
                         </span>
-                        <span id="live-confidence-msg" class="small fw-semibold text-primary"></span>
+                        <div class="d-flex flex-wrap align-items-center gap-2 ms-auto">
+                            <span id="live-confidence-msg" class="small fw-semibold text-primary"></span>
+                            <span id="live-confidence-badge" class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">Seguridad: 0%</span>
+                            <span id="live-entities-badge" class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1">Datos clave: 0</span>
+                            <span id="live-payload-badge" class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1 d-none">Insumo: ninguno</span>
+                            <span id="live-calc-badge" class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1 d-none">Valores de control calculados</span>
+                        </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <!-- Chip Dominio + botón X individual -->
@@ -149,13 +164,6 @@
                             </button>
                             <button type="button" id="chip-deliverable-reset" class="pl-chip-reset d-none" title="Revertir corrección de entregable" aria-label="Revertir entregable">&times;</button>
                             <ul class="dropdown-menu shadow-sm" id="dropdown-deliverable-menu"></ul>
-                        </div>
-
-                        <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
-                            <span id="live-confidence-badge" class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">Seguridad: 0%</span>
-                            <span id="live-entities-badge" class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1">Datos clave: 0</span>
-                            <span id="live-payload-badge" class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1 d-none">Insumo: ninguno</span>
-                            <span id="live-calc-badge" class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1 d-none">Valores de control calculados</span>
                         </div>
                     </div>
                 </div>
@@ -191,11 +199,14 @@
                         <button type="button" id="btn-copy" class="btn btn-sm btn-brand px-3 fw-medium">
                             <i class="bi bi-clipboard me-1"></i> Copiar
                         </button>
+                        <button type="button" id="btn-toggle-edit-output" class="btn btn-sm btn-pl-secondary px-3" title="Alternar vista de lectura y edición">
+                            <i class="bi bi-pencil me-1"></i> <span id="btn-toggle-edit-label">Editar texto</span>
+                        </button>
                         <button type="button" id="btn-favorite" class="btn btn-sm btn-pl-secondary px-3 {% if loaded_prompt and loaded_prompt.is_favorite %}btn-fav-active{% endif %}" title="Guardar en favoritos">
                             <i class="bi {% if loaded_prompt and loaded_prompt.is_favorite %}bi-star-fill{% else %}bi-star{% endif %}"></i>
                         </button>
-                        <button type="button" id="btn-compare" class="btn btn-sm btn-pl-secondary px-3" data-bs-toggle="modal" data-bs-target="#compareModal">
-                            <i class="bi bi-layout-split me-1"></i> Comparar Antes vs. Después
+                        <button type="button" id="btn-compare" class="btn btn-sm btn-pl-secondary px-3" data-bs-toggle="modal" data-bs-target="#compareModal" title="Comparar Antes vs. Después">
+                            <i class="bi bi-layout-split me-1"></i> Comparar <span class="d-none d-xl-inline">Antes vs. Después</span>
                         </button>
                         <button type="button" id="btn-export-md" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" title="Descargar en formato Markdown (.md)">
                             <i class="bi bi-markdown me-1"></i> .MD
@@ -222,10 +233,11 @@
                     </ul>
                 </div>
 
-                <!-- Vista 1: Prompt resultante editable -->
+                <!-- Vista 1: Lectura estructurada + Textarea editable (fuente única de verdad) -->
                 <div id="view-editor-pane">
+                    <div id="formatted-prompt-preview" class="pl-formatted-prompt"></div>
                     <textarea id="generated-prompt-output"
-                              class="form-control pl-output-textarea"
+                              class="form-control pl-output-textarea d-none"
                               rows="10"
                               style="min-height: 220px; resize: vertical;">{% if loaded_prompt %}{{ loaded_prompt.improved_text }}{% endif %}</textarea>
                 </div>
@@ -261,16 +273,18 @@
 
                 <!-- Panel Completo de Rúbrica v2 (Modo Estudio Pro) -->
                 <div id="analysis-panel" class="mt-4 p-4 pl-analysis-box pl-only-pro">
-                    <div class="row g-4 align-items-center">
-                        <div class="col-lg-5">
+                    <div class="row g-4 align-items-start">
+                        <div class="col-xl-5">
                             <div class="pl-card p-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
                                     <h6 class="fw-bold pl-text-primary mb-0" title="Rúbrica v2 No Circular"><i class="bi bi-speedometer2 text-primary me-1"></i>Evaluación de Calidad</h6>
-                                    <span id="gain-badge" class="badge bg-primary rounded-pill">{% if loaded_prompt %}+{{ loaded_prompt.quality_gain }} pts{% else %}+0 pts{% endif %}</span>
+                                    <span id="gain-badge" class="badge bg-primary rounded-pill">Mejora total: +{% if loaded_prompt %}{{ loaded_prompt.quality_gain }}{% else %}0{% endif %} pts</span>
                                 </div>
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small">
-                                    <span class="pl-text-secondary">Puntaje inicial: <strong id="init-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}{% else %}0{% endif %}</strong>/100</span>
-                                    <span class="pl-impact-badge" id="info-gain-lbl">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts sumados</span>
+                                    <span class="pl-text-secondary">Idea inicial: <strong id="init-score-lbl" class="pl-text-primary">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}{% else %}0{% endif %}</strong>/100</span>
+                                    <span class="pl-text-secondary">&rarr;</span>
+                                    <span class="pl-impact-badge" id="info-gain-lbl">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts tuyos</span>
+                                    <span class="pl-text-secondary">&rarr;</span>
                                     <span class="text-success fw-bold ms-auto">Final: <span id="final-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}0{% endif %}</span>/100 <small id="score-band-lbl" class="fw-normal"></small></span>
                                 </div>
                                 <div id="rubric-bars" class="small"></div>
@@ -280,11 +294,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-7">
+                        <div class="col-xl-7">
                             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-check2-circle me-1"></i>Diagnóstico y Mejoras Aplicadas</h6>
-                            <ul id="analysis-list" class="mb-0 small pl-text-secondary" style="padding-left: 1.2rem; line-height: 1.6;">
+                            <ul id="analysis-list" class="mb-0 small pl-text-secondary list-unstyled" style="line-height: 1.6;">
                                 {% if loaded_prompt %}
-                                <li class="mb-1">Prompt cargado desde tu historial (Dominio: {{ loaded_prompt.category|default:"General" }}, Acción: {{ loaded_prompt.detected_action }}, Técnica: {{ loaded_prompt.technique|default:"Estándar" }}).</li>
+                                <li class="mb-2">Prompt cargado desde tu historial (Dominio: {{ loaded_prompt.category|default:"General" }}, Acción: {{ loaded_prompt.detected_action }}, Técnica: {{ loaded_prompt.technique|default:"Estándar" }}).</li>
                                 {% endif %}
                             </ul>
                         </div>
@@ -297,8 +311,7 @@
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div class="small">
                         <i class="bi bi-stars text-primary me-1"></i>
-                        ¿Querés afinarlo respondiendo <strong id="bridge-slots-count">3</strong> preguntas rápidas
-                        (<span id="bridge-slots-pts" class="fw-bold text-success">+18 pts</span>)?
+                        <span id="express-bridge-text">¿Querés afinarlo respondiendo <strong id="bridge-slots-count">3</strong> preguntas rápidas (<span id="bridge-slots-pts" class="fw-bold text-success">+18 pts</span>)?</span>
                     </div>
                     <button type="button" id="btn-bridge-to-guiado" class="btn btn-sm btn-brand px-3 fw-medium">
                         Pasar a Modo Guiado <i class="bi bi-arrow-right ms-1"></i>
@@ -392,7 +405,7 @@
                     </div>
 
                     <div class="d-grid mt-3">
-                        <button type="button" id="btn-improve-assistant" class="btn btn-brand py-2 fw-semibold">
+                        <button type="button" id="btn-improve-assistant" class="btn btn-pl-accent-outline py-2 fw-semibold">
                             <span id="btn-improve-assistant-label">Aplicar y Mejorar Prompt</span>
                             <span id="pending-changes-badge" class="pl-pending-badge d-none">0</span>
                             <i class="bi bi-magic ms-1"></i>
