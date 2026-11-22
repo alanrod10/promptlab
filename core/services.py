@@ -415,7 +415,11 @@ class ParsedRequest:
 _RE_CBU = re.compile(r"\b\d{22}\b")
 _RE_ALIAS_BANK = re.compile(r"\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b", re.IGNORECASE)
 _RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-_RE_CUIL_DNI = re.compile(r"(?<!\$)\b(?:\d{2}-\d{7,8}-\d|\d{2}\.\d{3}\.\d{3}|\d{7,8})\b")
+_RE_CUIL_DNI = re.compile(r"(?<![$\d-])\b(?:\d{2}-\d{7,8}-\d|[1-9]\d?\.\d{3}\.\d{3}|\d{7,8})\b(?![-\d])")
+_RE_INVOICE_PREFIX = re.compile(
+    r"(?:\b(?:factura|fc|comprobante|remito|orden|ticket|recibo)(?:\s+(?:nro|n[°º]|numero|#))?\s*[:=-]?\s*(?:\d{4,5}\s*-\s*)?|\b\d{4,5}\s*-\s*)$",
+    flags=re.IGNORECASE,
+)
 _RE_PHONE = re.compile(
     r"(?<!\d)(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-])\d{3,4}[\s.-]?\d{4}(?!\d)"
 )
@@ -424,6 +428,29 @@ _RE_LABELED_PHONE = re.compile(
     r"((?:\+?54\s*9?\s*)?(?:\d{10,11}|\d{2,4}\s+\d{6,8}))(?![\d-])",
     flags=re.IGNORECASE,
 )
+
+
+def _is_valid_dni_cuil_match(match: re.Match, full_text: str) -> bool:
+    """Excluye números de comprobante/factura AFIP y secuencias que inician con 000."""
+    token = match.group(0)
+    if token.isdigit():
+        if token.startswith("000"):
+            return False
+        before = full_text[max(0, match.start() - 40):match.start()]
+        if _RE_INVOICE_PREFIX.search(before):
+            return False
+    return True
+
+
+def _is_valid_phone_match(match: re.Match, full_text: str) -> bool:
+    """Excluye números de factura/comprobante AFIP (ej. 0004-00018291) de la detección de teléfonos."""
+    token = match.group(0).strip()
+    if re.fullmatch(r"\d{4,5}-\d{8}", token) or token.startswith("000"):
+        return False
+    before = full_text[max(0, match.start() - 40):match.start()]
+    if _RE_INVOICE_PREFIX.search(before):
+        return False
+    return True
 
 
 def detect_and_mask_pii(text: str) -> Tuple[str, List[Dict[str, Any]]]:
@@ -454,15 +481,27 @@ def detect_and_mask_pii(text: str) -> Tuple[str, List[Dict[str, Any]]]:
         masked = _RE_LABELED_PHONE.sub(r"\1[TELEFONO_OCULTO]", masked)
         phone_count += len(labeled_phone_matches)
 
-    dni_matches = _RE_CUIL_DNI.findall(masked)
-    if dni_matches:
-        masked = _RE_CUIL_DNI.sub("[DNI_CUIL_OCULTO]", masked)
-        warnings.append({"type": "dni_cuil", "label": "DNI / CUIL / CUIT", "count": len(dni_matches)})
+    dni_count = 0
 
-    phone_matches = _RE_PHONE.findall(masked)
-    if phone_matches:
-        masked = _RE_PHONE.sub("[TELEFONO_OCULTO]", masked)
-        phone_count += len(phone_matches)
+    def _replace_dni(match: re.Match) -> str:
+        nonlocal dni_count
+        if _is_valid_dni_cuil_match(match, masked):
+            dni_count += 1
+            return "[DNI_CUIL_OCULTO]"
+        return match.group(0)
+
+    masked = _RE_CUIL_DNI.sub(_replace_dni, masked)
+    if dni_count:
+        warnings.append({"type": "dni_cuil", "label": "DNI / CUIL / CUIT", "count": dni_count})
+
+    def _replace_phone(match: re.Match) -> str:
+        nonlocal phone_count
+        if _is_valid_phone_match(match, masked):
+            phone_count += 1
+            return "[TELEFONO_OCULTO]"
+        return match.group(0)
+
+    masked = _RE_PHONE.sub(_replace_phone, masked)
 
     if phone_count:
         warnings.append({"type": "telefono", "label": "Teléfono", "count": phone_count})
@@ -547,6 +586,9 @@ def _detect_contradictions(
     return contradictions
 
 
+_GENERIC_EVAL_TERMS = {"parcial", "examen", "final", "prueba", "tp", "recuperatorio"}
+
+
 def _extract_entities_and_constraints(
     raw_text: str,
     normalized_text: str,
@@ -568,6 +610,8 @@ def _extract_entities_and_constraints(
     seen_ent = set()
 
     for term, _group in _ENTITY_INDEX:
+        if term in _GENERIC_EVAL_TERMS:
+            continue
         target_norm = constr_norm_no_al_final if term == "final" else constr_norm
         pattern = r"(?<![a-z0-9_])" + re.escape(term) + r"(?![a-z0-9_])"
         if re.search(pattern, target_norm) and term not in seen_ent:
@@ -884,14 +928,38 @@ def _score_actions_detailed(
         combined["reescribir_mejorar"] = round(min(max(combined["reescribir_mejorar"] + 0.18, combined.get("redactar_contenido", 0.0) + 0.12), 0.98), 4)
         details["reescribir_mejorar"]["tiebreak"] = "reescribir_vs_redactar"
 
-    # Desempate 2 (v7.0): comparar_evaluar vs. explicar_concepto ante "diferencia(s) entre X y Y"
-    if re.search(r"\bdiferencias?\s+entre\b", normalized_text) and "comparar_evaluar" in combined:
-        combined["comparar_evaluar"] = round(min(max(combined["comparar_evaluar"] + 0.18, combined.get("explicar_concepto", 0.0) + 0.10), 0.98), 4)
-        details["comparar_evaluar"]["tiebreak"] = "diferencia_entre"
+    # Desempate 2 (v7.0 / v7.2.1): explicación didáctica vs. comparar alternativas ante "diferencia(s) entre X y Y"
+    has_didactic_explain = bool(re.search(
+        r"\b(?:explicar|ensenar|entender|comprender|aclarar)\b",
+        normalized_text,
+    ))
+    has_pedagogic_cue = bool(re.search(
+        r"\b(?:recien\s+empieza|principiante|desde\s+cero|analogia|vida\s+cotidiana|sin\s+tecnicismos|sin\s+(?:usar\s+)?formulas|como\s+si|facil|sencillo)\b",
+        normalized_text,
+    ))
+    has_eval_choice_cue = bool(re.search(
+        r"\b(?:ventajas|desventajas|pros\s+y\s+contras|cual\s+(?:me\s+)?conviene|cual\s+es\s+mejor|elegir\s+entre|recomendar|alternativas|proveedores|propuestas)\b",
+        normalized_text,
+    ))
+    if re.search(r"\bdiferencias?\s+entre\b", normalized_text):
+        if has_didactic_explain and has_pedagogic_cue and not has_eval_choice_cue and "explicar_concepto" in combined:
+            combined["explicar_concepto"] = round(
+                min(max(combined["explicar_concepto"] + 0.22, combined.get("comparar_evaluar", 0.0) + 0.16, 0.86), 0.98),
+                4,
+            )
+            if "comparar_evaluar" in combined:
+                combined["comparar_evaluar"] = round(min(combined["comparar_evaluar"], combined["explicar_concepto"] - 0.18), 4)
+            details["explicar_concepto"]["tiebreak"] = "didactic_comparison_explain"
+        elif "comparar_evaluar" in combined:
+            combined["comparar_evaluar"] = round(
+                min(max(combined["comparar_evaluar"] + 0.18, combined.get("explicar_concepto", 0.0) + 0.10), 0.98),
+                4,
+            )
+            details["comparar_evaluar"]["tiebreak"] = "diferencia_entre"
 
     # Desempate 3 (v7.2 P0.2.2): creación de artefactos técnicos ("escribime un script" / "haceme una consulta")
     has_tech_creation = bool(re.search(
-        r"\b(?:escribir|hacer|armar|crear|generar|desarrollar|implementar)\s+(?:un|una|el|la)?\s*(?:script|codigo|funcion|consulta|query|programa|endpoint|api|bot)\b",
+        r"\b(?:escribir|hacer|armar|crear|generar|desarrollar|implementar)\s+(?:un|una|el|la)?\s*(?:script(?!\s+(?:de|para)\s+(?:video|tiktok|reel|reels|youtube|audio|podcast))|codigo|funcion|consulta|query|programa|endpoint|api|bot)\b",
         normalized_text,
     ))
     if has_tech_creation and "generar_codigo" in combined:
@@ -928,6 +996,24 @@ def _score_actions_detailed(
         if "redactar_contenido" in combined:
             combined["redactar_contenido"] = round(min(combined["redactar_contenido"], 0.25), 4)
         details["planificar_pasos"]["tiebreak"] = "explicit_plan"
+
+    # Desempate 6 (v7.2.1): guion audiovisual o video corto único -> redactar_contenido (no idear_alternativas)
+    has_explicit_script = bool(re.search(
+        r"\b(?:guion|script\s+(?:de|para)\s+video|video\s+corto)\b",
+        normalized_text,
+    )) or (
+        bool(re.search(r"\b(?:reel|reels|tiktok)\b", normalized_text))
+        and bool(re.search(r"\b\d+\s*(?:segundos?|seg|s|minutos?|min)\b", normalized_text))
+    )
+    asks_multiple_ideas = bool(re.search(
+        r"\b(?:\d+\s+ideas|ideas?\s+(?:de|para)|dame\s+ideas|lluvia\s+de\s+ideas|brainstorming|alternativas|opciones|lista\s+de\s+ideas)\b",
+        normalized_text,
+    ))
+    if has_explicit_script and not asks_multiple_ideas and "redactar_contenido" in combined:
+        combined["redactar_contenido"] = round(max(combined["redactar_contenido"], 0.88), 4)
+        if "idear_alternativas" in combined:
+            combined["idear_alternativas"] = round(min(combined["idear_alternativas"], 0.20), 4)
+        details["redactar_contenido"]["tiebreak"] = "guion_video"
 
     return combined, details
 
@@ -987,8 +1073,8 @@ _DOMAIN_ANCHORS: Dict[str, Tuple[set, float]] = {
     "Redacción y comunicación": (
         {
             "correo", "email", "mail", "whatsapp", "instagram", "linkedin", "tiktok",
-            "copywriting", "post", "publicacion", "carta", "comunicado", "pitch",
-            "redaccion",
+            "reel", "reels", "guion", "video corto", "copywriting", "post", "publicacion",
+            "carta", "comunicado", "pitch", "redaccion",
         },
         0.22,
     ),
@@ -1160,6 +1246,11 @@ def _classify_deliverable(normalized_text: str, action: str, form_data: Dict[str
 
     if action == "diagnosticar_resolver" and not re.search(r"\b(?:en\s+tabla|en\s+json|correo|mail)\b", normalized_text):
         return "informe estructurado"
+    if action == "redactar_contenido" and re.search(
+        r"\b(?:guion|script\s+(?:de|para)\s+video|video\s+corto)\b",
+        normalized_text,
+    ) and not re.search(r"\b(?:email|mail|correo|mensaje|whatsapp|carta)\b", normalized_text):
+        return "informe estructurado"
 
     best_deliv = ""
     best_hits = 0
@@ -1236,6 +1327,11 @@ def _detect_subintents(raw_text: str, normalized_text: str, action: str) -> Tupl
         return res
 
     scored = _score_group(action_subs)
+    if action == "redactar_contenido" and re.search(
+        r"\b(?:extiend[ae]|extender|prorroga|plazo\s+de\s+pago|mas\s+tiempo)\b",
+        normalized_text,
+    ):
+        scored = [(sub_name, sc) for sub_name, sc in scored if sub_name != "reclamo"]
     scored.sort(key=lambda x: x[1], reverse=True)
     primary = scored[0][0] if scored else "general"
     for name, _ in scored:
@@ -1287,6 +1383,8 @@ def _detect_ontology_objects(
         if obj_key == "dataset":
             if has_no_ext_lib or (action == "generar_codigo" and "pandas" not in normalized_text and "dataframe" not in normalized_text):
                 continue
+        if obj_key == "parcial" and action == "planificar_pasos":
+            continue
         target_norm = norm_no_al_final if obj_key == "parcial" else normalized_text
         for alias in cfg.get("aliases", []):
             al_norm = _strip_accents(alias.lower())
@@ -1377,7 +1475,10 @@ def _is_slot_already_covered(slot_id: str, classify_norm: str, req: Optional[Par
             classify_norm,
         ))
     if slot_id == "code_io":
-        has_in = bool(re.search(r"\b(?:lea|leer|reciba|recibe|entrada|archivo|csv|json|tabla|input|parametro)\b", classify_norm))
+        is_sql = (req and req.subintent == "consulta_sql") or bool(re.search(r"\b(?:sql|postgresql|postgres|mysql|sqlite)\b", classify_norm))
+        if is_sql and re.search(r"\b(?:tablas?|join|unir|una|select|from|mostrar|muestre|calcular|calcule|total|cantidad|listar|obtener)\b", classify_norm):
+            return True
+        has_in = bool(re.search(r"\b(?:lea|leer|reciba|recibe|entrada|archivo|csv|json|tablas?|input|parametro)\b", classify_norm))
         has_out = bool(re.search(r"\b(?:muestre|mostrar|devuelva|devolver|retorne|retornar|imprima|genere|calcule|total|salida|output)\b", classify_norm))
         return has_in and has_out
     if slot_id == "code_constraints":
@@ -1385,6 +1486,15 @@ def _is_slot_already_covered(slot_id: str, classify_norm: str, req: Optional[Par
             (req and req.neg_constraints)
             or re.search(r"\b(?:sin\s+librerias|libreria\s+estandar|python\s+puro|sin\s+paquetes|archivo\s+vacio|produccion|casos?\s+borde)\b", classify_norm)
         )
+    if slot_id == "comm_tone":
+        return bool(req and req.tone)
+    if slot_id == "edu_level":
+        return bool(
+            (req and req.audience)
+            or re.search(r"\b(?:universitario|facultad|universidad|secundaria|posgrado|terciario|parcial|examen|catedra)\b", classify_norm)
+        )
+    if slot_id == "study_focus":
+        return bool(re.search(r"\b(?:ejercicios?|simulacros?|autoevaluacion|analogias?)\b", classify_norm))
     if slot_id == "error_context":
         return bool((req and req.errors_detected) or re.search(r"\b(?:traceback|keyerror|typeerror|valueerror|syntaxerror|error\s+500)\b", classify_norm))
     if slot_id == "compare_axes":
@@ -1437,6 +1547,11 @@ def _get_slots_for_request(
         candidates.extend(catalog.get("by_action", {}).get(action, []))
         candidates.extend(catalog.get("by_domain", {}).get(domain, []))
 
+    is_sql_only = (
+        ((req and req.subintent == "consulta_sql") or bool(re.search(r"\b(?:sql|postgresql|postgres|mysql|sqlite)\b", classify_norm)))
+        and not re.search(r"\b(?:python|javascript|django|flask|fastapi|react)\b", classify_norm)
+    )
+
     eligible_all: List[Dict[str, Any]] = []
     seen_all = set()
     for slot in candidates:
@@ -1446,6 +1561,15 @@ def _get_slots_for_request(
         seen_all.add(sid)
         if _is_slot_already_covered(sid, classify_norm, req=req):
             continue
+        if sid == "code_constraints" and is_sql_only:
+            slot = {
+                **slot,
+                "options": [
+                    "SQL estándar ANSI",
+                    "Optimizada con índices",
+                    "Compatible con producción",
+                ],
+            }
         eligible_all.append(slot)
 
     eligible_all.sort(key=lambda s: s.get("impact_pts", 5), reverse=True)
@@ -1466,11 +1590,14 @@ def _select_suggested_slots(
 def _extract_context_modifiers(normalized_text: str) -> Dict[str, Any]:
     norm_no_al_final = re.sub(r"\b(?:al|hasta\s+el|hacia\s+el|por\s+el)\s+final\b", " ", normalized_text)
     audience = ""
-    if any(w in normalized_text for w in ("principiante", "desde cero", "basico", "no se nada", "facil")):
+    if any(w in normalized_text for w in ("principiante", "desde cero", "basico", "no se nada", "facil", "recien empieza", "recien empiezan", "sin experiencia")):
         audience = "Principiante / Sin conocimientos previos"
     elif any(w in normalized_text for w in ("senior", "avanzado", "experto", "produccion")):
         audience = "Nivel avanzado / Técnico"
-    elif any(w in normalized_text for w in ("cliente", "gerencia", "directivo", "jefe")):
+    elif re.search(
+        r"\b(?:para\s+(?:un\s+|el\s+|mi\s+|los\s+)?clientes?|a\s+(?:un\s+|mi\s+|los\s+)?clientes?|dirigido\s+a\s+clientes?|presentar\s+a\s+(?:clientes?|directivos?)|gerencia|directivos?|directorio|jefe)\b",
+        normalized_text,
+    ):
         audience = "Directivo / Cliente"
     elif any(w in norm_no_al_final for w in ("universitario", "facultad", "examen", "parcial", "final")):
         audience = "Académico / Universitario"
@@ -2135,10 +2262,10 @@ def lint_prompt(
             "objetivo", "dominio", "intención", "entregable", "formato", "criterio",
             "completar", "pega aquí", "pegá acá", "fefo", "iqr", "pearson", "spearman", "keyerror",
             "df.", "sql", "join", "markdown", "tabla", "autoevaluación", "párrafo",
-            "restricción", "prohibido", "supuesto", "borde", "validación", "ejemplo",
+            "restricción", "restricciones", "prohibido", "supuesto", "borde", "validación", "ejemplo",
             "datos", "archivo", "columna", "código", "error", "causa", "encabezado",
             "firma", "licencia", "comprobante", "lote", "venta", "vencimiento",
-            "reposición", "planilla", "semanal", "diaria", "mensual", "rutina",
+            "reposición", "planilla", "semanal", "diaria", "mensual", "rutina", "cronograma", "días",
             "correlación", "regresión", "gráfico", "definición", "analogía",
             "hallazgos", "métricas", "nulos", "outliers", "causalidad", "checklist",
             "asunto", "saludo", "destinatario", "desglose", "herramientas", "público",
@@ -2148,10 +2275,10 @@ def lint_prompt(
             "cláusula", "riesgo", "gravedad", "abogado", "inquilino", "obligación",
             "whatsapp", "instagram", "turno", "oraciones", "personaje", "fin", "devolución",
             "margen", "escenario", "fórmula", "costo", "venta", "gastos",
-            "gancho", "límite honesto", "promesa", "cifra", "fuente", "no consta", "registros",
+            "gancho", "llamado a la acción", "locución", "escena", "duración", "simulacro", "ejercicios", "diarias", "clichés", "cercano", "promesa", "cifra", "fuente", "no consta", "registros",
             "jerga", "confusiones", "malentendidos", "coherencia", "conocimientos previos",
             "educativo", "profundidad", "enfoque", "autodidacta", "intuitiva", "tema principal",
-            "término", "nivel",
+            "término", "nivel", "bibliográficas", "citas", "claridad", "proveedor", "plazo", "pago", "prórroga",
         ]
     )
 
@@ -2452,6 +2579,13 @@ def _instruction_bucket(line: str) -> Optional[str]:
         return "common_errors"
     if re.search(r"ilustra\s+.*\b(?:ejemplo|analogia)|al\s+menos\s+(?:un|2)\s+ejemplos?", low):
         return "concrete_examples"
+    if re.search(
+        r"incluye\s+asunto,\s*saludo|estructura\s+el\s+(?:mensaje|correo|guion)|encabezado.*cuerpo.*cierre|gancho\s+inicial.*desarrollo.*cierre",
+        low,
+    ):
+        return "message_structure"
+    if re.search(r"(?:presenta|arma)\s+una\s+tabla\s+comparativa|establece\s+criterios\s+claros\s+y\s+homogeneos", low):
+        return "comparison_criteria"
     return None
 
 
@@ -2668,10 +2802,13 @@ def _assemble_prompt_with_segments(
         )
 
     # P1.4: Reflejar plazo, dedicación y recursos/canales explícitos en planes
+    is_days_plan = False
     if parsed.action == "planificar_pasos":
         plazo = parsed.roles.get("plazo")
         dedicacion = parsed.roles.get("dedicacion")
         recursos = parsed.roles.get("recursos") or []
+        is_days_plan = bool(plazo and re.search(r"\bd[ií]as?\b", plazo, flags=re.IGNORECASE))
+        unit_tasks = "tareas diarias concretas" if is_days_plan else "tareas semanales concretas"
         if plazo or dedicacion or recursos:
             partes_plan = []
             if plazo:
@@ -2681,7 +2818,28 @@ def _assemble_prompt_with_segments(
             if recursos:
                 partes_plan.append(f"apoyándote únicamente en {', '.join(recursos)}")
             raw_inst_lines.append(
-                f"Organiza el plan {', '.join(partes_plan)}, detallando tareas semanales concretas y métricas simples de avance."
+                f"Organiza el plan {', '.join(partes_plan)}, detallando {unit_tasks} y métricas simples de avance."
+            )
+        if parsed.subintent == "estudio" and re.search(r"\b(?:ejercicios?|simulacros?)\b", classify_low):
+            raw_inst_lines.append(
+                "Prioriza la resolución de ejercicios prácticos en cada bloque diario y reserva el último día para un simulacro completo de evaluación."
+            )
+
+    # P1.5 (v7.2.1): Guion audiovisual corto con marcas de duración y escena/locución
+    if parsed.action == "redactar_contenido" and parsed.subintent == "guion_video":
+        m_dur = re.search(
+            r"\b(\d+\s*(?:segundos?|seg|s|minutos?|min))\b",
+            parsed.instruction_text or parsed.raw_text,
+            flags=re.IGNORECASE,
+        )
+        dur_txt = m_dur.group(1).strip() if m_dur else "la duración solicitada"
+        raw_inst_lines.append(
+            f"Ajusta la extensión del guion a {dur_txt} (aprox. 65 a 75 palabras locutadas cada 30 segundos), "
+            "indicando [Video / Escena] y [Audio / Locución] en cada tramo."
+        )
+        if parsed.tone:
+            raw_inst_lines.append(
+                f"Mantén un tono {parsed.tone.lower()} de conversación natural, evitando clichés publicitarios y frases hechas de vendedor."
             )
 
     for d in active_directives:
@@ -2767,14 +2925,23 @@ def _assemble_prompt_with_segments(
 
     # Formato de salida
     deliv_info = deliv_cfg.get(parsed.deliverable, {})
-    fmt_instruction = (
-        univ["format_override"]
-        if (univ and univ.get("format_override"))
-        else deliv_info.get(
-            "format_instruction",
-            f"Presenta la respuesta en formato **{parsed.deliverable}**, con títulos claros en Markdown.",
+    if parsed.action == "redactar_contenido" and parsed.subintent == "guion_video":
+        fmt_instruction = (
+            "Presenta el guion dividido en 3 bloques de tiempo (0–3 s Gancho, Desarrollo central y Cierre con llamado a la acción), "
+            "detallando [Video / Escena] y [Audio / Locución] en cada bloque."
         )
-    )
+    else:
+        fmt_instruction = (
+            univ["format_override"]
+            if (univ and univ.get("format_override"))
+            else deliv_info.get(
+                "format_instruction",
+                f"Presenta la respuesta en formato **{parsed.deliverable}**, con títulos claros en Markdown.",
+            )
+        )
+        if is_days_plan and parsed.deliverable == "plan / cronograma":
+            fmt_instruction = fmt_instruction.replace("por etapas o semanas, detallando en cada una", "por días, detallando en cada día")
+            fmt_instruction = fmt_instruction.replace("por etapas o semanas", "por días")
 
     # Criterio de éxito verificable y coherente (sin mencionar autoevaluación si no fue solicitada)
     has_self_eval = (
@@ -2797,9 +2964,16 @@ def _assemble_prompt_with_segments(
                 f"Un lector del nivel indicado comprende la definición y el funcionamiento de {tema_label} "
                 "en una lectura y reconoce sus errores o confusiones frecuentes."
             )
+        elif parsed.action == "redactar_contenido" and parsed.subintent == "guion_video":
+            act_crit = (
+                "El guion incluye gancho inicial (0–3 s), desarrollo de escena y locución, cierre con llamado a la acción "
+                "y respeta la duración y tono solicitados sin frases cliché."
+            )
         success_parts.append(f"- {act_crit}")
-    deliv_crit = success_cfg.get("by_deliverable", {}).get(parsed.deliverable, "")
+    deliv_crit = "" if (parsed.action == "redactar_contenido" and parsed.subintent == "guion_video") else success_cfg.get("by_deliverable", {}).get(parsed.deliverable, "")
     if deliv_crit:
+        if is_days_plan and parsed.deliverable == "plan / cronograma":
+            deliv_crit = deliv_crit.replace("por etapas o semanas", "por días")
         success_parts.append(f"- {deliv_crit}")
     for d in active_directives[:3]:
         if d.get("verifiable"):
@@ -3033,6 +3207,7 @@ def _assemble_prompt_with_segments(
             })
 
     extra_anchors = list(parsed.roles.get("campos_esquema") or [])
+    extra_anchors.extend(nc.lower() for nc in parsed.neg_constraints if nc)
     extra_anchors.extend(parsed.filenames)
     extra_anchors.extend(parsed.errors_detected)
     if parsed.topic_anchor:

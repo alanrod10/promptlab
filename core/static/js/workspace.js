@@ -364,14 +364,8 @@
 
     function hasPendingPlaceholders(text) {
         if (!text) return false;
-        const up = text.toUpperCase();
-        return (
-            up.includes("[PEGÁ ACÁ") ||
-            up.includes("[PEGA AQUÍ") ||
-            up.includes("[PEGA AQUI") ||
-            up.includes("[COMPLETAR") ||
-            text.includes("<datos_entrada>")
-        );
+        const up = String(text).toUpperCase();
+        return up.includes("[COMPLETAR:");
     }
 
     function enfocarDatosPendientes() {
@@ -795,20 +789,42 @@
             return `${label}[TELEFONO_OCULTO]`;
         });
 
-        const dniRe = /(?:^|[^$\d])\b(?:\d{2}-\d{7,8}-\d|\d{2}\.\d{3}\.\d{3}|\d{7,8})\b/g;
-        const dniMatches = working.match(dniRe) || [];
-        if (dniMatches.length) {
-            working = working.replace(dniRe, (m) => {
-                const prefix = m.length && /\D/.test(m[0]) ? m[0] : "";
-                return `${prefix}[DNI_CUIL_OCULTO]`;
-            });
-            warnings.push({ type: "dni_cuil", label: "DNI / CUIL / CUIT", count: dniMatches.length });
+        const dniRe = /\b(?:\d{2}-\d{7,8}-\d|[1-9]\d?\.\d{3}\.\d{3}|\d{7,8})\b/g;
+        let dniCount = 0;
+        working = working.replace(dniRe, (m, offset, fullStr) => {
+            const prevChar = offset > 0 ? fullStr[offset - 1] : "";
+            const nextChar = offset + m.length < fullStr.length ? fullStr[offset + m.length] : "";
+            if (prevChar === "$" || prevChar === "-" || nextChar === "-") {
+                return m;
+            }
+            if (/^\d+$/.test(m)) {
+                if (m.startsWith("000")) {
+                    return m;
+                }
+                const before = fullStr.slice(Math.max(0, offset - 40), offset);
+                if (/(?:\b(?:factura|fc|comprobante|remito|orden|ticket|recibo)(?:\s+(?:nro|n[°º]|numero|#))?\s*[:=-]?\s*(?:\d{4,5}\s*-\s*)?|\b\d{4,5}\s*-\s*)$/i.test(before)) {
+                    return m;
+                }
+            }
+            dniCount += 1;
+            return "[DNI_CUIL_OCULTO]";
+        });
+        if (dniCount > 0) {
+            warnings.push({ type: "dni_cuil", label: "DNI / CUIL / CUIT", count: dniCount });
         }
 
         const phoneSepRe = /(?:^|[^\d])(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-])\d{3,4}[\s.-]?\d{4}(?!\d)/g;
-        working = working.replace(phoneSepRe, (m) => {
-            phoneCount += 1;
+        working = working.replace(phoneSepRe, (m, offset, fullStr) => {
             const prefix = m.length && /\D/.test(m[0]) && m[0] !== "+" && m[0] !== "(" ? m[0] : "";
+            const body = prefix ? m.slice(1).trim() : m.trim();
+            if (/^\d{4,5}-\d{8}$/.test(body) || body.startsWith("000")) {
+                return m;
+            }
+            const before = fullStr.slice(Math.max(0, offset - 40), offset + prefix.length);
+            if (/(?:\b(?:factura|fc|comprobante|remito|orden|ticket|recibo)(?:\s+(?:nro|n[°º]|numero|#))?\s*[:=-]?\s*)$/i.test(before)) {
+                return m;
+            }
+            phoneCount += 1;
             return `${prefix}[TELEFONO_OCULTO]`;
         });
 

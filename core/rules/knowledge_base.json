@@ -278,7 +278,12 @@
         "respuesta",
         "invitacion",
         "agradecimiento",
-        "pasame un mail"
+        "pasame un mail",
+        "reel",
+        "reels",
+        "tiktok",
+        "video corto",
+        "cercano"
       ],
       "role": "Actúa como un Especialista en Comunicación Corporativa y Redacción Profesional, experto en claridad, estructura persuasiva y adaptación precisa del tono al destinatario.",
       "guardrails": [
@@ -1222,10 +1227,12 @@
         "brainstorming",
         "lluvia de ideas",
         "contenido para",
-        "instagram",
-        "tiktok",
-        "reels",
-        "carrusel",
+        "ideas para instagram",
+        "ideas para tiktok",
+        "ideas de reels",
+        "opciones",
+        "alternativas",
+        "lista de ideas",
         "propuestas creativas",
         "enfoques",
         "angulos",
@@ -1242,7 +1249,7 @@
       "instructions": [
         "Genera exactamente {N} ideas distintas sobre {TEMA} adaptadas al canal {CANAL}.",
         "Varía los ángulos y formatos (ej. carrusel, reel corto, historia interactiva, caso práctico).",
-        "Para cada idea entrega obligatoriamente: Gancho (máx. 12 palabras), Formato, Mensaje central, Ejemplo concreto aplicable y Límite honesto (qué NO resuelve).",
+        "Para cada idea entrega obligatoriamente: 1) Gancho inicial (máx. 12 palabras), 2) Formato sugerido, 3) Mensaje central, 4) Ejemplo concreto aplicable y 5) Llamado a la acción o cierre realista.",
         "Prohibido usar lenguaje de promesa garantizada, exageraciones ('revoluciona', 'multiplica x10') o cifras de ahorro/ganancia sin fuente."
       ],
       "rubric_weights": {
@@ -1680,7 +1687,11 @@
       "power bi",
       "tableau",
       "etl",
-      "llm"
+      "llm",
+      "machine learning",
+      "deep learning",
+      "overfitting",
+      "underfitting"
     ],
     "negocio": [
       "kpi",
@@ -1743,8 +1754,8 @@
       "matriz",
       "algoritmo",
       "complejidad",
-      "parcial",
-      "final"
+      "estadistica",
+      "probabilidad"
     ]
   },
   "slot_catalog": {
@@ -2555,6 +2566,22 @@
         "regex": [
           "\\b(?:carta\\s+de\\s+presentacion|postul(?:ar|acion)|puesto\\s+de)\\b"
         ]
+      },
+      "guion_video": {
+        "keywords": [
+          "guion",
+          "script de video",
+          "video corto",
+          "reel",
+          "reels",
+          "tiktok",
+          "segundos",
+          "locucion",
+          "escena"
+        ],
+        "regex": [
+          "\\b(?:guion|script\\s+de\\s+video|video\\s+corto|(?:reel|reels|tiktok)\\b.*\\b\\d+\\s*(?:segundos?|seg|s|minutos?))\\b"
+        ]
       }
     },
     "planificar_pasos": {
@@ -3246,7 +3273,8 @@
         ]
       },
       "when_not": [
-        "audience:avanzado"
+        "audience:avanzado",
+        "action:planificar_pasos"
       ],
       "phase": "entender",
       "priority": 84,
@@ -3272,7 +3300,8 @@
       "when_not": [
         "sub:nota_formal",
         "domain:Redacción y comunicación",
-        "domain:Trámites y documentos"
+        "domain:Trámites y documentos",
+        "action:planificar_pasos"
       ],
       "phase": "entregar",
       "priority": 88,
@@ -3295,7 +3324,9 @@
           "action:explicar_concepto"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "action:planificar_pasos"
+      ],
       "phase": "validar",
       "priority": 78,
       "levels": [
@@ -3345,7 +3376,9 @@
           "domain:Estudio y academia"
         ]
       },
-      "when_not": [],
+      "when_not": [
+        "action:planificar_pasos"
+      ],
       "phase": "entregar",
       "priority": 20,
       "levels": [
@@ -3590,7 +3623,9 @@
         ]
       },
       "when_not": [
-        "sub:nota_formal"
+        "sub:nota_formal",
+        "sub:guion_video",
+        "sub:publicacion"
       ],
       "phase": "ejecutar",
       "priority": 80,
@@ -3604,6 +3639,29 @@
       "text_short": "Incluye Asunto, saludo, cuerpo breve y cierre con acción clara.",
       "verifiable": "Contiene línea de Asunto y llamado a la acción.",
       "edge_cases": "Correos demasiado largos que ocultan el pedido principal."
+    },
+    {
+      "id": "red.guion_video",
+      "when": {
+        "any": [
+          "sub:guion_video"
+        ]
+      },
+      "when_not": [],
+      "phase": "ejecutar",
+      "priority": 90,
+      "levels": [
+        "ligera",
+        "completa",
+        "profunda"
+      ],
+      "mutex": [
+        "red.email"
+      ],
+      "text": "Estructura el guion audiovisual por bloques de tiempo: 1) Gancho inicial (0–3 s) que capte la atención sin clichés, 2) Desarrollo central mostrando la escena, producto o beneficio concreto (indicando audio/locución y acción en cámara), y 3) Cierre con llamado a la acción claro ajustado a la duración solicitada.",
+      "text_short": "Estructura el guion en: Gancho inicial (0–3 s), Desarrollo central (audio/locución y video/escena) y Cierre con llamado a la acción respetando la duración.",
+      "verifiable": "Incluye marcas de tiempo (gancho 0–3 s, desarrollo y cierre), indicaciones de video/audio y respeta la duración pedida.",
+      "edge_cases": "Exceder la cantidad de palabras locutables en el tiempo indicado (aprox. 65–75 palabras cada 30 segundos) o usar frases hechas de venta."
     },
     {
       "id": "red.reclamo",
@@ -3817,7 +3875,7 @@
       "reescribir_mejorar": "Texto más directo y libre de clichés conservando todos los hechos clave.",
       "auditar_criticar": "Incluye tabla de riesgos con frase literal, gravedad y cambio sugerido más advertencia de revisión profesional.",
       "simular_practicar": "Mantiene el personaje por turno respetando el límite de oraciones y entrega devolución citando frases tras 'FIN'.",
-      "idear_alternativas": "Entrega exactamente N ideas distintas con todos los campos obligatorios, límite honesto y cero promesas sin fuente.",
+      "idear_alternativas": "Entrega exactamente N ideas distintas con todos los campos obligatorios, ejemplos concretos y cero promesas sin fuente.",
       "calcular_modelar": "Muestra fórmula, supuestos explícitos, tabla de escenarios y coincide con todos los valores de control calculados.",
       "razonar_resolver": "Expone premisas, deducción paso a paso y verificación de condiciones.",
       "decidir_recomendar": "Evalúa opciones bajo criterios ponderados homogéneos y justifica cuándo cambiaría la recomendación.",

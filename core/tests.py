@@ -1043,3 +1043,192 @@ class PromptLabV72RegressionTests(TestCase):
         self._assert_studio_pro_invariants(data, "API Profunda")
         saved = Prompt.objects.get(id=data["prompt_id"])
         self.assertEqual(saved.engine_version, "v7.2")
+
+
+class PromptLabV721AuditRegressionTests(TestCase):
+    """Suite de regresión v7.2.1 basada en auditoría real de casos N1–N6."""
+
+    def test_n1_didactic_explanation_overfitting_vs_underfitting(self):
+        raw = (
+            "explicame la diferencia entre overfitting y underfitting en machine learning "
+            "como si se lo contaras a alguien que recien empieza, usando una analogia de la vida cotidiana "
+            "y sin usar formulas matematicas"
+        )
+        live = analyze_live_preview(raw)
+        self.assertEqual(live["domain"], "Ciencia de Datos e IA")
+        self.assertEqual(live["action"], "explicar_concepto")
+        self.assertEqual(live["subintent"], "comparacion")
+        self.assertEqual(live["audience"], "Principiante / Sin conocimientos previos")
+        self.assertEqual(live["neg_constraints"], ["sin usar formulas matematicas"])
+        self.assertEqual(live["topic_anchor"].lower(), "overfitting y underfitting en machine learning")
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["detected_action"], "explicar_concepto")
+            self.assertEqual(res["roles"]["perspectiva"], "")
+            self.assertIn("analogía", low)
+            self.assertIn("tabla comparativa", low)
+            self.assertNotIn("ventajas, desventajas y limitaciones concretas de cada alternativa", low)
+            self.assertNotIn("si se lo contaras a alguien", low.split("# contexto", 1)[1].split("# ", 1)[0] if "# contexto" in low else "")
+            self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en N1 ({level})")
+            self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en N1 ({level})")
+
+    def test_n2_sql_query_no_false_client_audience_and_sql_smart_slots(self):
+        raw = (
+            "escribime una consulta SQL en PostgreSQL que una las tablas ventas, clientes y productos "
+            "para mostrar el total facturado y la cantidad de compras por cliente en los ultimos 30 dias, "
+            "ordenada de mayor a menor"
+        )
+        live = analyze_live_preview(raw)
+        self.assertEqual(live["domain"], "Tecnología y programación")
+        self.assertEqual(live["action"], "generar_codigo")
+        self.assertEqual(live["subintent"], "consulta_sql")
+        self.assertEqual(live["audience"], "")
+        slot_ids = [s["id"] for s in live["suggested_slots"]]
+        self.assertNotIn("code_io", slot_ids)
+        all_slot_options = [opt for s in live["suggested_slots"] for opt in s.get("options", [])]
+        self.assertNotIn("Consulta base de datos", all_slot_options)
+        self.assertNotIn("Solo librería estándar", all_slot_options)
+        self.assertIn("SQL estándar ANSI", all_slot_options)
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            self.assertEqual(res["detected_action"], "generar_codigo")
+            self.assertNotIn("Directivo / Cliente", out)
+            self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en N2 ({level})")
+            self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en N2 ({level})")
+
+    def test_n3_short_video_script_routes_to_redactar_and_cleans_hardcoded_template(self):
+        kb_text = (Path(__file__).resolve().parent / "rules" / "knowledge_base.json").read_text(encoding="utf-8")
+        ue_text = (Path(__file__).resolve().parent / "universal_engine.py").read_text(encoding="utf-8")
+        self.assertNotIn("Límite honesto", kb_text)
+        self.assertNotIn("qué NO resuelve la herramienta", ue_text)
+        self.assertNotIn("Límite honesto", ue_text)
+
+        raw = (
+            "armame un guion de 30 segundos para un video corto de TikTok o Reels promocionando "
+            "un combo de desayuno en un local de barrio, con tono cercano y sin frases cliche de vendedor"
+        )
+        live = analyze_live_preview(raw)
+        self.assertEqual(live["domain"], "Redacción y comunicación")
+        self.assertEqual(live["action"], "redactar_contenido")
+        self.assertEqual(live["subintent"], "guion_video")
+        self.assertEqual(live["tone"], "Cercano y claro")
+        slot_ids = [s["id"] for s in live["suggested_slots"]]
+        self.assertNotIn("comm_tone", slot_ids)
+        slot_questions = " ".join(s["question"] for s in live["suggested_slots"])
+        self.assertNotIn("¿Qué tono debe transmitir el mensaje?", slot_questions)
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["detected_action"], "redactar_contenido")
+            self.assertIn("0–3 s", out)
+            self.assertIn("30 segundos", low)
+            self.assertIn("[Video / Escena]", out)
+            self.assertIn("[Audio / Locución]", out)
+            self.assertIn("llamado a la acción", low)
+            self.assertNotIn("límite honesto", low)
+            self.assertNotIn("la herramienta", low)
+            self.assertNotIn("Asunto", out)
+            self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en N3 ({level})")
+            self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en N3 ({level})")
+
+    def test_n4_afip_invoice_no_false_dni_full_negative_constraint_and_no_express_dup(self):
+        raw = (
+            "redactame un mensaje cordial pero firme para pedirle a mi proveedor que me extienda 10 dias "
+            "el plazo de pago de la factura 0004-00018291 por 480000 pesos, "
+            "mi CUIL es 20-33456789-4 y mi cel 3884912345, sin sonar desesperado ni perder la buena relacion"
+        )
+        live = analyze_live_preview(raw)
+        self.assertTrue(live["has_pii"])
+        pii_map = {w["type"]: w["count"] for w in live["pii_warnings"]}
+        self.assertEqual(pii_map, {"dni_cuil": 1, "telefono": 1})
+        self.assertEqual(live["neg_constraints"], ["sin sonar desesperado ni perder la buena relacion"])
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level, mask_pii=True)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertIn("0004-00018291", out)
+            self.assertIn("extienda 10 dias el plazo de pago", low)
+            self.assertNotIn("reclamar el pago", low)
+            self.assertIn("[DNI_CUIL_OCULTO]", out)
+            self.assertIn("[TELEFONO_OCULTO]", out)
+            self.assertNotIn("20-33456789-4", out)
+            self.assertNotIn("3884912345", out)
+            self.assertIn("sin sonar desesperado ni perder la buena relacion", low)
+            self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en N4 ({level})")
+            self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en N4 ({level})")
+
+        # Express en redactar_contenido general sin duplicar instrucciones estructurales
+        express_msg = get_gemini_response(
+            "redactame un mensaje para confirmar una reunion mañana por la tarde",
+            level="Ligera",
+        )["improved_prompt"]
+        self.assertFalse(
+            "Incluye Asunto, saludo, cuerpo breve y cierre" in express_msg
+            and "Estructura el mensaje con apertura clara" in express_msg
+        )
+
+        # Sincronía en frontend workspace.js para excluir facturas AFIP
+        js_src = (Path(__file__).resolve().parent / "static" / "js" / "workspace.js").read_text(encoding="utf-8")
+        self.assertIn('m.startsWith("000")', js_src)
+        self.assertIn("factura|fc|comprobante", js_src)
+
+    def test_n5_ui_singular_plural_labels_placeholder_button_and_cache_busting(self):
+        one_line = inspect_attached_payload("Este es un texto adjunto de una sola línea", "resumime esto")
+        self.assertEqual(one_line["summary_label"], "Texto adjunto (1 línea)")
+
+        one_table = inspect_attached_payload("col1 | col2 | col3", "analiza esto")
+        self.assertEqual(one_table["summary_label"], "Tabla (1 fila)")
+
+        two_lines = inspect_attached_payload("Línea uno\nLínea dos", "resumime esto")
+        self.assertEqual(two_lines["summary_label"], "Texto adjunto (2 líneas)")
+
+        js_src = (Path(__file__).resolve().parent / "static" / "js" / "workspace.js").read_text(encoding="utf-8")
+        fn_block = js_src.split("function hasPendingPlaceholders(text)", 1)[1].split("}", 1)[0]
+        self.assertIn('"[COMPLETAR:"', fn_block)
+        self.assertNotIn("<datos_entrada>", fn_block)
+
+        ws = self.client.get(reverse("workspace"))
+        self.assertEqual(ws.status_code, 200)
+        self.assertContains(ws, "promptlab.css?v=7.2.1")
+        self.assertContains(ws, "workspace.js?v=7.2.1")
+
+    def test_n6_five_day_study_plan_clean_topic_daily_tasks_and_filtered_slots(self):
+        raw = (
+            "armame un plan de estudio de 5 dias para preparar un parcial de estadistica y probabilidad, "
+            "tengo 2 horas cada noche despues de cursar y necesito priorizar ejercicios practicos y un simulacro el ultimo dia, "
+            "sin trasnochar"
+        )
+        live = analyze_live_preview(raw)
+        self.assertEqual(live["domain"], "Estudio y academia")
+        self.assertEqual(live["action"], "planificar_pasos")
+        self.assertEqual(live["subintent"], "estudio")
+        self.assertEqual(live["topic_anchor"].lower(), "estadistica y probabilidad")
+        self.assertNotIn("parcial", live["entities"])
+        self.assertIn("estadistica", live["entities"])
+        self.assertIn("probabilidad", live["entities"])
+        slot_ids = [s["id"] for s in live["suggested_slots"]]
+        self.assertNotIn("edu_level", slot_ids)
+        self.assertNotIn("study_focus", slot_ids)
+
+        for level in ("Ligera", "Completa", "Profunda"):
+            res = get_gemini_response(raw, level=level)
+            out = res["improved_prompt"]
+            low = out.lower()
+            self.assertEqual(res["roles"]["dedicacion"].lower(), "2 horas cada noche")
+            self.assertEqual(res["roles"]["plazo"].lower(), "5 dias")
+            self.assertIn("tareas diarias concretas", low)
+            self.assertIn("organizado por días", low)
+            self.assertIn("simulacro", low)
+            self.assertNotIn("tareas semanales", low)
+            self.assertNotIn("herramientas / conceptos:** parcial", low)
+            self.assertNotIn("desglose de parcial", low)
+            self.assertLess(res["noise_ratio"], 0.10, f"noise_ratio alto en N6 ({level})")
+            self.assertGreaterEqual(res["anchor_coverage"], 0.90, f"anchor_coverage bajo en N6 ({level})")

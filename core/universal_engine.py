@@ -188,6 +188,9 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
 
     lines = [ln.strip() for ln in payload.splitlines() if ln.strip()]
     n_lines = len(lines)
+    linea_lbl = "1 línea" if n_lines == 1 else f"{n_lines} líneas"
+    fila_lbl = "1 fila" if n_lines == 1 else f"{n_lines} filas"
+    registro_lbl = "1 registro" if n_lines == 1 else f"{n_lines} registros"
     low_payload = _strip_accents(payload.lower())
     payload_filenames = list(dict.fromkeys(
         re.findall(r"\b[\w-]+\.(?:csv|xlsx|py|sql|json|pdf|docx|txt)\b", payload, flags=re.IGNORECASE)
@@ -209,7 +212,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": lines[:3],
-            "summary_label": f"JSON / Log ({n_lines} líneas)",
+            "summary_label": f"JSON / Log ({linea_lbl})",
         }
 
     # 2. Error de consola / Traceback
@@ -225,7 +228,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": lines[:3],
-            "summary_label": f"Error de consola ({n_lines} líneas)",
+            "summary_label": f"Error de consola ({linea_lbl})",
         }
 
     # 3. Código fuente
@@ -241,7 +244,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": lines[:3],
-            "summary_label": f"Bloque de código ({n_lines} líneas)",
+            "summary_label": f"Bloque de código ({linea_lbl})",
         }
 
     # 4. Lista de registros / productos con precios (3+ líneas con precios o guiones)
@@ -278,7 +281,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": items_preview,
-            "summary_label": f"Lista de {n_lines} registros",
+            "summary_label": f"Lista de {registro_lbl}",
         }
 
     # 5. Tabla (Markdown o CSV/TSV)
@@ -294,7 +297,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": lines[:3],
-            "summary_label": f"Tabla ({n_lines} filas)",
+            "summary_label": f"Tabla ({fila_lbl})",
         }
 
     # 6. Contrato o cláusula legal pegada
@@ -310,7 +313,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": lines[:3],
-            "summary_label": f"Cláusula / texto legal ({n_lines} líneas)",
+            "summary_label": f"Cláusula / texto legal ({linea_lbl})",
         }
 
     # 7. Email o diálogo
@@ -326,7 +329,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
             "payload_filenames": payload_filenames,
             "payload_errors": payload_errors,
             "items_preview": lines[:3],
-            "summary_label": f"Correo / diálogo ({n_lines} líneas)",
+            "summary_label": f"Correo / diálogo ({linea_lbl})",
         }
 
     return {
@@ -340,7 +343,7 @@ def inspect_attached_payload(payload_text: str, instruction_text: str = "") -> D
         "payload_filenames": payload_filenames,
         "payload_errors": payload_errors,
         "items_preview": lines[:3],
-        "summary_label": f"Texto adjunto ({n_lines} líneas)",
+        "summary_label": f"Texto adjunto ({linea_lbl})",
     }
 
 
@@ -419,7 +422,7 @@ _RE_NEG_CLAUSE = re.compile(
 )
 
 _NEG_CLAUSE_CUT_RE = re.compile(
-    r"[,.;:\n]|\s+(?:que|para|donde|cuando|si|porque|pero|y)\s+",
+    r"[,.;:\n]|\s+(?:que|para|donde|cuando|si|porque|pero|y|tengo|necesito)\s+",
     flags=re.IGNORECASE,
 )
 
@@ -466,7 +469,7 @@ def extract_negative_constraints(text: str) -> List[str]:
     results: List[str] = []
     for kw, phrase in _RE_NEG_CLAUSE.findall(text):
         clean_phrase = _NEG_CLAUSE_CUT_RE.split(phrase)[0].strip()
-        words = clean_phrase.split()[:6]
+        words = clean_phrase.split()[:12]
         if not words:
             continue
         candidate = f"{re.sub(r'\s+', ' ', kw.lower())} {' '.join(words)}".strip()
@@ -537,6 +540,19 @@ def _extract_clean_topic(
         if left and right and not _is_bad_topic(cand):
             return cand
 
+    m_diff = re.search(
+        r"\bdiferencias?\s+entre\s+([A-Za-z0-9_+.#-]+(?:\s+[A-Za-z0-9_+.#-]+){0,2}?)\s+(?:y|e)\s+([A-Za-z0-9_+.#-]+(?:\s+[A-Za-z0-9_+.#-]+){0,2}?)(?:\s+en\s+([A-Za-z0-9_+.#-]+(?:\s+[A-Za-z0-9_+.#-]+){0,2}?))?(?=\s+(?:como\s+si|para|con|sin|por|segun|usando|decime|cual|que)\b|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_diff:
+        left = m_diff.group(1).strip()
+        right = m_diff.group(2).strip()
+        ctx = (m_diff.group(3) or "").strip()
+        cand = f"{left} y {right}" + (f" en {ctx}" if ctx else "")
+        if left and right and not _is_bad_topic(cand):
+            return cand
+
     # 2. Entrevista laboral / técnica
     if es_entrevista:
         m_ent = re.search(
@@ -560,9 +576,20 @@ def _extract_clean_topic(
         if not _is_bad_topic(cand):
             return cand
 
+    # 3b. Guiones / promociones ("promocionando un combo de desayuno en un local de barrio")
+    m_promo = re.search(
+        r"\b(?:promocionando|para\s+promocionar)\s+(?:un\s+|una\s+|el\s+|la\s+)?([^.,;\n]{3,60}?)(?=\s+(?:con\s+tono|sin\b)|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_promo:
+        cand = m_promo.group(1).strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
     # 4. Verbos conceptuales ("entender la ciencia de datos desde cero")
     m_conc = re.search(
-        r"\b(?:entender|aprender|estudiar|explicar(?:me|melo)?|comprender|conocer|definir|qu[eé]\s+es|c[oó]mo\s+funciona)\s+(?:sobre\s+|la\s+|el\s+|los\s+|las\s+|un\s+|una\s+)?([^.,;\n]+?)(?=\s+desde\s+cero\b|\s+para\b|\s+sin\b|\s+con\s+(?:ejemplos?|analog)|[.,;\n]|$)",
+        r"\b(?:entender|aprender|estudiar|explicar(?:me|melo)?|comprender|conocer|definir|qu[eé]\s+es|c[oó]mo\s+funciona)\s+(?:sobre\s+|la\s+|el\s+|los\s+|las\s+|un\s+|una\s+)?([^.,;\n]+?)(?=\s+desde\s+cero\b|\s+como\s+si\b|\s+usando\b|\s+con\s+(?:ejemplos?|analog|tono)|\s+para\b|\s+sin\b|[.,;\n]|$)",
         raw,
         flags=re.IGNORECASE,
     )
@@ -571,14 +598,30 @@ def _extract_clean_topic(
         if not _is_bad_topic(cand):
             return cand
 
+    # 4b. Materia o tema de examen ("parcial de estadistica y probabilidad")
+    m_exam_subj = re.search(
+        r"\b(?:parcial|examen|final|recuperatorio|prueba|tp|trabajo\s+pr[aá]ctico)\s+de\s+([a-záéíóúñ0-9\s]{3,45}?)(?=\s+(?:tengo|necesito|sin|con|para|que|porque|del\s+(?:lunes|martes|miercoles|miércoles|jueves|viernes|sabado|sábado))\b|[.,;\n]|$)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if m_exam_subj:
+        cand = m_exam_subj.group(1).strip(" .,:;")
+        if not _is_bad_topic(cand):
+            return cand
+
     # 5. Planes con propósito ("plan de 4 semanas para lanzar una promocion de combos")
     m_plan = re.search(
-        r"\b(?:plan(?:\s+de\s+\d+\s+\w+)?|cronograma|hoja\s+de\s+ruta)\s+para\s+(?:lanzar|crear|armar|organizar|promocionar|mejorar)?\s*(?:una?\s+|el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ0-9\s]{3,45}?)(?=\s+(?:en\s+mi|sin|con|tengo)\b|[.,;\n]|$)",
+        r"\b(?:plan(?:\s+de\s+(?:estudio|acci[oó]n|trabajo|marketing|ventas))?(?:\s+de\s+\d+\s+\w+)?|cronograma|hoja\s+de\s+ruta)\s+para\s+(?:lanzar|crear|armar|organizar|promocionar|mejorar|preparar|rendir|aprobar|estudiar)?\s*(?:una?\s+|el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ0-9\s]{3,55}?)(?=\s+(?:en\s+mi|sin|con|tengo|necesito)\b|[.,;\n]|$)",
         raw,
         flags=re.IGNORECASE,
     )
     if m_plan:
-        cand = m_plan.group(1).strip(" .,:;")
+        cand = re.sub(
+            r"^(?:un\s+|el\s+)?(?:parcial|examen|final|prueba|tp)\s+de\s+",
+            "",
+            m_plan.group(1).strip(" .,:;"),
+            flags=re.IGNORECASE,
+        ).strip(" .,:;")
         if not _is_bad_topic(cand):
             return cand
 
@@ -595,7 +638,7 @@ def _extract_clean_topic(
         if not _is_bad_topic(cand):
             return cand
 
-    # 7. Script / error de código
+    # 7. Script / consulta SQL / error de código
     if payload_info and payload_info.get("payload_kind") == "error_consola":
         errs = payload_info.get("payload_errors") or []
         lang = "Python" if "python" in norm else ""
@@ -603,6 +646,10 @@ def _extract_clean_topic(
             return f"error {errs[-1]} en script de {lang}"
         if lang:
             return f"error en script de {lang}"
+    if "consulta sql" in norm or ("sql" in norm and "query" in norm):
+        if "postgresql" in norm or "postgres" in norm:
+            return "consulta SQL en PostgreSQL"
+        return "consulta SQL"
     if re.search(r"\b(?:script|codigo|funcion|programa)\b", norm):
         if "csv" in norm and "venta" in norm:
             return "script CSV de ventas"
@@ -656,7 +703,7 @@ def _extract_plan_constraints(raw: str, norm: str) -> Tuple[str, str, List[str]]
 
     dedicacion = ""
     m_ded = re.search(
-        r"\b(\d+(?:[.,]\d+)?\s*(?:horas?|hs?|minutos?|min)\s+(?:por|al)\s+(?:d[ií]a|semana|mes))\b",
+        r"\b(\d+(?:[.,]\d+)?\s*(?:horas?|hs?|minutos?|min)\s+(?:(?:por|al|cada)\s+(?:d[ií]a|noche|tarde|ma[nñ]ana|semana|mes|jornada)|diarias?|semanales?))\b",
         raw,
         flags=re.IGNORECASE,
     )
@@ -694,15 +741,15 @@ def extract_semantic_roles(text: str, payload_info: Optional[Dict[str, Any]] = N
     # Perspectiva ("como inquilino", "para mi como inquilino", "desde el rol de...")
     perspectiva = ""
     m_persp = re.search(
-        r"(?:para\s+m[ií]\s+como|(?<!\bs[eé]\s)(?<!\bsaber\s)(?<!\bver\s)\bcomo|desde\s+el\s+rol\s+de|en\s+calidad\s+de)\s+([a-záéíóúñ\s]{3,30}?)(?=[,.;\n]|$|\s+que\b|\s+y\b|\s+para\b)",
+        r"(?:para\s+m[ií]\s+como|(?<!\bs[eé]\s)(?<!\bsaber\s)(?<!\bver\s)\bcomo(?!\s+si\b)|desde\s+el\s+rol\s+de|en\s+calidad\s+de)\s+([a-záéíóúñ\s]{3,30}?)(?=[,.;\n]|$|\s+que\b|\s+y\b|\s+para\b)",
         raw,
         flags=re.IGNORECASE,
     )
     if m_persp:
         cand_persp = m_persp.group(1).strip()
         cand_persp_norm = _strip_accents(cand_persp.lower())
-        # Ignorar construcciones verbales ("como arreglarlo", "como empezar") que no son roles
-        if not re.search(r"(?:lo|la|los|las|me|te|se)$|\b(?:hacer|arreglar|empezar|funciona|usar|crear|resolver|armar)\b", cand_persp_norm):
+        # Ignorar construcciones verbales ("como arreglarlo", "como empezar") y comparaciones hipotéticas ("como si ...")
+        if not re.search(r"(?:lo|la|los|las|me|te|se)$|\b(?:hacer|arreglar|empezar|funciona|usar|crear|resolver|armar|alguien|contar|contaras)\b|^si\b", cand_persp_norm):
             perspectiva = cand_persp
 
     # Subescenario entrevista laboral/técnica
@@ -1138,7 +1185,7 @@ def synthesize_universal_directives(
             "Distribuye las ideas en formatos variados (ej. carrusel paso a paso, reel demostrativo, historia interactiva, caso real)."
         )
         instructions.append(
-            "Estructura cada idea con 5 campos obligatorios: 1) Gancho (máx. 12 palabras), 2) Formato, 3) Mensaje central, 4) Ejemplo concreto de tarea cotidiana y 5) Límite honesto (qué NO resuelve la herramienta)."
+            "Estructura cada idea con 5 campos obligatorios: 1) Gancho (máx. 12 palabras), 2) Formato, 3) Mensaje central, 4) Ejemplo concreto aplicable y 5) Llamado a la acción o cierre realista."
         )
         if no_hype:
             instructions.append(
@@ -1146,7 +1193,7 @@ def synthesize_universal_directives(
             )
             restrictions.append("Prohibido lenguaje de promesa comercial, adjetivos inflados o cifras sin fuente.")
             success_criteria.append(
-                f"Exactamente {cantidad} ideas con los 5 campos (incluyendo límite honesto) y cero promesas o cifras inventadas."
+                f"Exactamente {cantidad} ideas con los 5 campos obligatorios y cero promesas o cifras inventadas."
             )
         else:
             success_criteria.append(f"Exactamente {cantidad} ideas con ángulos distintos y ejemplo concreto en cada una.")
