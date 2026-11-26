@@ -1867,53 +1867,122 @@ body {
    PromptLab v7.2.4 — Auditoría de Contraste WCAG AA, Proyector y Foco
    ========================================================================== */
 
-/* Utilidades semánticas Bootstrap reforzadas dentro de contenido principal y modales */
-:root :is(.main-content, .modal) .text-primary,
-[data-theme="light"] :is(.main-content, .modal) .text-primary {
+/* Utilidad faltante en Bootstrap 5.3 (solo trae 10/25/50/75/100) */
+.bg-opacity-15 {
+    --bs-bg-opacity: 0.15;
+}
+
+/* Utilidades semánticas Bootstrap reforzadas dentro de contenido principal y modales
+   (excluyendo elementos con fondo sólido bg-* sin bg-opacity-*) */
+:root :is(.main-content, .modal) .text-primary:not(.bg-primary),
+:root :is(.main-content, .modal) .text-primary.bg-primary[class*="bg-opacity-"],
+[data-theme="light"] :is(.main-content, .modal) .text-primary:not(.bg-primary),
+[data-theme="light"] :is(.main-content, .modal) .text-primary.bg-primary[class*="bg-opacity-"] {
     color: #4338ca !important;
 }
 
-:root :is(.main-content, .modal) .text-info,
-[data-theme="light"] :is(.main-content, .modal) .text-info {
+:root :is(.main-content, .modal) .text-info:not(.bg-info),
+:root :is(.main-content, .modal) .text-info.bg-info[class*="bg-opacity-"],
+[data-theme="light"] :is(.main-content, .modal) .text-info:not(.bg-info),
+[data-theme="light"] :is(.main-content, .modal) .text-info.bg-info[class*="bg-opacity-"] {
     color: #0e7490 !important;
 }
 
-:root :is(.main-content, .modal) .text-success,
-[data-theme="light"] :is(.main-content, .modal) .text-success {
+:root :is(.main-content, .modal) .text-success:not(.bg-success),
+:root :is(.main-content, .modal) .text-success.bg-success[class*="bg-opacity-"],
+[data-theme="light"] :is(.main-content, .modal) .text-success:not(.bg-success),
+[data-theme="light"] :is(.main-content, .modal) .text-success.bg-success[class*="bg-opacity-"] {
     color: #047857 !important;
 }
 
-:root :is(.main-content, .modal) .text-warning,
-:root :is(.main-content, .modal) .text-warning-emphasis,
-[data-theme="light"] :is(.main-content, .modal) .text-warning,
-[data-theme="light"] :is(.main-content, .modal) .text-warning-emphasis {
+:root :is(.main-content, .modal) .text-warning:not(.bg-warning),
+:root :is(.main-content, .modal) .text-warning.bg-warning[class*="bg-opacity-"],
+:root :is(.main-content, .modal) .text-warning-emphasis:not(.bg-warning),
+:root :is(.main-content, .modal) .text-warning-emphasis.bg-warning[class*="bg-opacity-"],
+[data-theme="light"] :is(.main-content, .modal) .text-warning:not(.bg-warning),
+[data-theme="light"] :is(.main-content, .modal) .text-warning.bg-warning[class*="bg-opacity-"],
+[data-theme="light"] :is(.main-content, .modal) .text-warning-emphasis:not(.bg-warning),
+[data-theme="light"] :is(.main-content, .modal) .text-warning-emphasis.bg-warning[class*="bg-opacity-"] {
     color: #b45309 !important;
 }
 
-:root :is(.main-content, .modal) .text-danger,
-[data-theme="light"] :is(.main-content, .modal) .text-danger {
+:root :is(.main-content, .modal) .text-danger:not(.bg-danger),
+:root :is(.main-content, .modal) .text-danger.bg-danger[class*="bg-opacity-"],
+[data-theme="light"] :is(.main-content, .modal) .text-danger:not(.bg-danger),
+[data-theme="light"] :is(.main-content, .modal) .text-danger.bg-danger[class*="bg-opacity-"] {
     color: #b91c1c !important;
 }
 
-[data-theme="dark"] :is(.main-content, .modal) .text-primary {
+[data-theme="dark"] :is(.main-content, .modal) .text-primary:not(.bg-primary),
+[data-theme="dark"] :is(.main-content, .modal) .text-primary.bg-primary[class*="bg-opacity-"] {
     color: #a5b4fc !important;
 }
 
-[data-theme="dark"] :is(.main-content, .modal) .text-info {
+[data-theme="dark"] :is(.main-content, .modal) .text-info:not(.bg-info),
+[data-theme="dark"] :is(.main-content, .modal) .text-info.bg-info[class*="bg-opacity-"] {
     color: #22d3ee !important;
 }
 
-[data-theme="dark"] :is(.main-content, .modal) .text-success {
+[data-theme="dark"] :is(.main-content, .modal) .text-success:not(.bg-success),
+[data-theme="dark"] :is(.main-content, .modal) .text-success.bg-success[class*="bg-opacity-"] {
     color: #34d399 !important;
 }
 
-[data-theme="dark"] :is(.main-content, .modal) .text-warning,
-[data-theme="dark"] :is(.main-content, .modal) .text-warning-emphasis {
+[data-theme="dark"] :is(.main-content, .modal) .text-warning:not(.bg-warning),
+[data-theme="dark"] :is(.main-content, .modal) .text-warning.bg-warning[class*="bg-opacity-"],
+[data-theme="dark"] :is(.main-content, .modal) .text-warning-emphasis:not(.bg-warning),
+[data-theme="dark"] :is(.main-content, .modal) .text-warning-emphasis.bg-warning[class*="bg-opacity-"] {
     color: #fbbf24 !important;
 }
 
-[data-theme="dark"] :is(.main-content, .modal) .text-danger {
+[data-theme="dark"] :is(.main-content, .modal) .text-danger:not(.bg-danger),
+[data-theme="dark"] :is(.main-content, .modal) .text-danger.bg-danger[class*="bg-opacity-"] {
     color: #f87171 !important;
+}
+
+/* Contraste WCAG AAA (>= 7:1) para píldoras tintadas bg-opacity-15 (Favoritos, Privacidad, Insumo, Cálculo) */
+:root :is(.main-content, .modal) .badge.bg-warning.bg-opacity-15,
+[data-theme="light"] :is(.main-content, .modal) .badge.bg-warning.bg-opacity-15 {
+    color: #78350f !important;
+    border: 1px solid rgba(180, 83, 9, 0.30);
+}
+
+[data-theme="dark"] :is(.main-content, .modal) .badge.bg-warning.bg-opacity-15 {
+    color: #fcd34d !important;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+:root :is(.main-content, .modal) .badge.bg-success.bg-opacity-15,
+[data-theme="light"] :is(.main-content, .modal) .badge.bg-success.bg-opacity-15 {
+    color: #064e3b !important;
+    border: 1px solid rgba(5, 150, 105, 0.30);
+}
+
+[data-theme="dark"] :is(.main-content, .modal) .badge.bg-success.bg-opacity-15 {
+    color: #6ee7b7 !important;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+:is(.main-content, .modal) .badge.bg-warning.bg-opacity-15 .bi,
+:is(.main-content, .modal) .badge.bg-success.bg-opacity-15 .bi {
+    color: currentColor !important;
+}
+
+/* Protección explícita para badges con fondo sólido (sin bg-opacity-*) */
+:is(.main-content, .modal) .badge.bg-warning:not([class*="bg-opacity-"]),
+:is(.main-content, .modal) .badge.bg-info:not([class*="bg-opacity-"]) {
+    color: #0f172a !important;
+}
+
+:is(.main-content, .modal) .badge.bg-warning:not([class*="bg-opacity-"]) .bi,
+:is(.main-content, .modal) .badge.bg-info:not([class*="bg-opacity-"]) .bi {
+    color: currentColor !important;
+}
+
+:is(.main-content, .modal) .badge.bg-primary:not([class*="bg-opacity-"]),
+:is(.main-content, .modal) .badge.bg-success:not([class*="bg-opacity-"]),
+:is(.main-content, .modal) .badge.bg-danger:not([class*="bg-opacity-"]) {
+    color: #ffffff !important;
 }
 
 /* Chips, pills y pestañas de salida activos en Modo Oscuro (contraste >= 5.2:1 con blanco) */
