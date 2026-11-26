@@ -29,13 +29,13 @@
         <div class="pl-card mb-4">
             <div class="card-body p-3">
                 <div class="row g-2 align-items-center">
-                    <div class="col-md-4">
+                    <div class="col-12 col-lg-4">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text pl-input border-end-0"><i class="bi bi-search pl-text-secondary"></i></span>
-                            <input type="text" id="history-search" class="form-control pl-input border-start-0" placeholder="Buscar por palabra clave en el texto..." oninput="filtrarHistorial()">
+                            <input type="text" id="history-search" class="form-control pl-input border-start-0" placeholder="Buscar por palabra clave en el texto..." oninput="filtrarHistorial()" aria-label="Buscar en el historial">
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-sm-6 col-lg-3">
                         <select id="filter-category" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()" aria-label="Filtrar por área">
                             <option value="">Todas las áreas</option>
                             {% for cat in categories %}
@@ -43,7 +43,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-sm-6 col-lg-2">
                         <select id="filter-mode" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()" aria-label="Filtrar por modo">
                             <option value="">Todos los modos</option>
                             {% for m in modes %}
@@ -51,7 +51,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-sm-9 col-lg-2">
                         <select id="filter-technique" class="form-select form-select-sm pl-input" onchange="filtrarHistorial()" aria-label="Filtrar por estilo">
                             <option value="">Todos los estilos</option>
                             {% for tech in techniques %}
@@ -59,7 +59,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-1 text-end">
+                    <div class="col-sm-3 col-lg-1 text-end">
                         <span id="filter-count" class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill">{{ prompts|length }}</span>
                     </div>
                 </div>

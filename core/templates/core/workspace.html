@@ -137,10 +137,10 @@
                         </span>
                         <div class="d-flex flex-wrap align-items-center gap-2 ms-auto">
                             <span id="live-confidence-msg" class="small fw-semibold text-primary"></span>
-                            <span id="live-confidence-badge" class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">Seguridad: 0%</span>
-                            <span id="live-entities-badge" class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1">Datos clave: 0</span>
-                            <span id="live-payload-badge" class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1 d-none">Insumo: ninguno</span>
-                            <span id="live-calc-badge" class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1 d-none">Valores de control calculados</span>
+                            <span id="live-confidence-badge" class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1" title="Nivel de certeza del motor al clasificar dominio, acción y entregable">Certeza: —</span>
+                            <span id="live-entities-badge" class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1" title="Cantidad de herramientas, conceptos o datos clave reconocidos">Datos clave: 0</span>
+                            <span id="live-payload-badge" class="badge bg-warning bg-opacity-15 text-warning-emphasis rounded-pill px-2 py-1 d-none" title="Material adjunto detectado automáticamente (CSV, lista, código, traza)">Insumo: ninguno</span>
+                            <span id="live-calc-badge" class="badge bg-success bg-opacity-15 text-success rounded-pill px-2 py-1 d-none" title="Cálculo financiero determinístico exacto (con Decimal y Fraction, sin eval)">Valores de control calculados</span>
                         </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
@@ -197,9 +197,9 @@
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <span id="output-score-pill" class="pl-score-pill small">
                             <i class="bi bi-award-fill me-1"></i>
-                            <strong id="output-score-val">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}0/100{% endif %}</strong>
+                            <strong id="output-score-val">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}—/100{% endif %}</strong>
                             <span class="mx-1">&middot;</span>
-                            <span id="output-score-band">{% if loaded_prompt %}{% if loaded_prompt.final_score >= 80 %}Muy bueno{% elif loaded_prompt.final_score >= 60 %}Bueno{% elif loaded_prompt.final_score >= 40 %}Aceptable{% else %}Para mejorar{% endif %}{% else %}Muy bueno{% endif %}</span>
+                            <span id="output-score-band">{% if loaded_prompt %}{% if loaded_prompt.final_score >= 90 %}Excelente{% elif loaded_prompt.final_score >= 80 %}Muy bueno{% elif loaded_prompt.final_score >= 70 %}Bueno{% else %}Mejorable{% endif %}{% else %}Sin evaluar{% endif %}</span>
                         </span>
                         <button type="button" id="btn-fill-placeholders" class="btn btn-sm btn-outline-warning rounded-pill px-3 d-none">
                             <i class="bi bi-input-cursor-text me-1"></i> Completar datos pendientes
@@ -259,7 +259,7 @@
                         <span class="px-2 py-1 rounded origin-user">Tus palabras</span>
                         <span class="px-2 py-1 rounded origin-inferred">Deducido por PromptLab</span>
                         <span class="px-2 py-1 rounded origin-scaffold">Estructura agregada</span>
-                        <span id="origin-rule-inspector" class="ms-auto badge bg-primary bg-opacity-10 text-primary">Tocá cualquier bloque para ver por qué se agregó</span>
+                        <span id="origin-rule-inspector" class="ms-auto badge bg-primary bg-opacity-10 text-primary text-wrap text-start">Tocá cualquier bloque para ver por qué se agregó</span>
                     </div>
                     <div id="origin-segments-container">
                         <p class="pl-text-secondary small">Generá o mejorá un prompt para visualizar el mapa de origen y las reglas disparadas.</p>
@@ -273,9 +273,9 @@
                 <!-- Barra visual limpia de puntaje (Modo Guiado) -->
                 <div id="guiado-score-strip" class="pl-score-strip pl-only-guiado mt-3">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 small mb-2">
-                        <span class="pl-text-secondary">Tu pedido: <strong id="guiado-init-score" class="pl-text-primary">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}/100{% else %}0/100{% endif %}</strong></span>
+                        <span class="pl-text-secondary">Tu pedido: <strong id="guiado-init-score" class="pl-text-primary">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}/100{% else %}—/100{% endif %}</strong></span>
                         <span class="pl-impact-badge" id="guiado-info-gain">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts</span>
-                        <span class="text-success fw-bold">Puntaje final: <span id="guiado-final-score">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}0/100{% endif %}</span></span>
+                        <span class="text-success fw-bold">Puntaje final: <span id="guiado-final-score">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}—/100{% endif %}</span></span>
                     </div>
                     <div class="pl-progress">
                         <div id="guiado-score-bar" class="pl-progress-bar h-100" style="width: {% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}0{% endif %}%;"></div>
@@ -292,16 +292,16 @@
                                     <span id="gain-badge" class="badge bg-primary rounded-pill">Mejora total: +{% if loaded_prompt %}{{ loaded_prompt.quality_gain }}{% else %}0{% endif %} pts</span>
                                 </div>
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small">
-                                    <span class="pl-text-secondary">Idea inicial: <strong id="init-score-lbl" class="pl-text-primary">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}{% else %}0{% endif %}</strong>/100</span>
+                                    <span class="pl-text-secondary">Idea inicial: <strong id="init-score-lbl" class="pl-text-primary">{% if loaded_prompt %}{{ loaded_prompt.initial_score }}{% else %}—{% endif %}</strong>/100</span>
                                     <span class="pl-text-secondary">&rarr;</span>
                                     <span class="pl-impact-badge" id="info-gain-lbl">+{% if loaded_prompt %}{{ loaded_prompt.information_gain }}{% else %}0{% endif %} pts tuyos</span>
                                     <span class="pl-text-secondary">&rarr;</span>
-                                    <span class="text-success fw-bold ms-auto">Final: <span id="final-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}0{% endif %}</span>/100 <small id="score-band-lbl" class="fw-normal"></small></span>
+                                    <span class="text-success fw-bold ms-auto">Final: <span id="final-score-lbl">{% if loaded_prompt %}{{ loaded_prompt.final_score }}{% else %}—{% endif %}</span>/100 <small id="score-band-lbl" class="fw-normal">{% if loaded_prompt %}({% if loaded_prompt.final_score >= 90 %}Excelente{% elif loaded_prompt.final_score >= 80 %}Muy bueno{% elif loaded_prompt.final_score >= 70 %}Bueno{% else %}Mejorable{% endif %}){% endif %}</small></span>
                                 </div>
                                 <div id="rubric-bars" class="small"></div>
                                 <div class="mt-2 pt-2 pl-border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small">
-                                    <span class="pl-text-secondary">Datos útiles: <strong id="anchor-coverage-badge" class="text-primary">{% if loaded_prompt %}{% widthratio loaded_prompt.anchor_coverage 1 100 %}{% else %}95{% endif %}%</strong></span>
-                                    <span class="pl-text-secondary">Texto de relleno: <strong id="noise-ratio-badge" class="text-success">{% if loaded_prompt %}{% widthratio loaded_prompt.noise_ratio 1 100 %}{% else %}4{% endif %}%</strong></span>
+                                    <span class="pl-text-secondary">Datos útiles: <strong id="anchor-coverage-badge" class="text-primary">{% if loaded_prompt %}{% widthratio loaded_prompt.anchor_coverage 1 100 %}%{% else %}—{% endif %}</strong></span>
+                                    <span class="pl-text-secondary">Texto de relleno: <strong id="noise-ratio-badge" class="text-success">{% if loaded_prompt %}{% widthratio loaded_prompt.noise_ratio 1 100 %}%{% else %}—{% endif %}</strong></span>
                                 </div>
                             </div>
                         </div>
@@ -406,7 +406,7 @@
                                             <input type="text" id="negative-constraints-input" class="form-control form-control-sm pl-input" placeholder="Ej: Sin gráficos, sin tecnicismos, no uses librerías externas">
                                         </div>
                                         <div>
-                                            <label for="user-example-input" class="form-label small fw-bold pl-text-primary">Ejemplo Few-Shot (opcional)</label>
+                                            <label for="user-example-input" class="form-label small fw-bold pl-text-primary" title="Ejemplo concreto de Entrada → Salida para orientar el formato de respuesta">Ejemplo Few-Shot (opcional)</label>
                                             <textarea id="user-example-input" class="form-control form-control-sm pl-input" rows="2" placeholder="Ej: Entrada: ventas.csv → Salida: tabla resumen con nulos"></textarea>
                                         </div>
                                     </div>
@@ -443,14 +443,14 @@
                     <div class="col-md-6">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold pl-text-secondary small text-uppercase">Idea Original (Entrada)</span>
-                            <span id="cmp-orig-metrics" class="badge bg-secondary bg-opacity-10 pl-text-secondary">0 palabras • 0 chars • ~0 tokens</span>
+                            <span id="cmp-orig-metrics" class="badge bg-secondary bg-opacity-10 pl-text-secondary">0 palabras • 0 caracteres • ~0 tokens</span>
                         </div>
                         <pre id="cmp-orig-text" class="p-3 pl-code-block mb-0" style="white-space: pre-wrap; font-family: inherit; min-height: 240px;"></pre>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold text-success small text-uppercase">Prompt Estructurado (Salida)</span>
-                            <span id="cmp-imp-metrics" class="badge bg-success bg-opacity-10 text-success">0 palabras • 0 chars • ~0 tokens</span>
+                            <span id="cmp-imp-metrics" class="badge bg-success bg-opacity-10 text-success">0 palabras • 0 caracteres • ~0 tokens</span>
                         </div>
                         <pre id="cmp-imp-text" class="p-3 pl-analysis-box mb-0" style="white-space: pre-wrap; font-family: inherit; min-height: 240px; line-height: 1.65;"></pre>
                     </div>

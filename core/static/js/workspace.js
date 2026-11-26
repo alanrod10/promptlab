@@ -289,10 +289,10 @@
     }
 
     function getScoreBandText(score) {
+        if (score >= 90) return "Excelente";
         if (score >= 80) return "Muy bueno";
-        if (score >= 60) return "Bueno";
-        if (score >= 40) return "Aceptable";
-        return "Para mejorar";
+        if (score >= 70) return "Bueno";
+        return "Mejorable";
     }
 
     function mostrarAviso(mensaje) {
@@ -725,7 +725,7 @@
                 .map((t) => {
                     const detail =
                         t.rule ||
-                        `${t.domain || ""} / ${t.action || ""} (conf: ${Math.round((t.confidence || 0) * 100)}%)`;
+                        `${t.domain || ""} / ${t.action || ""} (certeza: ${Math.round((t.confidence || 0) * 100)}%)`;
                     return `<li><strong>${escapeHtml(t.stage)}:</strong> ${escapeHtml(detail)}</li>`;
                 })
                 .join("");
@@ -902,7 +902,7 @@
                 }
 
                 const confPct = Math.round((data.confidence || 0) * 100);
-                if ($("live-confidence-badge")) $("live-confidence-badge").innerText = `Seguridad: ${confPct}%`;
+                if ($("live-confidence-badge")) $("live-confidence-badge").innerText = `Certeza: ${confPct}%`;
                 const entBadge = $("live-entities-badge");
                 if (entBadge) {
                     const entList = data.entities || [];
@@ -1250,10 +1250,10 @@
         if ($("cmp-orig-text")) $("cmp-orig-text").innerText = origText;
         if ($("cmp-imp-text")) $("cmp-imp-text").innerText = impText;
         if ($("cmp-orig-metrics")) {
-            $("cmp-orig-metrics").innerText = `${mOrig.words} palabras • ${mOrig.chars} chars • ~${mOrig.tokens} tokens`;
+            $("cmp-orig-metrics").innerText = `${mOrig.words} palabras • ${mOrig.chars} caracteres • ~${mOrig.tokens} tokens`;
         }
         if ($("cmp-imp-metrics")) {
-            $("cmp-imp-metrics").innerText = `${mImp.words} palabras • ${mImp.chars} chars • ~${mImp.tokens} tokens`;
+            $("cmp-imp-metrics").innerText = `${mImp.words} palabras • ${mImp.chars} caracteres • ~${mImp.tokens} tokens`;
         }
     }
 

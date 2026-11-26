@@ -6,7 +6,7 @@
     "use strict";
 
     const SVG_NS = "http://www.w3.org/2000/svg";
-    const PALETTE = [
+    const PALETTE_DARK = [
         "#6366f1",
         "#10b981",
         "#06b6d4",
@@ -16,6 +16,43 @@
         "#3b82f6",
         "#14b8a6",
     ];
+    const PALETTE_LIGHT = [
+        "#4f46e5",
+        "#059669",
+        "#0891b2",
+        "#d97706",
+        "#db2777",
+        "#7c3aed",
+        "#2563eb",
+        "#0d9488",
+    ];
+
+    function isLightTheme() {
+        return document.documentElement.getAttribute("data-theme") === "light";
+    }
+
+    function getThemeChartColors() {
+        if (isLightTheme()) {
+            return {
+                beforeColor: "#64748b",
+                afterGreen: "#059669",
+                afterViolet: "#5b52f5",
+                gridStroke: "#cbd5e1",
+                barGradStart: "#4f46e5",
+                barGradEnd: "#0891b2",
+                palette: PALETTE_LIGHT,
+            };
+        }
+        return {
+            beforeColor: "#94a3b8",
+            afterGreen: "#10b981",
+            afterViolet: "#7c73ff",
+            gridStroke: "rgba(148, 163, 184, 0.24)",
+            barGradStart: "#6366f1",
+            barGradEnd: "#22d3ee",
+            palette: PALETTE_DARK,
+        };
+    }
 
     let activeDonutView = "styles";
     let activeGroupedView = "by_technique";
@@ -105,6 +142,9 @@
             top = Math.min(window.innerHeight - tipH - 10, clientY + pad + 8);
         }
 
+        left = Math.max(10, Math.min(left, window.innerWidth - tipW - 10));
+        top = Math.max(10, Math.min(top, window.innerHeight - tipH - 10));
+
         tooltipEl.style.left = `${Math.round(left)}px`;
         tooltipEl.style.top = `${Math.round(top)}px`;
     }
@@ -152,14 +192,15 @@
             return;
         }
 
+        const colors = getThemeChartColors();
         const items = domains.slice(0, 8);
         const rowH = 38;
         const topPad = 14;
         const bottomPad = 28;
-        const width = 560;
+        const width = 580;
         const height = topPad + items.length * rowH + bottomPad;
-        const leftPad = 165;
-        const rightPad = 76;
+        const leftPad = 176;
+        const rightPad = 84;
         const plotW = width - leftPad - rightPad;
 
         const maxCount = Math.max(...items.map((d) => Number(d.count) || 0), 1);
@@ -181,8 +222,8 @@
             x2: "100%",
             y2: "0%",
         });
-        grad.appendChild(createSvgEl("stop", { offset: "0%", "stop-color": "#6366f1" }));
-        grad.appendChild(createSvgEl("stop", { offset: "100%", "stop-color": "#22d3ee" }));
+        grad.appendChild(createSvgEl("stop", { offset: "0%", "stop-color": colors.barGradStart }));
+        grad.appendChild(createSvgEl("stop", { offset: "100%", "stop-color": colors.barGradEnd }));
         defs.appendChild(grad);
         svg.appendChild(defs);
 
@@ -196,7 +237,7 @@
                 y1: topPad,
                 x2: x,
                 y2: height - bottomPad,
-                stroke: "var(--pl-border)",
+                stroke: colors.gridStroke,
                 "stroke-dasharray": i === 0 ? "none" : "3 4",
                 "stroke-width": 1,
             }));
@@ -299,6 +340,7 @@
         svgContainer.innerHTML = "";
         legendContainer.innerHTML = "";
 
+        const colors = getThemeChartColors();
         const rawSeries = (donutData && donutData[activeDonutView]) || [];
         const items = rawSeries.filter((item) => Number(item.count) > 0);
         const sumCount = items.reduce((acc, it) => acc + (Number(it.count) || 0), 0);
@@ -333,7 +375,7 @@
         if (items.length === 1) {
             // Caso borde 100%: usar <circle> completo para evitar bug de arco SVG de 360°
             const only = items[0];
-            const color = PALETTE[0];
+            const color = colors.palette[0];
             const ring = createSvgEl("circle", {
                 cx,
                 cy,
@@ -356,7 +398,7 @@
                 const gap = sliceAngle > 8 ? 2 : 0.6;
                 const startA = currentAngle + gap / 2;
                 const endA = currentAngle + sliceAngle - gap / 2;
-                const color = PALETTE[idx % PALETTE.length];
+                const color = colors.palette[idx % colors.palette.length];
 
                 if (endA > startA) {
                     const path = createSvgEl("path", {
@@ -404,7 +446,7 @@
 
         // Leyenda ordenada
         items.forEach((item, idx) => {
-            const color = PALETTE[idx % PALETTE.length];
+            const color = colors.palette[idx % colors.palette.length];
             const row = document.createElement("div");
             row.className = "stats-donut-legend-item";
             row.innerHTML = `
@@ -433,10 +475,11 @@
             return;
         }
 
+        const colors = getThemeChartColors();
         const width = 660;
         const height = 250;
         const leftPad = 42;
-        const rightPad = 24;
+        const rightPad = 28;
         const topPad = 18;
         const bottomPad = 42;
         const plotW = width - leftPad - rightPad;
@@ -457,8 +500,8 @@
             x2: "0%",
             y2: "100%",
         });
-        areaGrad.appendChild(createSvgEl("stop", { offset: "0%", "stop-color": "#10b981", "stop-opacity": "0.28" }));
-        areaGrad.appendChild(createSvgEl("stop", { offset: "100%", "stop-color": "#6366f1", "stop-opacity": "0.06" }));
+        areaGrad.appendChild(createSvgEl("stop", { offset: "0%", "stop-color": colors.afterGreen, "stop-opacity": "0.28" }));
+        areaGrad.appendChild(createSvgEl("stop", { offset: "100%", "stop-color": colors.barGradStart, "stop-opacity": "0.06" }));
         defs.appendChild(areaGrad);
         svg.appendChild(defs);
 
@@ -470,7 +513,7 @@
                 y1: y,
                 x2: width - rightPad,
                 y2: y,
-                stroke: "var(--pl-border)",
+                stroke: colors.gridStroke,
                 "stroke-dasharray": val === 0 ? "none" : "3 4",
                 "stroke-width": 1,
             }));
@@ -514,7 +557,7 @@
             svg.appendChild(createSvgEl("polyline", {
                 points: coords.map((c) => `${c.x.toFixed(1)},${c.yBefore.toFixed(1)}`).join(" "),
                 fill: "none",
-                stroke: "#94a3b8",
+                stroke: colors.beforeColor,
                 "stroke-width": 2.4,
                 "stroke-dasharray": "5 4",
                 "stroke-linecap": "round",
@@ -524,7 +567,7 @@
             svg.appendChild(createSvgEl("polyline", {
                 points: coords.map((c) => `${c.x.toFixed(1)},${c.yAfter.toFixed(1)}`).join(" "),
                 fill: "none",
-                stroke: "#10b981",
+                stroke: colors.afterGreen,
                 "stroke-width": 3,
                 "stroke-linecap": "round",
                 "stroke-linejoin": "round",
@@ -536,7 +579,7 @@
                 y1: c.yBefore,
                 x2: c.x,
                 y2: c.yAfter,
-                stroke: "#10b981",
+                stroke: colors.afterGreen,
                 "stroke-width": 4,
                 "stroke-linecap": "round",
             }));
@@ -556,7 +599,7 @@
                 y1: c.yBefore,
                 x2: c.x,
                 y2: c.yAfter,
-                stroke: "var(--pl-border)",
+                stroke: colors.gridStroke,
                 "stroke-width": 1.2,
             }));
 
@@ -564,7 +607,7 @@
                 cx: c.x,
                 cy: c.yBefore,
                 r: 4.5,
-                fill: "#94a3b8",
+                fill: colors.beforeColor,
                 stroke: "var(--pl-surface)",
                 "stroke-width": 1.8,
             });
@@ -575,7 +618,7 @@
                 cx: c.x,
                 cy: c.yAfter,
                 r: 5.5,
-                fill: "#10b981",
+                fill: colors.afterGreen,
                 stroke: "var(--pl-surface)",
                 "stroke-width": 2,
             });
@@ -609,18 +652,19 @@
             return;
         }
 
+        const colors = getThemeChartColors();
         const rotatedLabels = Boolean(options && options.rotatedLabels);
-        const afterColor = (options && options.afterColor) || "#10b981";
+        const afterColor = (options && options.afterColor) || colors.afterGreen;
         const afterLabel = (options && options.afterLabel) || "Prompt mejorado promedio";
         const beforeLabel = (options && options.beforeLabel) || "Idea inicial promedio";
 
-        const minWidth = rotatedLabels ? Math.max(520, items.length * 88) : 520;
+        const minWidth = rotatedLabels ? Math.max(560, items.length * 90 + 36) : 520;
         const width = minWidth;
-        const height = rotatedLabels ? 298 : 256;
-        const leftPad = 40;
-        const rightPad = 18;
+        const height = rotatedLabels ? 308 : 256;
+        const leftPad = rotatedLabels ? 76 : 40;
+        const rightPad = rotatedLabels ? 22 : 18;
         const topPad = 24;
-        const bottomPad = rotatedLabels ? 78 : 44;
+        const bottomPad = rotatedLabels ? 88 : 44;
         const plotW = width - leftPad - rightPad;
         const plotH = height - topPad - bottomPad;
 
@@ -640,7 +684,7 @@
                 y1: y,
                 x2: width - rightPad,
                 y2: y,
-                stroke: "var(--pl-border)",
+                stroke: colors.gridStroke,
                 "stroke-dasharray": val === 0 ? "none" : "3 4",
                 "stroke-width": 1,
             }));
@@ -684,7 +728,7 @@
                 width: barW,
                 height: hBefore,
                 rx: 5,
-                fill: "#94a3b8",
+                fill: colors.beforeColor,
             });
             attachInteractiveEvents(rectBefore, infoFn);
             svg.appendChild(rectBefore);
@@ -767,6 +811,7 @@
         if (!data || !data.total || Number(data.total) <= 0) return;
 
         const renderAll = () => {
+            const colors = getThemeChartColors();
             renderHorizontalDomainsChart(data.domains || []);
             renderDonutChart(data.donut || {}, data.total);
             renderGroupedVerticalChart(
@@ -774,7 +819,7 @@
                 data[activeGroupedView] || [],
                 {
                     rotatedLabels: false,
-                    afterColor: "#10b981",
+                    afterColor: colors.afterGreen,
                     beforeLabel: "Puntaje inicial promedio",
                     afterLabel: "Puntaje final promedio",
                     ariaLabel: "Gráfico comparativo por técnica o modo",
@@ -785,7 +830,7 @@
                 data.by_task || [],
                 {
                     rotatedLabels: true,
-                    afterColor: "#7c73ff",
+                    afterColor: colors.afterViolet,
                     beforeLabel: "Idea inicial promedio",
                     afterLabel: "Prompt mejorado promedio",
                     ariaLabel: "Gráfico comparativo por tarea",
@@ -818,12 +863,13 @@
                     b.classList.toggle("active", active);
                     b.setAttribute("aria-pressed", active ? "true" : "false");
                 });
+                const colors = getThemeChartColors();
                 renderGroupedVerticalChart(
                     "chart-tech-grouped-svg",
                     data[activeGroupedView] || [],
                     {
                         rotatedLabels: false,
-                        afterColor: "#10b981",
+                        afterColor: colors.afterGreen,
                         beforeLabel: "Puntaje inicial promedio",
                         afterLabel: "Puntaje final promedio",
                         ariaLabel: "Gráfico comparativo por técnica o modo",
@@ -834,6 +880,10 @@
 
         renderAll();
         window.addEventListener("themeChanged", renderAll);
+        window.addEventListener("scroll", hideTooltip, { passive: true, capture: true });
+        window.addEventListener("resize", hideTooltip, { passive: true });
+        document.addEventListener("show.bs.offcanvas", hideTooltip);
+        document.addEventListener("show.bs.modal", hideTooltip);
     }
 
     document.addEventListener("DOMContentLoaded", initDashboardCharts);

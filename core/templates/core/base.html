@@ -47,10 +47,10 @@
             </div>
         </a>
         <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 theme-toggle-trigger" onclick="togglePromptLabTheme()" title="Cambiar tema">
+            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 theme-toggle-trigger" onclick="togglePromptLabTheme()" title="Cambiar tema" aria-label="Cambiar entre modo oscuro y modo claro">
                 <i class="bi bi-moon-stars-fill theme-icon"></i>
             </button>
-            <button class="btn btn-sm btn-outline-light rounded-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+            <button class="btn btn-sm btn-outline-light rounded-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Abrir menú de navegación">
                 <i class="bi bi-list fs-5"></i>
             </button>
         </div>
@@ -89,7 +89,7 @@
 
         <div class="mt-auto pt-3">
             <div class="px-3 mb-3">
-                <button type="button" class="theme-toggle-btn theme-toggle-trigger" onclick="togglePromptLabTheme()">
+                <button type="button" class="theme-toggle-btn theme-toggle-trigger" onclick="togglePromptLabTheme()" title="Alternar entre Modo Oscuro y Modo Claro">
                     <span class="d-flex align-items-center gap-2">
                         <i class="bi bi-moon-stars-fill theme-icon text-info"></i>
                         <span class="theme-label">Modo Oscuro</span>
@@ -97,7 +97,7 @@
                     <i class="bi bi-arrow-left-right small opacity-50"></i>
                 </button>
             </div>
-            <div class="status-card small text-secondary d-flex align-items-center gap-2">
+            <div class="status-card small text-secondary d-flex align-items-center gap-2" title="Motor NLP determinístico local sin conexión a internet. Meta: al menos 90% de datos útiles y menos de 10% de relleno.">
                 <span class="pulse-dot"></span>
                 <div class="lh-sm">
                     <div class="text-light fw-semibold" style="font-size: 0.78rem;">Motor Universal v7.2 • 100% Offline</div>
@@ -142,7 +142,7 @@
             </a>
             <div class="mt-auto pt-3">
                 <div class="px-3 mb-3">
-                    <button type="button" class="theme-toggle-btn theme-toggle-trigger" onclick="togglePromptLabTheme()">
+                    <button type="button" class="theme-toggle-btn theme-toggle-trigger" onclick="togglePromptLabTheme()" title="Alternar entre Modo Oscuro y Modo Claro">
                         <span class="d-flex align-items-center gap-2">
                             <i class="bi bi-moon-stars-fill theme-icon text-info"></i>
                             <span class="theme-label">Modo Oscuro</span>
@@ -150,7 +150,7 @@
                         <i class="bi bi-arrow-left-right small opacity-50"></i>
                     </button>
                 </div>
-                <div class="status-card small text-secondary d-flex align-items-center gap-2">
+                <div class="status-card small text-secondary d-flex align-items-center gap-2" title="Motor NLP determinístico local sin conexión a internet. Meta: al menos 90% de datos útiles y menos de 10% de relleno.">
                     <span class="pulse-dot"></span>
                     <div class="lh-sm">
                         <div class="text-light fw-semibold" style="font-size: 0.78rem;">Motor Universal v7.2 • 100% Offline</div>
