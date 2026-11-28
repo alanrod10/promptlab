@@ -1,22 +1,33 @@
 """
 Evaluación Científica NLP + Clasificador Probabilístico Multinomial Naive Bayes
-+ Capa Supervisada de Active Learning (Overlay) en Python puro (PromptLab v8.0).
++ Capa Supervisada de Active Learning (Overlay) en Python puro (PromptLab v8.0.1).
 
 100 % biblioteca estándar de Python (sin scikit-learn, numpy ni dependencias externas).
 """
 
 from collections import Counter
 import json
+import logging
 import math
 from pathlib import Path
+import random
 import re
 import statistics
 import time
 from typing import Any, Dict, List, Optional, Tuple
 import unicodedata
 
+logger = logging.getLogger(__name__)
 
 BENCHMARK_DATASET_PATH = Path(__file__).resolve().parent / "rules" / "benchmark_dataset.json"
+KB_PATH = Path(__file__).resolve().parent / "rules" / "knowledge_base.json"
+
+HYBRID_CONF_THRESHOLD = 0.45
+HYBRID_MARGIN_CONF_CEILING = 0.58
+HYBRID_MARGIN_THRESHOLD = 0.08
+HYBRID_NB_MIN_CONF = 0.55
+
+ALLOWED_SHORT_DOMAIN_TOKENS = {"ia", "ml", "bi", "cv", "tp", "db", "bd", "ui", "ux"}
 
 SPANISH_NB_STOPWORDS = {
     "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "al",
@@ -56,13 +67,24 @@ ACTION_LABELS_ES: Dict[str, str] = {
 ACTION_SHORT_LABELS_ES: Dict[str, str] = {
     "analizar_datos": "Analizar",
     "auditar_criticar": "Auditar",
+    "calcular_modelar": "Calcular",
+    "clasificar_categorizar": "Clasificar",
     "comparar_evaluar": "Comparar",
+    "consultar_dato": "Consultar",
+    "decidir_recomendar": "Decidir",
     "depurar_error": "Depurar",
+    "diagnosticar_resolver": "Diagnóstico",
     "explicar_concepto": "Explicar",
+    "extraer_informacion": "Extraer",
     "generar_codigo": "Código",
+    "idear_alternativas": "Idear",
     "planificar_pasos": "Planificar",
+    "razonar_resolver": "Razonar",
     "redactar_contenido": "Redactar",
+    "reescribir_mejorar": "Pulir",
+    "resumir_sintetizar": "Resumir",
     "simular_practicar": "Simular",
+    "traducir_adaptar": "Traducir",
     "transformar_formato": "Transformar",
 }
 
@@ -74,6 +96,11 @@ _PRODUCTION_NB_CACHE: Dict[str, Any] = {
     "key": None,
     "clf": None,
 }
+_OVERLAY_RULES_CACHE: Dict[str, Any] = {
+    "ts": 0.0,
+    "data": None,
+}
+_OVERLAY_RULES_CACHE_TTL = 10.0
 
 
 def _strip_accents(text: str) -> str:
@@ -105,18 +132,25 @@ def _light_stem_spanish(token: str) -> str:
     return token
 
 
+def tokenize_spanish_unigrams(text: str, stem: bool = True) -> List[str]:
+    """Extrae unigramas en español preservando siglas técnicas relevantes de 2 letras."""
+    norm = _strip_accents((text or "").lower())
+    raw_tokens = re.findall(r"[a-z0-9]+", norm)
+    tokens: List[str] = []
+    for tok in raw_tokens:
+        if tok.isdigit() or tok in SPANISH_NB_STOPWORDS:
+            continue
+        if len(tok) > 2 or tok in ALLOWED_SHORT_DOMAIN_TOKENS:
+            tokens.append(_light_stem_spanish(tok) if stem else tok)
+    return tokens
+
+
 def tokenize_spanish(text: str) -> List[str]:
     """
     Tokenización en español: minúsculas, normalización de tildes, filtrado de
     stopwords básicas, stemming ligero y extracción de unigramas y bigramas.
     """
-    norm = _strip_accents((text or "").lower())
-    raw_tokens = re.findall(r"[a-z0-9]+", norm)
-    unigrams = [
-        _light_stem_spanish(tok)
-        for tok in raw_tokens
-        if len(tok) > 2 and tok not in SPANISH_NB_STOPWORDS and not tok.isdigit()
-    ]
+    unigrams = tokenize_spanish_unigrams(text, stem=True)
     bigrams = [f"{unigrams[i]}_{unigrams[i + 1]}" for i in range(len(unigrams) - 1)]
     return unigrams + bigrams
 
@@ -185,26 +219,37 @@ class MultinomialNaiveBayesClassifier:
 
 
 def invalidate_scientific_cache() -> None:
-    """Invalida la caché del benchmark científico y del clasificador Naive Bayes."""
+    """Invalida caché del benchmark, del Naive Bayes de producción y de la capa overlay."""
     _BENCHMARK_CACHE["key"] = None
     _BENCHMARK_CACHE["result"] = None
     _PRODUCTION_NB_CACHE["key"] = None
     _PRODUCTION_NB_CACHE["clf"] = None
+    _OVERLAY_RULES_CACHE["ts"] = 0.0
+    _OVERLAY_RULES_CACHE["data"] = None
 
 
-def get_active_overlay_rules() -> List[Dict[str, Any]]:
+def get_active_overlay_rules(force_refresh: bool = False) -> List[Dict[str, Any]]:
     """
-    Lee las reglas activas de la capa overlay (`ActiveLearningRule`) desde SQLite.
-    Seguro ante bases sin tabla o ejecuciones previas a que Django inicialice apps.
+    Lee las reglas activas de la capa overlay (`ActiveLearningRule`) desde SQLite
+    con caché en memoria de TTL 10 s (invalidada por `invalidate_scientific_cache()`).
     """
     try:
         from django.apps import apps
         if not apps.ready:
             return []
+
+        now = time.monotonic()
+        if (
+            not force_refresh
+            and _OVERLAY_RULES_CACHE["data"] is not None
+            and (now - _OVERLAY_RULES_CACHE["ts"]) < _OVERLAY_RULES_CACHE_TTL
+        ):
+            return _OVERLAY_RULES_CACHE["data"]
+
         from .models import ActiveLearningRule
 
         qs = ActiveLearningRule.objects.filter(is_active=True).order_by("id")
-        return [
+        rules = [
             {
                 "id": r.id,
                 "term": normalize_learning_term(r.term),
@@ -216,7 +261,11 @@ def get_active_overlay_rules() -> List[Dict[str, Any]]:
             for r in qs
             if r.term and r.target_action
         ]
-    except Exception:
+        _OVERLAY_RULES_CACHE["ts"] = now
+        _OVERLAY_RULES_CACHE["data"] = rules
+        return rules
+    except Exception as exc:
+        logger.warning("No se pudo leer ActiveLearningRule de SQLite: %s", exc)
         return []
 
 
@@ -285,45 +334,64 @@ def load_benchmark_dataset(dataset_path: Optional[Path] = None) -> List[Dict[str
     return data
 
 
-def _build_overlay_signature(overlay_rules: List[Dict[str, Any]]) -> Tuple[Tuple[str, str, str], ...]:
-    return tuple(
-        (r.get("term", ""), r.get("target_action", ""), r.get("target_category", ""))
-        for r in overlay_rules
-    )
+def _load_kb_actions_prototypes() -> Tuple[List[str], List[str], int]:
+    if not KB_PATH.exists():
+        return [], [], 0
+    with open(KB_PATH, "r", encoding="utf-8") as fh:
+        kb = json.load(fh)
+    actions = kb.get("actions", {})
+    texts: List[str] = []
+    labels: List[str] = []
+    for act_key, cfg in actions.items():
+        for proto in cfg.get("prototypes", []):
+            if isinstance(proto, str) and proto.strip():
+                texts.append(proto.strip())
+                labels.append(act_key)
+    return texts, labels, len(actions)
 
 
-def get_production_nb_classifier(
-    overlay_rules: Optional[List[Dict[str, Any]]] = None,
-) -> MultinomialNaiveBayesClassifier:
+def get_production_nb_classifier() -> MultinomialNaiveBayesClassifier:
     """
-    Entrena (y cachea en memoria) el clasificador Naive Bayes auxiliar usando
-    el dataset dorado de referencia y las reglas activas de la capa overlay.
+    Entrena (y cachea en memoria) el clasificador Naive Bayes auxiliar de producción
+    combinando los 126 prototipos de las 21 acciones de `knowledge_base.json` con los
+    60 casos de `benchmark_dataset.json`, sin inyectar reglas de SQLite.
     """
-    rules = get_active_overlay_rules() if overlay_rules is None else overlay_rules
-    mtime = BENCHMARK_DATASET_PATH.stat().st_mtime if BENCHMARK_DATASET_PATH.exists() else 0.0
-    cache_key = (mtime, _build_overlay_signature(rules))
+    bm_mtime = BENCHMARK_DATASET_PATH.stat().st_mtime if BENCHMARK_DATASET_PATH.exists() else 0.0
+    kb_mtime = KB_PATH.stat().st_mtime if KB_PATH.exists() else 0.0
+    cache_key = (bm_mtime, kb_mtime)
 
     if _PRODUCTION_NB_CACHE["key"] == cache_key and _PRODUCTION_NB_CACHE["clf"] is not None:
         return _PRODUCTION_NB_CACHE["clf"]
 
-    texts: List[str] = []
-    labels: List[str] = []
+    texts, labels, _ = _load_kb_actions_prototypes()
     if BENCHMARK_DATASET_PATH.exists():
         for case in load_benchmark_dataset():
             texts.append(case["text"])
             labels.append(case["expected_action"])
 
-    for r in rules:
-        term = r.get("term", "")
-        act = r.get("target_action", "")
-        if term and act:
-            texts.append(term)
-            labels.append(act)
-
     clf = MultinomialNaiveBayesClassifier(alpha=1.0).fit(texts, labels)
     _PRODUCTION_NB_CACHE["key"] = cache_key
     _PRODUCTION_NB_CACHE["clf"] = clf
     return clf
+
+
+def is_low_certainty_decision(
+    det_confidence: float,
+    det_margin: float,
+    word_count: Optional[int] = None,
+    is_trivial: bool = False,
+    conf_threshold: float = HYBRID_CONF_THRESHOLD,
+    margin_conf_ceiling: float = HYBRID_MARGIN_CONF_CEILING,
+    margin_threshold: float = HYBRID_MARGIN_THRESHOLD,
+) -> bool:
+    """Regla única de gating para habilitar desempate probabilístico en baja certeza."""
+    is_short_trivial = is_trivial or (word_count is not None and word_count < 3)
+    if is_short_trivial:
+        return False
+    return (
+        det_confidence < conf_threshold
+        or (det_confidence < margin_conf_ceiling and det_margin < margin_threshold)
+    )
 
 
 def classify_hybrid_action(
@@ -332,9 +400,9 @@ def classify_hybrid_action(
     det_confidence: float,
     det_margin: float,
     nb_classifier: Optional[MultinomialNaiveBayesClassifier] = None,
-    conf_threshold: float = 0.45,
-    margin_threshold: float = 0.08,
-    nb_min_conf: float = 0.55,
+    conf_threshold: float = HYBRID_CONF_THRESHOLD,
+    margin_threshold: float = HYBRID_MARGIN_THRESHOLD,
+    nb_min_conf: float = HYBRID_NB_MIN_CONF,
     word_count: Optional[int] = None,
     is_trivial: bool = False,
 ) -> Dict[str, Any]:
@@ -344,10 +412,13 @@ def classify_hybrid_action(
     - Naive Bayes interviene ÚNICAMENTE en baja certeza o margen estrecho
       cuando supera el umbral verificado `nb_min_conf`.
     """
-    is_short_trivial = is_trivial or (word_count is not None and word_count < 3)
-    is_low_certainty = (
-        not is_short_trivial
-        and (det_confidence < conf_threshold or (det_confidence < 0.58 and det_margin < margin_threshold))
+    is_low_certainty = is_low_certainty_decision(
+        det_confidence=det_confidence,
+        det_margin=det_margin,
+        word_count=word_count,
+        is_trivial=is_trivial,
+        conf_threshold=conf_threshold,
+        margin_threshold=margin_threshold,
     )
 
     if not is_low_certainty:
@@ -387,17 +458,76 @@ def classify_hybrid_action(
     }
 
 
-def build_stratified_folds(cases: List[Dict[str, Any]], n_splits: int = 5) -> List[List[int]]:
-    """Construye particiones estratificadas determinísticas por `expected_action`."""
+def build_stratified_folds(
+    cases: List[Dict[str, Any]],
+    n_splits: int = 5,
+    seed: int = 42,
+) -> List[List[int]]:
+    """
+    Construye particiones estratificadas balanceadas (12 casos por fold sobre 60)
+    barajando cada clase con semilla fija y rotando el desplazamiento por clase.
+    """
     by_class: Dict[str, List[int]] = {}
     for idx, case in enumerate(cases):
         by_class.setdefault(case["expected_action"], []).append(idx)
 
+    rng = random.Random(seed)
     folds: List[List[int]] = [[] for _ in range(n_splits)]
-    for cls_name in sorted(by_class.keys()):
-        for offset, idx in enumerate(by_class[cls_name]):
-            folds[offset % n_splits].append(idx)
+    for cls_idx, cls_name in enumerate(sorted(by_class.keys())):
+        items = list(by_class[cls_name])
+        rng.shuffle(items)
+        for offset, idx in enumerate(items):
+            folds[(cls_idx + offset) % n_splits].append(idx)
+    for fold in folds:
+        fold.sort()
     return folds
+
+
+def wilson_ci_95(successes: int, total: int) -> Tuple[float, float]:
+    """Intervalo de confianza del 95 % de Wilson en porcentaje (z = 1.959964)."""
+    if total <= 0:
+        return 0.0, 0.0
+    z = 1.959964
+    p = successes / total
+    z2 = z * z
+    denom = 1.0 + z2 / total
+    center = (p + z2 / (2.0 * total)) / denom
+    half = (z * math.sqrt((p * (1.0 - p) + z2 / (4.0 * total)) / total)) / denom
+    low = max(0.0, (center - half) * 100.0)
+    high = min(100.0, (center + half) * 100.0)
+    return round(low, 1), round(high, 1)
+
+
+def mcnemar_exact_p_value(b_rescued: int, c_regressions: int) -> float:
+    """
+    Test exacto de McNemar (prueba binomial bilateral sobre pares discordantes b y c).
+    """
+    n = b_rescued + c_regressions
+    if n <= 0:
+        return 1.0
+    k = min(b_rescued, c_regressions)
+    tail = sum(math.comb(n, i) for i in range(0, k + 1)) / (2 ** n)
+    return round(min(1.0, 2.0 * tail), 4)
+
+
+def compute_max_intra_class_jaccard(cases: List[Dict[str, Any]]) -> float:
+    """Calcula la similitud Jaccard máxima de unigramas sin stopwords dentro de cada clase."""
+    by_class: Dict[str, List[set]] = {}
+    for case in cases:
+        tokens = set(tokenize_spanish_unigrams(case.get("text", ""), stem=False))
+        by_class.setdefault(case["expected_action"], []).append(tokens)
+
+    max_jaccard = 0.0
+    for token_sets in by_class.values():
+        for i in range(len(token_sets)):
+            for j in range(i + 1, len(token_sets)):
+                union = token_sets[i] | token_sets[j]
+                if not union:
+                    continue
+                jacc = len(token_sets[i] & token_sets[j]) / len(union)
+                if jacc > max_jaccard:
+                    max_jaccard = jacc
+    return round(max_jaccard, 3)
 
 
 def _compute_classification_metrics(
@@ -415,7 +545,9 @@ def _compute_classification_metrics(
             matrix[idx_map[t_lbl]][idx_map[p_lbl]] += 1
 
     diagonal_sum = sum(matrix[i][i] for i in range(k))
-    accuracy = sum(1 for t_lbl, p_lbl in zip(y_true, y_pred) if t_lbl == p_lbl) / total
+    correct_count = sum(1 for t_lbl, p_lbl in zip(y_true, y_pred) if t_lbl == p_lbl)
+    accuracy = correct_count / total
+    ci_low_pct, ci_high_pct = wilson_ci_95(correct_count, len(y_true))
 
     per_class: List[Dict[str, Any]] = []
     precisions: List[float] = []
@@ -423,7 +555,7 @@ def _compute_classification_metrics(
     f1s: List[float] = []
     supports: List[int] = []
 
-    for i, cls_name in enumerate(classes):
+    for cls_name in classes:
         tp = sum(1 for t_lbl, p_lbl in zip(y_true, y_pred) if t_lbl == cls_name and p_lbl == cls_name)
         fp = sum(1 for t_lbl, p_lbl in zip(y_true, y_pred) if t_lbl != cls_name and p_lbl == cls_name)
         fn = sum(1 for t_lbl, p_lbl in zip(y_true, y_pred) if t_lbl == cls_name and p_lbl != cls_name)
@@ -468,6 +600,8 @@ def _compute_classification_metrics(
         "macro_recall_pct": round(macro_recall * 100.0, 1),
         "macro_f1_pct": round(macro_f1 * 100.0, 1),
         "weighted_f1_pct": round(weighted_f1 * 100.0, 1),
+        "accuracy_ci_low_pct": ci_low_pct,
+        "accuracy_ci_high_pct": ci_high_pct,
         "per_class": per_class,
         "confusion_matrix": {
             "classes": classes,
@@ -498,97 +632,137 @@ def _heat_class(val: int, is_diag: bool, row_total: int) -> str:
     return "pl-cm-cell--err-high" if val >= 2 else "pl-cm-cell--err-low"
 
 
+def _truncate_excerpt(text: str, max_len: int = 86) -> str:
+    clean = " ".join((text or "").split())
+    if len(clean) <= max_len:
+        return clean
+    return clean[: max_len - 1].rstrip() + "…"
+
+
 def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
     """
-    Ejecuta evaluación reproducible sobre `benchmark_dataset.json` con validación
-    cruzada estratificada 5-Fold (predicciones out-of-fold, cero fuga de datos).
+    Ejecuta evaluación reproducible sobre `benchmark_dataset.json`:
+    - Baseline determinístico (v7.2) aislado de SQLite y de la capa Overlay.
+    - Validación cruzada estratificada 5-Fold balanceada (12×5) + CV repetida 10×5.
+    - NB entrenado únicamente out-of-fold sobre los 4 folds de entrenamiento.
+    - Estadística en Python puro: IC 95 % de Wilson, McNemar exacto, Jaccard intra-clase
+      y auditoría caso por caso.
     """
     overlay_rules = get_active_overlay_rules()
-    mtime = BENCHMARK_DATASET_PATH.stat().st_mtime if BENCHMARK_DATASET_PATH.exists() else 0.0
-    cache_key = (mtime, _build_overlay_signature(overlay_rules))
+    bm_mtime = BENCHMARK_DATASET_PATH.stat().st_mtime if BENCHMARK_DATASET_PATH.exists() else 0.0
+    kb_mtime = KB_PATH.stat().st_mtime if KB_PATH.exists() else 0.0
+    cache_key = (bm_mtime, kb_mtime)
 
     if not force_refresh and _BENCHMARK_CACHE["key"] == cache_key and _BENCHMARK_CACHE["result"] is not None:
-        return _BENCHMARK_CACHE["result"]
+        cached_res = dict(_BENCHMARK_CACHE["result"])
+        cached_res["overlay_active_count"] = len(overlay_rules)
+        return cached_res
 
     from .services import parse_request
 
     t0 = time.perf_counter()
     cases = load_benchmark_dataset()
     n_cases = len(cases)
-    folds = build_stratified_folds(cases, n_splits=5)
-
-    # Clases ordenadas: incluye todas las clases esperadas del dataset dorado
     expected_classes = sorted({c["expected_action"] for c in cases})
-
     y_true = [c["expected_action"] for c in cases]
-    baseline_preds: List[str] = [""] * n_cases
-    hybrid_preds: List[str] = [""] * n_cases
-    low_certainty_flags: List[bool] = [False] * n_cases
-    nb_interventions = 0
-    leakage_free = True
+    max_intra_class_jaccard = compute_max_intra_class_jaccard(cases)
 
-    for fold_test_idx in folds:
-        test_set = set(fold_test_idx)
-        train_idx = [i for i in range(n_cases) if i not in test_set]
-        if set(train_idx) & test_set:
-            leakage_free = False
+    # 1. Ejecutar el baseline determinístico 1 sola vez, completamente aislado de SQLite/overlay
+    det_cache: List[Tuple[str, float, float, int, str]] = []
+    baseline_preds: List[str] = []
+    low_certainty_flags: List[bool] = []
 
-        train_texts = [cases[i]["text"] for i in train_idx]
-        train_labels = [cases[i]["expected_action"] for i in train_idx]
-        for r in overlay_rules:
-            if r.get("term") and r.get("target_action") in expected_classes:
-                train_texts.append(r["term"])
-                train_labels.append(r["target_action"])
-
-        fold_nb = MultinomialNaiveBayesClassifier(alpha=1.0).fit(train_texts, train_labels)
-
-        for idx in fold_test_idx:
-            txt = cases[idx]["text"]
-            det_req = parse_request(
-                txt,
-                enable_overlay=False,
-                enable_hybrid=False,
-                overlay_rules=[],
-                classify_only=True,
+    for case in cases:
+        det_req = parse_request(
+            case["text"],
+            enable_overlay=False,
+            enable_hybrid=False,
+            enable_learned_boosts=False,
+            overlay_rules=[],
+            classify_only=True,
+        )
+        det_cache.append((
+            det_req.action,
+            det_req.confidence,
+            det_req.margin,
+            det_req.word_count,
+            det_req.instruction_text or det_req.raw_text,
+        ))
+        baseline_preds.append(det_req.action)
+        low_certainty_flags.append(
+            is_low_certainty_decision(
+                det_confidence=det_req.confidence,
+                det_margin=det_req.margin,
+                word_count=det_req.word_count,
+                is_trivial=False,
             )
-            baseline_preds[idx] = det_req.action
-            is_det_low = det_req.confidence < 0.45 or (det_req.confidence < 0.58 and det_req.margin < 0.08)
-            if is_det_low:
-                low_certainty_flags[idx] = True
+        )
 
-            if overlay_rules:
-                hyb_req = parse_request(
-                    txt,
-                    enable_overlay=True,
-                    enable_hybrid=True,
-                    nb_classifier=fold_nb,
-                    overlay_rules=overlay_rules,
-                    classify_only=True,
-                )
-                hybrid_preds[idx] = hyb_req.action
-                if any(tr.get("stage") == "hybrid_tiebreak" for tr in hyb_req.trace):
-                    nb_interventions += 1
-            else:
+    # 2. Validación Cruzada 5-Fold principal (seed=42) + Repeated 10x5 CV (seeds 42..51)
+    hybrid_preds: List[str] = [""] * n_cases
+    hybrid_nb_used: List[bool] = [False] * n_cases
+    hybrid_nb_confs: List[float] = [0.0] * n_cases
+    case_folds: List[int] = [0] * n_cases
+    nb_interventions = 0
+    nb_out_of_fold = True
+
+    rep_accuracies: List[float] = []
+    rep_macro_f1s: List[float] = []
+
+    for seed in range(42, 52):
+        folds = build_stratified_folds(cases, n_splits=5, seed=seed)
+        seed_preds: List[str] = [""] * n_cases
+
+        for fold_num, fold_test_idx in enumerate(folds, start=1):
+            test_set = set(fold_test_idx)
+            train_idx = [i for i in range(n_cases) if i not in test_set]
+            if seed == 42 and (set(train_idx) & test_set):
+                nb_out_of_fold = False
+
+            train_texts = [cases[i]["text"] for i in train_idx]
+            train_labels = [cases[i]["expected_action"] for i in train_idx]
+            fold_nb = MultinomialNaiveBayesClassifier(alpha=1.0).fit(train_texts, train_labels)
+
+            for idx in fold_test_idx:
+                det_act, det_conf, det_marg, wc, txt = det_cache[idx]
                 hyb_out = classify_hybrid_action(
-                    text=det_req.instruction_text or det_req.raw_text,
-                    det_action=det_req.action,
-                    det_confidence=det_req.confidence,
-                    det_margin=det_req.margin,
+                    text=txt,
+                    det_action=det_act,
+                    det_confidence=det_conf,
+                    det_margin=det_marg,
                     nb_classifier=fold_nb,
-                    word_count=det_req.word_count,
+                    word_count=wc,
                     is_trivial=False,
                 )
-                hybrid_preds[idx] = hyb_out["final_action"]
-                if hyb_out["used_nb"]:
-                    nb_interventions += 1
+                seed_preds[idx] = hyb_out["final_action"]
+                if seed == 42:
+                    hybrid_preds[idx] = hyb_out["final_action"]
+                    hybrid_nb_used[idx] = bool(hyb_out["used_nb"])
+                    hybrid_nb_confs[idx] = float(hyb_out.get("nb_confidence") or 0.0)
+                    case_folds[idx] = fold_num
+                    if hyb_out["used_nb"]:
+                        nb_interventions += 1
 
-    # Si alguna predicción cayó en una acción fuera del conjunto evaluado, agregarla para consistencia matricial
+        seed_metrics = _compute_classification_metrics(y_true, seed_preds, expected_classes)
+        rep_accuracies.append(seed_metrics["accuracy_pct"])
+        rep_macro_f1s.append(seed_metrics["macro_f1_pct"])
+
+    repeated_cv = {
+        "n_repeats": 10,
+        "n_splits": 5,
+        "accuracy_mean_pct": round(statistics.fmean(rep_accuracies), 1),
+        "accuracy_std_pct": round(statistics.stdev(rep_accuracies), 1) if len(rep_accuracies) > 1 else 0.0,
+        "accuracy_min_pct": round(min(rep_accuracies), 1),
+        "accuracy_max_pct": round(max(rep_accuracies), 1),
+        "macro_f1_mean_pct": round(statistics.fmean(rep_macro_f1s), 1),
+        "macro_f1_std_pct": round(statistics.stdev(rep_macro_f1s), 1) if len(rep_macro_f1s) > 1 else 0.0,
+    }
+
     extra_pred_classes = sorted({p for p in baseline_preds + hybrid_preds if p not in expected_classes})
     matrix_classes = expected_classes + extra_pred_classes
 
     base_raw = _compute_classification_metrics(y_true, baseline_preds, expected_classes)
     hyb_raw = _compute_classification_metrics(y_true, hybrid_preds, expected_classes)
-    # Matriz de confusión extendida para garantizar que sum(matrix) == n_cases
     hyb_matrix_full = _compute_classification_metrics(y_true, hybrid_preds, matrix_classes)["confusion_matrix"]
     base_matrix_full = _compute_classification_metrics(y_true, baseline_preds, matrix_classes)["confusion_matrix"]
 
@@ -600,6 +774,13 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         1 for i in range(n_cases)
         if baseline_preds[i] == y_true[i] and hybrid_preds[i] != y_true[i]
     )
+    baseline_errors_total = sum(1 for i in range(n_cases) if baseline_preds[i] != y_true[i])
+    total_errors_rescued_pct = (
+        round((improved_count / baseline_errors_total) * 100.0, 1)
+        if baseline_errors_total > 0
+        else 0.0
+    )
+
     low_certainty_count = sum(1 for f in low_certainty_flags if f)
     low_certainty_errors_baseline = sum(
         1 for i in range(n_cases)
@@ -615,7 +796,57 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         else 0.0
     )
 
-    # Enriquecer tabla por clase con F1 baseline y diferencia
+    mcnemar_p = mcnemar_exact_p_value(improved_count, regressions_count)
+    mcnemar_p_display = "< 0.001" if mcnemar_p < 0.001 else f"{mcnemar_p:.4f}"
+
+    # 3. Auditoría caso por caso
+    outcome_rank = {
+        "regresion": 0,
+        "rescatado": 1,
+        "error_persistente": 2,
+        "acierto": 3,
+    }
+    case_audit: List[Dict[str, Any]] = []
+    for i, case in enumerate(cases):
+        base_ok = baseline_preds[i] == y_true[i]
+        hyb_ok = hybrid_preds[i] == y_true[i]
+        if not base_ok and hyb_ok:
+            outcome = "rescatado"
+            outcome_label = "Rescatado"
+        elif base_ok and not hyb_ok:
+            outcome = "regresion"
+            outcome_label = "Regresión"
+        elif not base_ok and not hyb_ok:
+            outcome = "error_persistente"
+            outcome_label = "Error persistente"
+        else:
+            outcome = "acierto"
+            outcome_label = "Acierto directo"
+
+        case_audit.append({
+            "id": case["id"],
+            "text": case["text"],
+            "text_excerpt": _truncate_excerpt(case["text"], 88),
+            "difficulty": case.get("difficulty", "normal"),
+            "fold": case_folds[i],
+            "expected_action": y_true[i],
+            "expected_label": ACTION_LABELS_ES.get(y_true[i], y_true[i]),
+            "baseline_action": baseline_preds[i],
+            "baseline_label": ACTION_LABELS_ES.get(baseline_preds[i], baseline_preds[i]),
+            "baseline_conf_pct": int(round(det_cache[i][1] * 100)),
+            "hybrid_action": hybrid_preds[i],
+            "hybrid_label": ACTION_LABELS_ES.get(hybrid_preds[i], hybrid_preds[i]),
+            "nb_used": hybrid_nb_used[i],
+            "nb_conf_pct": int(round(hybrid_nb_confs[i] * 100)) if hybrid_nb_confs[i] else 0,
+            "outcome": outcome,
+            "outcome_label": outcome_label,
+        })
+
+    case_audit.sort(key=lambda row: (outcome_rank.get(row["outcome"], 9), row["id"]))
+    notable_cases = [row for row in case_audit if row["outcome"] != "acierto"]
+    direct_hits_count = sum(1 for row in case_audit if row["outcome"] == "acierto")
+    direct_hits_pct = round((direct_hits_count / max(n_cases, 1)) * 100.0, 1)
+
     base_by_cls = {row["class_key"]: row for row in base_raw["per_class"]}
     per_class_enriched: List[Dict[str, Any]] = []
     for row in hyb_raw["per_class"]:
@@ -630,7 +861,6 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
             "f1_diff_tone": diff_tone,
         })
 
-    # Enriquecer matriz de confusión del modelo híbrido para HTML accesible
     cm_rows: List[Dict[str, Any]] = []
     cm_matrix = hyb_matrix_full["matrix"]
     for r_idx, cls_key in enumerate(matrix_classes):
@@ -702,27 +932,32 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         },
     ]
 
+    _, _, kb_actions_total = _load_kb_actions_prototypes()
+    production_nb_classes = kb_actions_total or len(ACTION_LABELS_ES)
+    coverage_actions = f"{len(expected_classes)}/{production_nb_classes}"
+
     if hyb_raw["macro_f1"] > base_raw["macro_f1"] and regressions_count == 0:
         verdict_tone = "success"
         verdict_headline = "El enfoque híbrido supera al motor determinístico sin regresiones"
         verdict_text = (
-            f"Sobre {n_cases} casos evaluados en validación cruzada 5-Fold sin fuga de datos, "
-            f"la arquitectura híbrida rescató {improved_count} caso(s) de baja certeza "
-            f"({low_certainty_rescued_pct:.1f}% de los errores iniciales con duda) y mantuvo 0 regresiones."
+            f"Sobre {n_cases} casos curados ({coverage_actions} arquetipos) en 5-Fold balanceado (12x5) con Naive Bayes "
+            f"out-of-fold, rescató {improved_count} de {baseline_errors_total} errores totales del baseline "
+            f"({total_errors_rescued_pct:.1f}%) y {low_certainty_rescued}/{low_certainty_errors_baseline} de baja certeza "
+            f"({low_certainty_rescued_pct:.1f}%), con 0 regresiones (McNemar p = {mcnemar_p_display})."
         )
     elif hyb_raw["macro_f1"] >= base_raw["macro_f1"]:
         verdict_tone = "info"
         verdict_headline = "El enfoque híbrido iguala o mejora el F1 Macro del baseline"
         verdict_text = (
-            f"Sobre {n_cases} casos en 5-Fold, rescató {improved_count} caso(s) con {regressions_count} regresión(es) "
-            f"y preservó intactas las decisiones de alta certeza."
+            f"Sobre {n_cases} casos en 5-Fold balanceado, rescató {improved_count} de {baseline_errors_total} errores "
+            f"con {regressions_count} regresión(es) (McNemar p = {mcnemar_p_display})."
         )
     else:
         verdict_tone = "warning"
         verdict_headline = "El baseline determinístico mantuvo mejor balance en esta corrida"
         verdict_text = (
             f"El híbrido rescató {improved_count} caso(s) pero presentó {regressions_count} regresión(es); "
-            "conviene ajustar los umbrales de intervención o revisar las reglas activas."
+            "conviene ajustar los umbrales de intervención."
         )
 
     elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
@@ -730,11 +965,18 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         "dataset_size": n_cases,
         "n_folds": 5,
         "n_classes": len(expected_classes),
-        "leakage_free": leakage_free,
+        "coverage_actions": coverage_actions,
+        "production_nb_classes": production_nb_classes,
+        "nb_out_of_fold": nb_out_of_fold,
+        "rules_held_out": False,
+        "max_intra_class_jaccard": max_intra_class_jaccard,
         "elapsed_ms": elapsed_ms,
         "overlay_active_count": len(overlay_rules),
         "baseline": base_raw,
         "hybrid": hyb_raw,
+        "repeated_cv": repeated_cv,
+        "mcnemar_p_value": mcnemar_p,
+        "mcnemar_p_display": mcnemar_p_display,
         "baseline_confusion_matrix": base_matrix_full,
         "confusion_matrix": hyb_matrix_full,
         "confusion_table": {
@@ -747,11 +989,17 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         "comparison_cards": comparison_cards,
         "improved_count": improved_count,
         "regressions_count": regressions_count,
+        "baseline_errors_total": baseline_errors_total,
+        "total_errors_rescued_pct": total_errors_rescued_pct,
         "low_certainty_count": low_certainty_count,
         "low_certainty_errors_baseline": low_certainty_errors_baseline,
         "low_certainty_rescued": low_certainty_rescued,
         "low_certainty_rescued_pct": low_certainty_rescued_pct,
         "nb_interventions": nb_interventions,
+        "case_audit": case_audit,
+        "notable_cases": notable_cases,
+        "direct_hits_count": direct_hits_count,
+        "direct_hits_pct": direct_hits_pct,
         "verdict_tone": verdict_tone,
         "verdict_headline": verdict_headline,
         "verdict_text": verdict_text,

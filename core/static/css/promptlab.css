@@ -43,7 +43,7 @@
     --pl-surface-elevated: #18233c;
     --pl-radius-card: 16px;
     --pl-radius-pill: 999px;
-    --pl-accent: #7c73ff;
+    --pl-accent: #8f88ff;
     --pl-accent-2: #22d3ee;
     --pl-shadow: 0 6px 24px rgba(2, 6, 23, 0.35);
     --pl-shadow-hover: 0 12px 32px rgba(124, 115, 255, 0.18);
@@ -2714,4 +2714,65 @@ body {
         margin-top: 6px;
         padding: 9px 12px;
     }
+}
+
+/* ==========================================================================
+   PromptLab v8.0.1 — Franja Estadística, Alcance y Badges de Auditoría (WCAG AA)
+   ========================================================================== */
+
+.pl-bench-stat-pill {
+    background-color: var(--pl-surface-alt);
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+}
+
+.pl-bench-scope-box {
+    background-color: var(--pl-surface-soft);
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+}
+
+.pl-audit-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.pl-audit-badge--rescued {
+    background-color: rgba(16, 185, 129, 0.16);
+    color: #064e3b;
+    border: 1px solid rgba(5, 150, 105, 0.35);
+}
+
+[data-theme="dark"] .pl-audit-badge--rescued {
+    background-color: rgba(16, 185, 129, 0.20);
+    color: #a7f3d0;
+    border-color: rgba(52, 211, 153, 0.42);
+}
+
+.pl-audit-badge--persistent {
+    background-color: rgba(245, 158, 11, 0.16);
+    color: #78350f;
+    border: 1px solid rgba(217, 119, 6, 0.36);
+}
+
+[data-theme="dark"] .pl-audit-badge--persistent {
+    background-color: rgba(245, 158, 11, 0.20);
+    color: #fde68a;
+    border-color: rgba(251, 191, 36, 0.42);
+}
+
+.pl-audit-badge--regression {
+    background-color: rgba(239, 68, 68, 0.16);
+    color: #7f1d1d;
+    border: 1px solid rgba(220, 38, 38, 0.36);
+}
+
+[data-theme="dark"] .pl-audit-badge--regression {
+    background-color: rgba(239, 68, 68, 0.20);
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.42);
 }

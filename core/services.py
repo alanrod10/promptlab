@@ -288,7 +288,7 @@ _VERB_SUFFIXES = (
 
 
 def _light_stem(token: str) -> str:
-    if len(token) <= 4 or token in PROTECTED_WORDS and len(token) <= 5:
+    if len(token) <= 4 or token in PROTECTED_WORDS:
         return token
     for suffix in _VERB_SUFFIXES:
         if token.endswith(suffix) and len(token) - len(suffix) >= 3:
@@ -436,11 +436,27 @@ class ParsedRequest:
 # ---------------------------------------------------------------------------
 
 _RE_CBU = re.compile(r"\b\d{22}\b")
-_RE_ALIAS_BANK = re.compile(r"\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b", re.IGNORECASE)
+_RE_ALIAS_BANK = re.compile(
+    r"\b(?:alias(?:\s+(?:cbu|bancario))?\s*[:=]\s*([a-z0-9._-]{6,30})|"
+    r"alias(?:\s+(?:cbu|bancario))?\s+(?:de\s+|es\s+)?([a-z0-9_-]{2,}(?:\.[a-z0-9_-]{2,})+))(?![a-z0-9._-])",
+    re.IGNORECASE,
+)
 _RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_RE_CELL_15 = re.compile(
+    r"(?<!\d)\b(?:11|2\d{2,3}|3\d{2,3})[\s.-]?15[\s.-]?\d{3,4}[\s.-]?\d{3,4}\b(?!\d)"
+)
+_RE_CUIT_11 = re.compile(r"(?<![$\d-])\b(?:20|23|24|27|30|33|34)\d{9}\b(?![-\d])")
 _RE_CUIL_DNI = re.compile(r"(?<![$\d-])\b(?:\d{2}-\d{7,8}-\d|[1-9]\d?\.\d{3}\.\d{3}|\d{7,8})\b(?![-\d])")
 _RE_INVOICE_PREFIX = re.compile(
     r"(?:\b(?:factura|fc|comprobante|remito|orden|ticket|recibo)(?:\s+(?:nro|n[°º]|numero|#))?\s*[:=-]?\s*(?:\d{4,5}\s*-\s*)?|\b\d{4,5}\s*-\s*)$",
+    flags=re.IGNORECASE,
+)
+_RE_PII_DOC_LABEL = re.compile(
+    r"\b(?:dni|cuil|cuit|documento|doc\.?)\s*[:=-]?\s*$",
+    flags=re.IGNORECASE,
+)
+_RE_MONEY_CTX = re.compile(
+    r"(?:\$|\b(?:pesos?|ars|usd|u\$s|d[oó]lares?|d[oó]lar|presupuesto|gastos?|monto|precios?|importe|cuotas?)\b)",
     flags=re.IGNORECASE,
 )
 _RE_PHONE = re.compile(
@@ -453,8 +469,35 @@ _RE_LABELED_PHONE = re.compile(
 )
 
 
+def _is_valid_cuit_mod11(cuit_digits: str) -> bool:
+    """Valida CUIT/CUIL argentino de 11 dígitos usando Módulo 11 oficial."""
+    if not re.fullmatch(r"(?:20|23|24|27|30|33|34)\d{9}", cuit_digits):
+        return False
+    weights = (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
+    acc = sum(int(d) * w for d, w in zip(cuit_digits[:10], weights))
+    rem = 11 - (acc % 11)
+    dv = int(cuit_digits[10])
+    if rem == 11:
+        return dv == 0
+    if rem == 10:
+        return cuit_digits.startswith("23") and dv in (9, 4)
+    return dv == rem
+
+
+def _is_money_context_around(full_text: str, start: int, end: int, token: str) -> bool:
+    """Excluye cifras monetarias (ej. '$ 1.200.000', '1.500.000 pesos', '1200000 de gastos')."""
+    if "-" in token:
+        return False
+    immediate_before = full_text[max(0, start - 20):start]
+    if _RE_PII_DOC_LABEL.search(immediate_before):
+        return False
+    before_clause = re.split(r"[,;\n]", full_text[max(0, start - 22):start])[-1]
+    after_clause = re.split(r"[,;\n]", full_text[end:min(len(full_text), end + 22)])[0]
+    return bool(_RE_MONEY_CTX.search(before_clause) or _RE_MONEY_CTX.search(after_clause))
+
+
 def _is_valid_dni_cuil_match(match: re.Match, full_text: str) -> bool:
-    """Excluye números de comprobante/factura AFIP y secuencias que inician con 000."""
+    """Excluye comprobantes AFIP, secuencias 000... y cifras monetarias."""
     token = match.group(0)
     if token.isdigit():
         if token.startswith("000"):
@@ -462,6 +505,8 @@ def _is_valid_dni_cuil_match(match: re.Match, full_text: str) -> bool:
         before = full_text[max(0, match.start() - 40):match.start()]
         if _RE_INVOICE_PREFIX.search(before):
             return False
+    if _is_money_context_around(full_text, match.start(), match.end(), token):
+        return False
     return True
 
 
@@ -488,10 +533,19 @@ def detect_and_mask_pii(text: str) -> Tuple[str, List[Dict[str, Any]]]:
         masked = _RE_CBU.sub("[CBU_OCULTO]", masked)
         warnings.append({"type": "cbu", "label": "CBU bancario (22 dígitos)", "count": len(cbu_matches)})
 
-    alias_matches = _RE_ALIAS_BANK.findall(masked)
-    if alias_matches:
-        masked = _RE_ALIAS_BANK.sub("alias: [ALIAS_OCULTO]", masked)
-        warnings.append({"type": "alias_bancario", "label": "Alias bancario", "count": len(alias_matches)})
+    alias_count = 0
+
+    def _replace_alias(match: re.Match) -> str:
+        nonlocal alias_count
+        val = (match.group(1) or match.group(2) or "").strip()
+        if not (6 <= len(val) <= 30):
+            return match.group(0)
+        alias_count += 1
+        return "alias: [ALIAS_OCULTO]"
+
+    masked = _RE_ALIAS_BANK.sub(_replace_alias, masked)
+    if alias_count:
+        warnings.append({"type": "alias_bancario", "label": "Alias bancario", "count": alias_count})
 
     email_matches = _RE_EMAIL.findall(masked)
     if email_matches:
@@ -504,7 +558,26 @@ def detect_and_mask_pii(text: str) -> Tuple[str, List[Dict[str, Any]]]:
         masked = _RE_LABELED_PHONE.sub(r"\1[TELEFONO_OCULTO]", masked)
         phone_count += len(labeled_phone_matches)
 
+    def _replace_cell15(match: re.Match) -> str:
+        nonlocal phone_count
+        if _is_valid_phone_match(match, masked):
+            phone_count += 1
+            return "[TELEFONO_OCULTO]"
+        return match.group(0)
+
+    masked = _RE_CELL_15.sub(_replace_cell15, masked)
+
     dni_count = 0
+
+    def _replace_cuit11(match: re.Match) -> str:
+        nonlocal dni_count
+        tok = match.group(0)
+        if _is_valid_cuit_mod11(tok) and _is_valid_dni_cuil_match(match, masked):
+            dni_count += 1
+            return "[DNI_CUIL_OCULTO]"
+        return tok
+
+    masked = _RE_CUIT_11.sub(_replace_cuit11, masked)
 
     def _replace_dni(match: re.Match) -> str:
         nonlocal dni_count
@@ -778,54 +851,50 @@ _TFIDF_INDEX = _ActionTfIdfIndex(KNOWLEDGE_BASE.get("actions", {}))
 # Aprendizaje Activo Local desde SQLite (v7.0 — 100% Offline)
 # ---------------------------------------------------------------------------
 
-_LEARNED_BOOSTS_CACHE: Dict[str, Any] = {
-    "ts": 0.0,
-    "db_key": None,
-    "data": {"actions": {}, "domains": {}},
-}
+_LEARNED_BOOSTS_CACHE: Dict[int, Dict[str, Any]] = {}
 _LEARNED_CACHE_TTL = 60.0
 
 
-def invalidate_learned_boosts_cache() -> None:
-    """Invalida la caché de refuerzos aprendidos (llamar tras guardar correcciones)."""
-    _LEARNED_BOOSTS_CACHE["ts"] = 0.0
-    _LEARNED_BOOSTS_CACHE["db_key"] = None
+def invalidate_learned_boosts_cache(user_id: Optional[int] = None) -> None:
+    """Invalida la caché de refuerzos aprendidos por usuario (o globalmente si user_id es None)."""
+    if user_id is None:
+        _LEARNED_BOOSTS_CACHE.clear()
+    else:
+        _LEARNED_BOOSTS_CACHE.pop(user_id, None)
 
 
-def _get_learned_correction_boosts() -> Dict[str, Dict[str, Dict[str, float]]]:
+def _get_learned_correction_boosts(user: Optional[Any] = None) -> Dict[str, Dict[str, Dict[str, float]]]:
     """
-    Consulta `Prompt.objects.filter(user_corrected=True)` en SQLite y calcula
-    refuerzos controlados (máx. +0.12) para tokens significativos repetidos (>= 2 veces)
-    en pedidos corregidos hacia una acción o dominio concreto.
-    Seguro si la BD aún no existe o corre fuera de Django.
+    Consulta `Prompt.objects.filter(user_id=user.id, user_corrected=True)` en SQLite y calcula
+    refuerzos controlados (máx. +0.12) aislados por cuenta autenticada (nunca para anónimos
+    ni para el usuario centinela compartido `invitado_demo`).
     """
+    empty: Dict[str, Dict[str, Dict[str, float]]] = {"actions": {}, "domains": {}}
+    if (
+        user is None
+        or not getattr(user, "is_authenticated", False)
+        or getattr(user, "id", None) is None
+        or getattr(user, "username", "") == "invitado_demo"
+    ):
+        return empty
+
     try:
-        now = time.monotonic()
-        if (
-            _LEARNED_BOOSTS_CACHE["db_key"] is not None
-            and (now - _LEARNED_BOOSTS_CACHE["ts"]) < _LEARNED_CACHE_TTL
-        ):
-            return _LEARNED_BOOSTS_CACHE["data"]
-
         from django.apps import apps
         if not apps.ready:
-            return {"actions": {}, "domains": {}}
-        from .models import Prompt  # import local para evitar ciclo en carga inicial
-
-        qs = Prompt.objects.filter(user_corrected=True)
-        count = qs.count()
-        if count == 0:
-            empty = {"actions": {}, "domains": {}}
-            _LEARNED_BOOSTS_CACHE.update({"ts": now, "db_key": (0, None), "data": empty})
             return empty
 
-        last_id = qs.order_by("-id").values_list("id", flat=True).first()
-        db_key = (count, last_id)
-        if (
-            _LEARNED_BOOSTS_CACHE["db_key"] == db_key
-            and (now - _LEARNED_BOOSTS_CACHE["ts"]) < _LEARNED_CACHE_TTL
-        ):
-            return _LEARNED_BOOSTS_CACHE["data"]
+        uid = int(user.id)
+        now = time.monotonic()
+        cached_entry = _LEARNED_BOOSTS_CACHE.get(uid)
+        if cached_entry is not None and (now - cached_entry["ts"]) < _LEARNED_CACHE_TTL:
+            return cached_entry["data"]
+
+        from .models import Prompt  # import local para evitar ciclo en carga inicial
+
+        qs = Prompt.objects.filter(user_id=uid, user_corrected=True)
+        if not qs.exists():
+            _LEARNED_BOOSTS_CACHE[uid] = {"ts": now, "data": empty}
+            return empty
 
         action_votes: Dict[str, Counter] = {}
         domain_votes: Dict[str, Counter] = {}
@@ -855,10 +924,10 @@ def _get_learned_correction_boosts() -> Dict[str, Dict[str, Dict[str, float]]]:
                     domain_boosts.setdefault(tok, {})[dom] = min(0.06 + 0.02 * (cnt - 2), 0.12)
 
         data = {"actions": action_boosts, "domains": domain_boosts}
-        _LEARNED_BOOSTS_CACHE.update({"ts": now, "db_key": db_key, "data": data})
+        _LEARNED_BOOSTS_CACHE[uid] = {"ts": now, "data": data}
         return data
     except Exception:
-        return {"actions": {}, "domains": {}}
+        return empty
 
 
 def _lookup_token_boosts(tokens: List[str], boost_table: Dict[str, Dict[str, float]]) -> Dict[str, float]:
@@ -1762,6 +1831,18 @@ def rewrite_goal(parsed: ParsedRequest, mask_pii: bool = False) -> Tuple[str, Li
     for frame_rgx in KNOWLEDGE_BASE.get("request_frames", []):
         cleaned = re.sub(frame_rgx, "", cleaned, flags=re.IGNORECASE).strip()
 
+    # Limpieza gramatical de relleno genérico antes de armar # Objetivo (para proteger # Objetivo en el linter)
+    cleaned = re.sub(
+        r"^(?:necesito|quiero)\s+(?:una\s+)?respuesta\s+(?:clara|precisa|completa|detallada|bien\s+estructurada)"
+        r"(?:\s+y\s+(?:clara|precisa|completa|detallada|bien\s+estructurada))?\s+(?:de|en|sobre|para)\s+",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+    for pat in KNOWLEDGE_BASE.get("lint_rules", {}).get("banned_patterns", []):
+        cleaned = re.sub(pat, "", cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).strip()
+
     if not cleaned:
         cleaned = (src or "").strip().rstrip(":").strip()
 
@@ -1900,6 +1981,8 @@ def parse_request(
     negative_constraints: Optional[List[str]] = None,
     enable_overlay: bool = True,
     enable_hybrid: bool = True,
+    enable_learned_boosts: bool = True,
+    active_user: Optional[Any] = None,
     nb_classifier: Optional[Any] = None,
     overlay_rules: Optional[List[Dict[str, Any]]] = None,
     classify_only: bool = False,
@@ -1953,7 +2036,10 @@ def parse_request(
     )
 
     # Etapa 4: Aprendizaje activo local + Capa Overlay v8.0 + Dominio + Acción (21 Arquetipos) + Sub-intención
-    learned_tables = _get_learned_correction_boosts()
+    if enable_learned_boosts:
+        learned_tables = _get_learned_correction_boosts(user=active_user)
+    else:
+        learned_tables = {"actions": {}, "domains": {}}
     learned_dom_boosts = _lookup_token_boosts(classify_tokens, learned_tables.get("domains", {}))
     learned_act_boosts = _lookup_token_boosts(classify_tokens, learned_tables.get("actions", {}))
     if learned_dom_boosts or learned_act_boosts:
@@ -2310,7 +2396,7 @@ def lint_prompt(
     Elimina frases de relleno genérico (banned_patterns) y calcula:
     - noise_ratio (< 0.10 objetivo)
     - anchor_coverage (>= 0.90 objetivo)
-    Preserva intacta la indentación dentro de <datos_entrada>...</datos_entrada>.
+    Preserva intacta la indentación dentro de <datos_entrada>...</datos_entrada> y la oración de # Objetivo.
     """
     payload_blocks: List[str] = []
 
@@ -2320,6 +2406,7 @@ def lint_prompt(
         return f"__PL_PAYLOAD_BLOCK_{idx}__"
 
     protected = re.sub(r"<datos_entrada>[\s\S]*?</datos_entrada>", _hide_payload, text)
+    protected = re.sub(r"# Objetivo\n[^\n]+", _hide_payload, protected)
     banned = KNOWLEDGE_BASE.get("lint_rules", {}).get("banned_patterns", [])
     cleaned = protected
     removed_hits = 0
@@ -2354,10 +2441,13 @@ def lint_prompt(
         + [f.lower() for f in parsed.filenames]
         + [er.lower() for er in parsed.errors_detected]
         + [o.lower() for o in parsed.ontology_objects]
+        + [o.replace("_", " ").lower() for o in parsed.ontology_objects]
         + [str(a).lower() for a in (extra_anchors or []) if a]
         + [
             "objetivo", "dominio", "intención", "entregable", "formato", "criterio",
             "completar", "pega aquí", "pegá acá", "fefo", "iqr", "pearson", "spearman", "keyerror",
+            "traceback", "excepción", "fragmento", "síntesis", "jerárquica", "nota formal",
+            "aclaración", "hipótesis", "verificable",
             "df.", "sql", "join", "markdown", "tabla", "autoevaluación", "párrafo",
             "restricción", "restricciones", "prohibido", "supuesto", "borde", "validación", "ejemplo",
             "datos", "archivo", "columna", "código", "error", "causa", "encabezado",
@@ -2372,7 +2462,7 @@ def lint_prompt(
             "cláusula", "riesgo", "gravedad", "abogado", "inquilino", "obligación",
             "whatsapp", "instagram", "turno", "oraciones", "personaje", "fin", "devolución",
             "margen", "escenario", "fórmula", "costo", "venta", "gastos",
-            "gancho", "llamado a la acción", "locución", "escena", "duración", "simulacro", "ejercicios", "diarias", "clichés", "cercano", "promesa", "cifra", "fuente", "no consta", "registros",
+            "gancho", "llamado a la acción", "locución", "escena", "duración", "simulacro", "ejercicios", "diarias", "clichés", "cliche", "cercano", "promesa", "cifra", "fuente", "no consta", "registros",
             "jerga", "confusiones", "malentendidos", "coherencia", "conocimientos previos",
             "educativo", "profundidad", "enfoque", "autodidacta", "intuitiva", "tema principal",
             "término", "nivel", "bibliográficas", "citas", "claridad", "proveedor", "plazo", "pago", "prórroga",
@@ -2382,9 +2472,10 @@ def lint_prompt(
     anchored = 0
     for ln in content_lines:
         ln_low = ln.lower()
+        ln_check = re.sub(r"^\s*\d+\.\s*", "", ln_low)
         has_anchor = (
             any(term in ln_low for term in anchor_terms)
-            or bool(re.search(r"\d+", ln_low))
+            or bool(re.search(r"\d+", ln_check))
             or bool(re.search(r"`[^`]+`", ln))
             or ln_low.startswith(("actúa como", "objetivo:", "formato", "restricciones:", "analiza únicamente", "procesa únicamente"))
         )
@@ -2731,6 +2822,18 @@ def _dedupe_instructions(lines: List[str]) -> List[str]:
     return result
 
 
+ONTOLOGY_OBJECT_LABELS = {
+    "nota_formal": "nota formal",
+    "licencia": "licencia",
+    "parcial": "parcial",
+    "stock": "stock",
+    "ventas": "ventas",
+    "vencimientos": "vencimientos",
+    "precios": "precios",
+    "dataset": "dataset",
+}
+
+
 def _assemble_prompt_with_segments(
     parsed: ParsedRequest,
     form_data: Dict[str, Any],
@@ -2835,6 +2938,8 @@ def _assemble_prompt_with_segments(
     if parsed.ontology_objects and not use_universal:
         ontology = KNOWLEDGE_BASE.get("object_ontology", {})
         for obj_k in parsed.ontology_objects:
+            if obj_k == "nota_formal" and "licencia" in parsed.ontology_objects:
+                continue
             if obj_k in ("ventas", "stock", "vencimientos", "precios") and (
                 parsed.subintent != "rutina_negocio"
                 or parsed.action in (
@@ -2850,7 +2955,8 @@ def _assemble_prompt_with_segments(
                 continue
             delivs = ontology.get(obj_k, {}).get("deliverables", [])
             if delivs:
-                ctx_lines.append(f"- **Desglose de {obj_k}:** {'; '.join(delivs)}")
+                obj_label = ONTOLOGY_OBJECT_LABELS.get(obj_k, obj_k.replace("_", " "))
+                ctx_lines.append(f"- **Desglose de {obj_label}:** {'; '.join(delivs)}")
 
     for k, v in form_data.items():
         if v and k not in ("Rol que debe asumir la IA", "Formato de Salida", "Reglas Rápidas"):
@@ -3372,6 +3478,7 @@ def analyze_live_preview(
     override_action: str = "",
     override_deliverable: str = "",
     negative_constraints: Optional[List[str]] = None,
+    active_user: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Diagnóstico en vivo (<20ms) sin persistencia en base de datos."""
     form_data = form_data or {}
@@ -3384,6 +3491,7 @@ def analyze_live_preview(
         override_action=override_action,
         override_deliverable=override_deliverable,
         negative_constraints=negative_constraints,
+        active_user=active_user,
     )
     rubric = calculate_rubric_v2(
         parsed=parsed,
@@ -3443,6 +3551,7 @@ def get_gemini_response(
     negative_constraints: Optional[List[str]] = None,
     user_example: str = "",
     mask_pii: bool = False,
+    active_user: Optional[Any] = None,
 ) -> Dict[str, Any]:
     form_data = form_data or {}
     clean_input = (user_text or "").strip()
@@ -3465,22 +3574,71 @@ def get_gemini_response(
         override_action=override_action,
         override_deliverable=override_deliverable,
         negative_constraints=negative_constraints,
+        active_user=active_user,
     )
+
+    safe_form_data = dict(form_data)
+    safe_user_example = user_example
+    if mask_pii:
+        extra_pii_warnings: List[Dict[str, Any]] = []
+        for fk, fv in list(safe_form_data.items()):
+            if isinstance(fv, str) and fv.strip():
+                masked_v, w_v = detect_and_mask_pii(fv)
+                if w_v:
+                    safe_form_data[fk] = masked_v
+                    extra_pii_warnings.extend(w_v)
+        if isinstance(safe_user_example, str) and safe_user_example.strip():
+            masked_ex, w_ex = detect_and_mask_pii(safe_user_example)
+            if w_ex:
+                safe_user_example = masked_ex
+                extra_pii_warnings.extend(w_ex)
+        if parsed.topic_anchor:
+            masked_ta, w_ta = detect_and_mask_pii(parsed.topic_anchor)
+            if w_ta:
+                parsed.topic_anchor = masked_ta
+                extra_pii_warnings.extend(w_ta)
+        if parsed.roles:
+            for rk, rv in list(parsed.roles.items()):
+                if isinstance(rv, str) and rv.strip():
+                    masked_rv, w_rv = detect_and_mask_pii(rv)
+                    if w_rv:
+                        parsed.roles[rk] = masked_rv
+                        extra_pii_warnings.extend(w_rv)
+        if parsed.neg_constraints:
+            cleaned_negs = []
+            for nc in parsed.neg_constraints:
+                masked_nc, w_nc = detect_and_mask_pii(nc)
+                if w_nc:
+                    extra_pii_warnings.extend(w_nc)
+                cleaned_negs.append(masked_nc)
+            parsed.neg_constraints = cleaned_negs
+        if extra_pii_warnings:
+            merged_w: Dict[str, Dict[str, Any]] = {
+                w["type"]: dict(w) for w in parsed.pii_warnings if isinstance(w, dict) and w.get("type")
+            }
+            for ew in extra_pii_warnings:
+                wt = ew["type"]
+                if wt in merged_w:
+                    merged_w[wt]["count"] = merged_w[wt].get("count", 0) + ew.get("count", 1)
+                else:
+                    merged_w[wt] = dict(ew)
+            parsed.pii_warnings = list(merged_w.values())
+            parsed.has_pii_masked = True
 
     improved_prompt, segments, meta = _assemble_prompt_with_segments(
         parsed=parsed,
-        form_data=form_data,
+        form_data=safe_form_data,
         level=level,
         technique=technique,
-        user_example=user_example,
+        user_example=safe_user_example,
         mask_pii=mask_pii,
     )
 
     rubric = calculate_rubric_v2(
         parsed=parsed,
         improved_prompt=improved_prompt,
-        form_data=form_data,
-        user_example=user_example,
+        form_data=safe_form_data,
+        user_example=safe_user_example,
         user_corrected=user_corrected,
         level=level,
         noise_ratio=meta["noise_ratio"],

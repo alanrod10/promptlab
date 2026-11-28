@@ -2859,7 +2859,6 @@
     "licencia": {
       "aliases": [
         "licencia",
-        "nota formal",
         "permiso",
         "inasistencia"
       ],
@@ -2870,6 +2869,21 @@
       ],
       "facets": [
         "obj:licencia"
+      ]
+    },
+    "nota_formal": {
+      "aliases": [
+        "nota formal",
+        "solicitud formal",
+        "nota oficial"
+      ],
+      "deliverables": [
+        "encabezado formal con lugar, fecha, destinatario y asunto",
+        "cuerpo claro en párrafos (motivo, respaldo documental y solicitud concreta)",
+        "cierre cordial con firma y marcadores [COMPLETAR] para datos faltantes"
+      ],
+      "facets": [
+        "obj:nota_formal"
       ]
     }
   },
@@ -3689,7 +3703,8 @@
       "when": {
         "any": [
           "sub:nota_formal",
-          "obj:licencia"
+          "obj:licencia",
+          "obj:nota_formal"
         ]
       },
       "when_not": [],
@@ -3713,6 +3728,7 @@
           "domain:Trámites y documentos",
           "sub:nota_formal",
           "obj:licencia",
+          "obj:nota_formal",
           "sub:reclamo"
         ]
       },

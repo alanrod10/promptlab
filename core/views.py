@@ -2,14 +2,16 @@ import csv
 from datetime import timedelta
 import html
 import json
+import logging
 import re
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Q
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse
@@ -29,24 +31,31 @@ from .scientific_eval import (
 from .universal_engine import mine_long_tail_candidates
 from .models import Prompt, ActiveLearningRule, UserTemplate
 
-GUEST_DEFAULT_USERNAME = "alan"
-GUEST_FALLBACK_USERNAME = "invitado"
+logger = logging.getLogger(__name__)
+
+GUEST_SENTINEL_USERNAME = "invitado_demo"
+RESERVED_GUEST_USERNAMES = {GUEST_SENTINEL_USERNAME, "invitado"}
+MAX_PROMPT_INPUT_CHARS = 15000
 _USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def _get_active_user(request):
     if request.user.is_authenticated:
         return request.user
-    guest = User.objects.filter(username=GUEST_DEFAULT_USERNAME).first()
+    guest = User.objects.filter(username=GUEST_SENTINEL_USERNAME).first()
     if guest is not None:
+        if guest.has_usable_password():
+            guest.set_unusable_password()
+            guest.save(update_fields=["password"])
         return guest
-    fallback = User.objects.filter(username=GUEST_FALLBACK_USERNAME).first()
-    if fallback is not None:
-        return fallback
-    first_user = User.objects.order_by("id").first()
-    if first_user is not None:
-        return first_user
-    return User.objects.create_user(username=GUEST_DEFAULT_USERNAME, password="123")
+    try:
+        with transaction.atomic():
+            guest = User(username=GUEST_SENTINEL_USERNAME)
+            guest.set_unusable_password()
+            guest.save()
+            return guest
+    except IntegrityError:
+        return User.objects.get(username=GUEST_SENTINEL_USERNAME)
 
 
 def login_view(request):
@@ -109,6 +118,8 @@ def register_view(request):
             error = "El nombre de usuario no puede superar los 50 caracteres."
         elif not _USERNAME_RE.fullmatch(username_value):
             error = "Usá solo letras sin espacios, números, punto (.), guion bajo (_) o guion medio (-)."
+        elif username_value.lower() in RESERVED_GUEST_USERNAMES:
+            error = "Ese nombre de usuario está reservado por el sistema. Elegí otro diferente."
         elif User.objects.filter(username__iexact=username_value).exists():
             error = "Ese nombre de usuario ya está en uso. Elegí otro diferente."
         elif len(password) < 6:
@@ -116,13 +127,6 @@ def register_view(request):
         elif password != password_confirm:
             error = "Las contraseñas no coinciden. Volvé a escribirlas."
         else:
-            if not User.objects.exists():
-                guest_name = (
-                    GUEST_FALLBACK_USERNAME
-                    if username_value.lower() == GUEST_DEFAULT_USERNAME
-                    else GUEST_DEFAULT_USERNAME
-                )
-                User.objects.create_user(username=guest_name, password="123")
             new_user = User.objects.create_user(username=username_value, password=password)
             login(request, new_user)
             return redirect("workspace")
@@ -533,6 +537,7 @@ def _normalize_user_tpl_mode(raw_mode: str) -> str:
     return "guiado"
 
 
+@ensure_csrf_cookie
 def workspace(request):
     prompt_id = request.GET.get('load')
     preset_slug = request.GET.get('preset')
@@ -743,7 +748,27 @@ def toggle_favorite(request, prompt_id):
 def delete_prompt(request, prompt_id):
     active_user = _get_active_user(request)
     prompt = get_object_or_404(Prompt, id=prompt_id, user=active_user)
-    prompt.delete()
+    with transaction.atomic():
+        descendants = list(
+            Prompt.objects.select_for_update()
+            .filter(user=active_user, root_prompt=prompt)
+            .exclude(id=prompt.id)
+            .order_by("version_number", "created_at", "id")
+        )
+        if descendants:
+            new_root = descendants[0]
+            Prompt.objects.filter(id=new_root.id).update(root_prompt=None, parent_prompt=None)
+            other_ids = [d.id for d in descendants[1:]]
+            if other_ids:
+                Prompt.objects.filter(id__in=other_ids).update(root_prompt=new_root)
+            Prompt.objects.filter(user=active_user, parent_prompt=prompt).exclude(id=new_root.id).update(
+                parent_prompt=new_root
+            )
+        else:
+            Prompt.objects.filter(user=active_user, parent_prompt=prompt).update(
+                parent_prompt=prompt.parent_prompt
+            )
+        prompt.delete()
     next_url = request.POST.get('next') or request.GET.get('next') or 'history'
     if next_url not in ('history', 'favorites'):
         next_url = 'history'
@@ -799,7 +824,6 @@ def templates_gallery(request):
         _build_templates_gallery_context(request, active_user),
     )
 
-@csrf_exempt
 def analyze_live_api(request):
     if request.method == 'POST':
         try:
@@ -810,6 +834,11 @@ def analyze_live_api(request):
             user_text = data.get('text', '')
             if not isinstance(user_text, str):
                 return JsonResponse({"error": "El campo 'text' debe ser una cadena de texto."}, status=400)
+            if len(user_text) > MAX_PROMPT_INPUT_CHARS:
+                return JsonResponse(
+                    {"error": "Tu texto supera el límite de 15.000 caracteres. Acortalo o dividilo en partes."},
+                    status=400,
+                )
 
             category = data.get('category', '')
             form_data = data.get('form_data', {})
@@ -823,6 +852,7 @@ def analyze_live_api(request):
             if not isinstance(negative_constraints, list):
                 negative_constraints = []
 
+            active_user = _get_active_user(request)
             result = analyze_live_preview(
                 text=user_text,
                 category=category,
@@ -832,16 +862,20 @@ def analyze_live_api(request):
                 override_action=override_action,
                 override_deliverable=override_deliverable,
                 negative_constraints=negative_constraints,
+                active_user=active_user,
             )
             return JsonResponse(result)
         except json.JSONDecodeError:
-            return JsonResponse({"error": "JSON malformado en la solicitud."}, status=400)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+            return JsonResponse({"error": "El formato de los datos enviados no es válido."}, status=400)
+        except Exception:
+            logger.exception("Error inesperado en analyze_live_api")
+            return JsonResponse(
+                {"error": "Ocurrió un error interno al analizar tu texto. Intentá nuevamente."},
+                status=500,
+            )
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
-@csrf_exempt
 def improve_prompt_api(request):
     if request.method == 'POST':
         try:
@@ -852,6 +886,11 @@ def improve_prompt_api(request):
             user_text = data.get('text', '')
             if not isinstance(user_text, str):
                 return JsonResponse({"error": "El campo 'text' debe ser una cadena de texto."}, status=400)
+            if len(user_text) > MAX_PROMPT_INPUT_CHARS:
+                return JsonResponse(
+                    {"error": "Tu texto supera el límite de 15.000 caracteres. Acortalo o dividilo en partes."},
+                    status=400,
+                )
 
             category = data.get('category', 'Otro / No sé')
             form_data = data.get('form_data', {})
@@ -868,12 +907,14 @@ def improve_prompt_api(request):
             negative_constraints = data.get('negative_constraints', [])
             if not isinstance(negative_constraints, list):
                 negative_constraints = []
-            user_example = data.get('user_example', '') or ''
-            mask_pii = bool(data.get('mask_pii', False))
+            raw_example = data.get('user_example', '') or ''
+            user_example = raw_example[:4000] if isinstance(raw_example, str) else ''
+            mask_pii = bool(data.get('mask_pii', True))
             raw_parent_id = data.get('parent_prompt_id')
             raw_version_note = data.get('version_note', '')
             clean_version_note = raw_version_note.strip()[:240] if isinstance(raw_version_note, str) else ''
 
+            user = _get_active_user(request)
             result = get_gemini_response(
                 user_text=user_text,
                 category=category,
@@ -886,10 +927,10 @@ def improve_prompt_api(request):
                 negative_constraints=negative_constraints,
                 user_example=user_example,
                 mask_pii=mask_pii,
+                active_user=user,
             )
 
             if 'improved_prompt' in result:
-                user = _get_active_user(request)
 
                 parent_obj = None
                 root_obj = None
@@ -949,7 +990,7 @@ def improve_prompt_api(request):
                     version_note=final_version_note,
                 )
                 if created_prompt.user_corrected:
-                    invalidate_learned_boosts_cache()
+                    invalidate_learned_boosts_cache(user.id)
                 result['prompt_id'] = created_prompt.id
                 result['is_favorite'] = created_prompt.is_favorite
                 result['version_number'] = created_prompt.version_number
@@ -959,9 +1000,13 @@ def improve_prompt_api(request):
 
             return JsonResponse(result)
         except json.JSONDecodeError:
-            return JsonResponse({"error": "JSON malformado en la solicitud."}, status=400)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+            return JsonResponse({"error": "El formato de los datos enviados no es válido."}, status=400)
+        except Exception:
+            logger.exception("Error inesperado en improve_prompt_api")
+            return JsonResponse(
+                {"error": "Ocurrió un error interno al generar tu prompt. Intentá nuevamente."},
+                status=500,
+            )
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 LEVEL_TO_DISPLAY_MODE = {
@@ -1507,6 +1552,12 @@ def _is_ajax_or_json(request) -> bool:
 
 @require_POST
 def approve_learning_rule(request):
+    if not (request.user.is_authenticated and request.user.is_staff):
+        msg = "Solo administradores autorizados pueden modificar la capa global."
+        if _is_ajax_or_json(request):
+            return JsonResponse({"error": msg}, status=403)
+        return HttpResponseForbidden(msg)
+
     if "application/json" in (request.content_type or ""):
         try:
             payload = json.loads(request.body or "{}")
@@ -1533,25 +1584,37 @@ def approve_learning_rule(request):
     if target_category not in valid_domains:
         target_category = ""
 
-    if len(term) < 2 or target_action not in valid_actions:
+    _, pii_hits = detect_and_mask_pii(raw_term)
+    useful_chars = re.sub(r"[^a-záéíóúüñ0-9]", "", term, flags=re.IGNORECASE)
+    if pii_hits or len(useful_chars) < 2 or target_action not in valid_actions:
+        err_msg = (
+            "El término contiene datos personales y no puede agregarse a la capa global."
+            if pii_hits
+            else "Término o tarea objetivo inválida para aprobar en la capa de aprendizaje."
+        )
         if _is_ajax_or_json(request):
-            return JsonResponse(
-                {"error": "Término o tarea objetivo inválida para aprobar en la capa de aprendizaje."},
-                status=400,
-            )
-        return redirect(f"{reverse('analytics')}#bloque-aprendizaje")
+            return JsonResponse({"error": err_msg}, status=400)
+        return HttpResponse(err_msg, status=400)
 
-    active_user = _get_active_user(request)
-    rule, _created = ActiveLearningRule.objects.update_or_create(
-        term=term,
-        defaults={
-            "target_action": target_action,
-            "target_category": target_category,
-            "source_z_score": z_score,
-            "is_active": True,
-            "created_by": active_user,
-        },
-    )
+    try:
+        with transaction.atomic():
+            rule, _created = ActiveLearningRule.objects.update_or_create(
+                term=term,
+                defaults={
+                    "target_action": target_action,
+                    "target_category": target_category,
+                    "source_z_score": z_score,
+                    "is_active": True,
+                    "created_by": request.user,
+                },
+            )
+    except IntegrityError:
+        logger.exception("Error de integridad al aprobar regla en capa Overlay")
+        err_msg = "No se pudo guardar la regla en la capa de aprendizaje."
+        if _is_ajax_or_json(request):
+            return JsonResponse({"error": err_msg}, status=400)
+        return HttpResponse(err_msg, status=400)
+
     invalidate_scientific_cache()
     invalidate_learned_boosts_cache()
 
@@ -1570,6 +1633,12 @@ def approve_learning_rule(request):
 
 @require_POST
 def toggle_learning_rule(request, rule_id):
+    if not (request.user.is_authenticated and request.user.is_staff):
+        msg = "Solo administradores autorizados pueden modificar la capa global."
+        if _is_ajax_or_json(request):
+            return JsonResponse({"error": msg}, status=403)
+        return HttpResponseForbidden(msg)
+
     rule = get_object_or_404(ActiveLearningRule, id=rule_id)
     rule.is_active = not rule.is_active
     rule.save(update_fields=["is_active"])
@@ -1584,6 +1653,12 @@ def toggle_learning_rule(request, rule_id):
             "is_active": rule.is_active,
         })
     return redirect(f"{reverse('analytics')}#bloque-aprendizaje")
+
+
+def _sanitize_csv_cell(value):
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
 
 def export_dataset_csv(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -1646,13 +1721,13 @@ def export_dataset_csv(request):
         writer.writerow([
             p.id,
             p.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            p.engine_version,
-            p.category or 'General',
-            p.detected_action,
-            p.detected_deliverable,
-            p.subintent,
-            p.improvement_level,
-            p.technique or 'Estándar',
+            _sanitize_csv_cell(p.engine_version),
+            _sanitize_csv_cell(p.category or 'General'),
+            _sanitize_csv_cell(p.detected_action),
+            _sanitize_csv_cell(p.detected_deliverable),
+            _sanitize_csv_cell(p.subintent),
+            _sanitize_csv_cell(p.improvement_level),
+            _sanitize_csv_cell(p.technique or 'Estándar'),
             p.initial_score,
             p.information_gain,
             p.final_score,
@@ -1666,7 +1741,7 @@ def export_dataset_csv(request):
             p.info_density,
             p.noise_ratio,
             p.anchor_coverage,
-            p.payload_kind,
+            _sanitize_csv_cell(p.payload_kind),
             p.roles_filled,
             p.verifiable_ratio,
             has_success_criteria,
@@ -1680,8 +1755,8 @@ def export_dataset_csv(request):
             ratio,
             blocks_count,
             has_delimiters,
-            p.original_text,
-            p.improved_text
+            _sanitize_csv_cell(p.original_text),
+            _sanitize_csv_cell(p.improved_text),
         ])
 
     return response

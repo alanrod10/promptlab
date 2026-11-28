@@ -81,6 +81,7 @@ class PromptLabViewsAndIntegrationTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(username="tester", password="123")
+        self.client.force_login(self.user)
 
     def test_offline_static_vendor_assets_exist(self):
         required_assets = [
@@ -577,12 +578,12 @@ class PromptLabV7EngineAndWorkspaceTests(TestCase):
         )
         invalidate_learned_boosts_cache()
 
-        learned = _get_learned_correction_boosts()
+        learned = _get_learned_correction_boosts(user=self.user)
         self.assertIn("licitacion", learned["actions"])
         self.assertIn("auditar_criticar", learned["actions"]["licitacion"])
         self.assertLessEqual(learned["actions"]["licitacion"]["auditar_criticar"], 0.12)
 
-        boosted_req = parse_request(sample)
+        boosted_req = parse_request(sample, active_user=self.user)
         self.assertEqual(boosted_req.domain, "Trámites y documentos")
 
         boosted_scores, _ = _score_actions_detailed(
@@ -1197,8 +1198,8 @@ class PromptLabV721AuditRegressionTests(TestCase):
 
         ws = self.client.get(reverse("workspace"))
         self.assertEqual(ws.status_code, 200)
-        self.assertContains(ws, "promptlab.css?v=7.2.1")
-        self.assertContains(ws, "workspace.js?v=7.2.1")
+        self.assertContains(ws, 'promptlab.css?v=8.0"')
+        self.assertContains(ws, 'workspace.js?v=8.0"')
 
     def test_n6_five_day_study_plan_clean_topic_daily_tasks_and_filtered_slots(self):
         raw = (
@@ -1264,16 +1265,16 @@ class PromptLabTemplatesCatalogTests(TestCase):
         self.assertContains(resp, "Plantillas Listas para Usar")
         self.assertContains(resp, "1. Elegí tu caso")
         self.assertContains(resp, "Usar esta plantilla")
-        self.assertContains(resp, "promptlab.css?v=7.2.2")
-        self.assertContains(resp, "templates_gallery.js?v=7.2.2")
+        self.assertContains(resp, 'promptlab.css?v=8.0"')
+        self.assertContains(resp, 'templates_gallery.js?v=8.0"')
         self.assertContains(resp, "Mostrando 18 de 18 plantillas")
         for cat in self.EXPECTED_CATEGORIES:
             self.assertContains(resp, cat)
 
         ws = self.client.get(reverse("workspace"))
         self.assertEqual(ws.status_code, 200)
-        self.assertContains(ws, "promptlab.css?v=7.2.2")
-        self.assertContains(ws, "workspace.js?v=7.2.2")
+        self.assertContains(ws, 'promptlab.css?v=8.0"')
+        self.assertContains(ws, 'workspace.js?v=8.0"')
 
     def test_catalog_has_18_templates_across_6_categories_with_valid_fields(self):
         import re as _re
@@ -1347,6 +1348,7 @@ class PromptLabStatsDashboardTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(username="stats_tester", password="123")
+        self.client.force_login(self.user)
 
     def test_stats_empty_state(self):
         resp = self.client.get(reverse("analytics"))
@@ -1354,7 +1356,7 @@ class PromptLabStatsDashboardTests(TestCase):
         self.assertContains(resp, "Todavía no hay estadísticas para mostrar")
         self.assertContains(resp, reverse("workspace"))
         self.assertContains(resp, reverse("templates_gallery"))
-        self.assertContains(resp, "promptlab.css?v=7.2.3")
+        self.assertContains(resp, 'promptlab.css?v=8.0"')
         for term in self.FORBIDDEN_JARGON:
             self.assertNotContains(resp, term)
 
@@ -1536,7 +1538,7 @@ class PromptLabStatsDashboardTests(TestCase):
         html_body = resp.content.decode("utf-8")
 
         self.assertIn('id="analytics-chart-data"', html_body)
-        self.assertIn("analytics_charts.js?v=7.2.3", html_body)
+        self.assertIn('analytics_charts.js?v=8.0"', html_body)
         for container_id in (
             'id="chart-domains-svg"',
             'id="chart-donut-svg"',
@@ -1624,6 +1626,7 @@ class PromptLabSiteCoherenceTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(username="coherence_user", password="123")
+        self.client.force_login(self.user)
 
     def _create_sample_prompts(self):
         Prompt.objects.create(
@@ -1752,6 +1755,7 @@ class PromptLabV73WorkspaceSmartFeaturesTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(username="tester_v73", password="123")
+        self.client.force_login(self.user)
 
     def test_quick_examples_autohide_and_fourth_social_privacy_chip(self):
         resp_empty = self.client.get(reverse("workspace"))
@@ -1830,7 +1834,7 @@ class PromptLabV73WorkspaceSmartFeaturesTests(TestCase):
             "ChatGPT",
             "Gemini",
             "Claude",
-            "Estimación local calibrada para español (±10 %); 100 % offline sin APIs.",
+            "Estimación heurística orientativa para español; 100 % offline sin APIs.",
             'id="cmp-models-strip"',
             'id="privacy-verified-seal"',
             "Privacidad verificada antes de copiar a una IA externa",
@@ -2122,10 +2126,13 @@ class PromptLabV80ScientificAndActiveLearningTests(TestCase):
 
     def setUp(self):
         from .scientific_eval import invalidate_scientific_cache
+        from .services import invalidate_learned_boosts_cache
 
         invalidate_scientific_cache()
+        invalidate_learned_boosts_cache()
         self.client = Client()
-        self.user = User.objects.create_user(username="tester_v80", password="123")
+        self.user = User.objects.create_user(username="tester_v80", password="123", is_staff=True)
+        self.client.force_login(self.user)
 
     def test_benchmark_dataset_validity_and_stratification(self):
         from collections import Counter
@@ -2161,28 +2168,72 @@ class PromptLabV80ScientificAndActiveLearningTests(TestCase):
             self.assertGreaterEqual(cnt, 5, f"La clase {act} debe tener al menos 5 casos para 5-Fold estratificado")
 
     def test_scientific_benchmark_5fold_no_leakage_and_hybrid_gain(self):
-        from .scientific_eval import run_scientific_benchmark
+        from .models import ActiveLearningRule
+        from .scientific_eval import build_stratified_folds, load_benchmark_dataset, run_scientific_benchmark
+        from .services import invalidate_learned_boosts_cache
+
+        cases = load_benchmark_dataset()
+        folds = build_stratified_folds(cases, n_splits=5, seed=42)
+        self.assertEqual([len(f) for f in folds], [12, 12, 12, 12, 12])
 
         report = run_scientific_benchmark(force_refresh=True)
-        self.assertGreaterEqual(report["dataset_size"], 60)
+        self.assertEqual(report["dataset_size"], 60)
         self.assertEqual(report["n_folds"], 5)
-        self.assertTrue(report["leakage_free"])
+        self.assertTrue(report["nb_out_of_fold"])
+        self.assertFalse(report["rules_held_out"])
+        self.assertLess(report["max_intra_class_jaccard"], 0.35)
+        self.assertEqual(report["coverage_actions"], "10/21")
+        self.assertEqual(report["production_nb_classes"], 21)
 
         for lane in ("baseline", "hybrid"):
             metrics = report[lane]
             for metric_name in ("accuracy", "macro_precision", "macro_recall", "macro_f1", "weighted_f1"):
                 self.assertGreaterEqual(metrics[metric_name], 0.0)
                 self.assertLessEqual(metrics[metric_name], 1.0)
+            self.assertLessEqual(metrics["accuracy_ci_low_pct"], metrics["accuracy_pct"])
+            self.assertGreaterEqual(metrics["accuracy_ci_high_pct"], metrics["accuracy_pct"])
+
+        rep = report["repeated_cv"]
+        self.assertEqual(rep["n_repeats"], 10)
+        self.assertEqual(rep["n_splits"], 5)
+        self.assertGreaterEqual(rep["accuracy_mean_pct"], rep["accuracy_min_pct"])
+        self.assertLessEqual(rep["accuracy_mean_pct"], rep["accuracy_max_pct"])
+        self.assertGreater(report["mcnemar_p_value"], 0.0)
+        self.assertLessEqual(report["mcnemar_p_value"], 1.0)
+        self.assertEqual(len(report["case_audit"]), 60)
 
         cm = report["confusion_matrix"]
         matrix_total = sum(sum(row) for row in cm["matrix"])
         self.assertEqual(matrix_total, report["dataset_size"])
         self.assertEqual(cm["total"], report["dataset_size"])
         self.assertEqual(sum(r["support"] for r in report["per_class"]), report["dataset_size"])
-        self.assertLess(report["elapsed_ms"], 300.0)
+        self.assertLess(report["elapsed_ms"], 2000.0)
         self.assertEqual(report["regressions_count"], 0)
         self.assertGreaterEqual(report["hybrid"]["macro_f1"], report["baseline"]["macro_f1"])
         self.assertGreaterEqual(report["improved_count"], 1)
+
+        # Invariancia total frente a SQLite: Prompts corregidos y ActiveLearningRule NO alteran el benchmark
+        for idx in range(3):
+            Prompt.objects.create(
+                user=self.user,
+                original_text="Automatizar archivos pdf en carpeta",
+                improved_text="# Objetivo\nScript.",
+                category="Tecnología y programación",
+                detected_action="auditar_criticar",
+                user_corrected=True,
+            )
+        ActiveLearningRule.objects.create(
+            term="balanza",
+            target_action="depurar_error",
+            source_z_score=2.5,
+            is_active=True,
+            created_by=self.user,
+        )
+        invalidate_learned_boosts_cache()
+        report_with_db_noise = run_scientific_benchmark(force_refresh=True)
+        self.assertEqual(report_with_db_noise["baseline"]["accuracy"], report["baseline"]["accuracy"])
+        self.assertEqual(report_with_db_noise["hybrid"]["accuracy"], report["hybrid"]["accuracy"])
+        self.assertEqual(report_with_db_noise["hybrid"]["macro_f1"], report["hybrid"]["macro_f1"])
 
     def test_evaluate_engine_management_command(self):
         from django.core.management import call_command
@@ -2192,9 +2243,46 @@ class PromptLabV80ScientificAndActiveLearningTests(TestCase):
         output = out.getvalue()
         self.assertIn("Baseline v7.2", output)
         self.assertIn("Híbrido v8.0", output)
+        self.assertIn("IC 95 % Wilson", output)
+        self.assertIn("CV Repetida 10x5", output)
+        self.assertIn("McNemar", output)
         self.assertIn("Macro F1", output)
         self.assertIn("Weighted F1", output)
         self.assertIn("Aciertos en diagonal", output)
+
+    def test_learned_correction_boosts_strict_per_user_and_guest_isolation(self):
+        from .services import _get_learned_correction_boosts, invalidate_learned_boosts_cache
+        from .views import GUEST_SENTINEL_USERNAME
+
+        invalidate_learned_boosts_cache()
+        user_a = User.objects.create_user(username="boost_user_a", password="secret123")
+        user_b = User.objects.create_user(username="boost_user_b", password="secret123")
+        guest = User(username=GUEST_SENTINEL_USERNAME)
+        guest.set_unusable_password()
+        guest.save()
+
+        sample = "Gestionar pliego municipal con anexos tecnicos"
+        for i in range(3):
+            Prompt.objects.create(
+                user=user_a,
+                original_text=f"Revisar pliego municipal lote {i}",
+                improved_text="# Rol\nAuditor",
+                category="Trámites y documentos",
+                detected_action="auditar_criticar",
+                user_corrected=True,
+            )
+
+        boosts_a = _get_learned_correction_boosts(user=user_a)
+        self.assertIn("pliego", boosts_a["actions"])
+        self.assertIn("auditar_criticar", boosts_a["actions"]["pliego"])
+
+        # Usuario B, None e invitado_demo jamás reciben boosts de Usuario A
+        self.assertEqual(_get_learned_correction_boosts(user=user_b), {"actions": {}, "domains": {}})
+        self.assertEqual(_get_learned_correction_boosts(user=None), {"actions": {}, "domains": {}})
+        self.assertEqual(_get_learned_correction_boosts(user=guest), {"actions": {}, "domains": {}})
+
+        req_b = parse_request(sample, active_user=user_b, enable_overlay=False)
+        self.assertFalse(any(tr.get("stage") == "active_learning" for tr in req_b.trace))
 
     def test_active_learning_overlay_approve_trace_and_toggle_without_mutating_kb(self):
         from .models import ActiveLearningRule
@@ -2251,8 +2339,13 @@ class PromptLabV80ScientificAndActiveLearningTests(TestCase):
         self.assertEqual(resp_empty.status_code, 200)
         body_empty = resp_empty.content.decode("utf-8")
         self.assertIn("Evaluación Científica del Motor NLP (Benchmark 5-Fold Offline)", body_empty)
+        self.assertIn("CV repetida 10×5", body_empty)
+        self.assertIn("IC 95 % (Wilson)", body_empty)
+        self.assertIn("McNemar exacto", body_empty)
+        self.assertIn("Alcance y límites declarados", body_empty)
         self.assertIn("Ver Matriz de Confusión y Métricas por Clase", body_empty)
-        self.assertIn("60 casos de referencia", body_empty)
+        self.assertIn("Auditar casos del benchmark", body_empty)
+        self.assertIn("60 casos curados", body_empty)
 
         # 2. Vista poblada con prompts repetidos para generar candidatos Log-Odds + regla activa
         for i in range(3):
@@ -2598,5 +2691,335 @@ class PromptLabV80VersioningAndCollectionsTests(TestCase):
             if route_name != "workspace":
                 for mode_w in self.FORBIDDEN_MODES:
                     self.assertNotIn(mode_w, body, f"Modo interno '{mode_w}' encontrado en {route_name}")
+
+
+class PromptLabV801SecurityAndAuditFixesTests(TestCase):
+    """Pruebas de blindaje v8.0.1 (Pasada 1): autorización Overlay, invitado seguro, CSRF, PII y demo fixes."""
+
+    def setUp(self):
+        from .scientific_eval import invalidate_scientific_cache
+        from .services import invalidate_learned_boosts_cache
+
+        invalidate_scientific_cache()
+        invalidate_learned_boosts_cache()
+        self.client = Client()
+
+    def test_overlay_requires_staff_and_rejects_pii_terms(self):
+        from .models import ActiveLearningRule
+
+        regular_user = User.objects.create_user(username="user_regular", password="secret123", is_staff=False)
+        staff_user = User.objects.create_user(username="admin_staff", password="secret123", is_staff=True)
+        rule = ActiveLearningRule.objects.create(
+            term="pliego municipal",
+            target_action="auditar_criticar",
+            source_z_score=1.4,
+            is_active=True,
+            created_by=staff_user,
+        )
+
+        # 1. Visitante anónimo -> 403 en approve y toggle + botones ocultos en /analitica/
+        self.assertEqual(
+            self.client.post(
+                reverse("approve_learning_rule"),
+                {"term": "expediente", "target_action": "auditar_criticar", "source_z_score": "1.5"},
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(reverse("toggle_learning_rule", args=[rule.id])).status_code,
+            403,
+        )
+
+        # 2. Usuario común autenticado (is_staff=False) -> 403 y sin botones en /analitica/
+        cli_reg = Client()
+        cli_reg.force_login(regular_user)
+        Prompt.objects.create(
+            user=regular_user,
+            original_text="Revisar expediente administrativo lote 1",
+            improved_text="# Rol\nAuditor\n# Objetivo\nRevisar expediente.",
+            category="Trámites y documentos",
+            detected_action="auditar_criticar",
+            improvement_level="Completa",
+            initial_score=40,
+            final_score=90,
+            quality_gain=50,
+            intent_confidence=0.40,
+        )
+        Prompt.objects.create(
+            user=regular_user,
+            original_text="Revisar expediente administrativo lote 2",
+            improved_text="# Rol\nAuditor\n# Objetivo\nRevisar expediente.",
+            category="Trámites y documentos",
+            detected_action="auditar_criticar",
+            improvement_level="Completa",
+            initial_score=40,
+            final_score=90,
+            quality_gain=50,
+            intent_confidence=0.40,
+        )
+        Prompt.objects.create(
+            user=regular_user,
+            original_text="Revisar expediente administrativo lote 3",
+            improved_text="# Rol\nAuditor\n# Objetivo\nRevisar expediente.",
+            category="Trámites y documentos",
+            detected_action="auditar_criticar",
+            improvement_level="Completa",
+            initial_score=40,
+            final_score=90,
+            quality_gain=50,
+            intent_confidence=0.40,
+        )
+        self.assertEqual(
+            cli_reg.post(
+                reverse("approve_learning_rule"),
+                json.dumps({"term": "expediente", "target_action": "auditar_criticar"}),
+                content_type="application/json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(cli_reg.post(reverse("toggle_learning_rule", args=[rule.id])).status_code, 403)
+        an_reg = cli_reg.get(reverse("analytics")).content.decode("utf-8")
+        self.assertIn("Solo cuentas administradoras", an_reg)
+        self.assertNotIn("Aprobar en capa", an_reg)
+        self.assertNotIn('name="target_action"', an_reg)
+
+        # 3. Administrador staff (is_staff=True) -> rechaza PII / término corto con 400, aprueba válido con 302
+        cli_staff = Client()
+        cli_staff.force_login(staff_user)
+        pii_resp = cli_staff.post(
+            reverse("approve_learning_rule"),
+            {"term": "dni 33.456.789", "target_action": "analizar_datos", "source_z_score": "1.2"},
+        )
+        self.assertEqual(pii_resp.status_code, 400)
+        short_resp = cli_staff.post(
+            reverse("approve_learning_rule"),
+            {"term": "a!", "target_action": "analizar_datos", "source_z_score": "1.2"},
+        )
+        self.assertEqual(short_resp.status_code, 400)
+        ok_resp = cli_staff.post(
+            reverse("approve_learning_rule"),
+            {"term": "expediente", "target_action": "auditar_criticar", "source_z_score": "1.6"},
+        )
+        self.assertEqual(ok_resp.status_code, 302)
+        self.assertTrue(ActiveLearningRule.objects.filter(term="expediente", is_active=True).exists())
+        tog_resp = cli_staff.post(reverse("toggle_learning_rule", args=[rule.id]))
+        self.assertEqual(tog_resp.status_code, 302)
+        rule.refresh_from_db()
+        self.assertFalse(rule.is_active)
+
+    def test_guest_sentinel_unusable_password_reserved_username_and_no_first_user_leak(self):
+        from .views import GUEST_SENTINEL_USERNAME
+
+        registered = User.objects.create_user(username="usuario_registrado", password="clave_real_123")
+        Prompt.objects.create(
+            user=registered,
+            original_text="Prompt estrictamente privado de usuario_registrado",
+            improved_text="# Objetivo\nPrivado.",
+            category="General",
+        )
+
+        # Visitante anónimo sin invitado_demo previo NO debe caer en registered
+        guest_cli = Client()
+        hist_resp = guest_cli.get(reverse("history"))
+        self.assertEqual(hist_resp.status_code, 200)
+        self.assertNotContains(hist_resp, "Prompt estrictamente privado de usuario_registrado")
+
+        guest_user = User.objects.get(username=GUEST_SENTINEL_USERNAME)
+        self.assertFalse(guest_user.has_usable_password())
+
+        # No puede iniciar sesión con invitado_demo ni registrar ese nombre reservado
+        login_resp = guest_cli.post(
+            reverse("login"),
+            {"username": GUEST_SENTINEL_USERNAME, "password": "123"},
+        )
+        self.assertEqual(login_resp.status_code, 200)
+        self.assertContains(login_resp, "no son correctos")
+
+        reg_reserved = guest_cli.post(
+            reverse("register"),
+            {"username": "Invitado_Demo", "password": "password123", "password_confirm": "password123"},
+        )
+        self.assertEqual(reg_reserved.status_code, 200)
+        self.assertContains(reg_reserved, "reservado")
+
+    def test_csrf_enforced_and_input_length_cap_on_apis(self):
+        csrf_cli = Client(enforce_csrf_checks=True)
+
+        # GET / garantiza cookie CSRF
+        ws_resp = csrf_cli.get(reverse("workspace"))
+        self.assertEqual(ws_resp.status_code, 200)
+        self.assertIn("csrftoken", csrf_cli.cookies)
+        token = csrf_cli.cookies["csrftoken"].value
+
+        # POST sin CSRF debe devolver 403
+        no_csrf_imp = csrf_cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": "Explicar qué es SQL paso a paso"}),
+            content_type="application/json",
+        )
+        self.assertEqual(no_csrf_imp.status_code, 403)
+
+        no_csrf_live = csrf_cli.post(
+            reverse("analyze_live_api"),
+            data=json.dumps({"text": "Explicar qué es SQL paso a paso"}),
+            content_type="application/json",
+        )
+        self.assertEqual(no_csrf_live.status_code, 403)
+
+        # Con X-CSRFToken funciona 200
+        with_csrf = csrf_cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": "Explicar qué es SQL paso a paso", "level": "Ligera"}),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(with_csrf.status_code, 200)
+
+        # Texto > 15.000 chars devuelve 400
+        too_long = "a" * 15001
+        long_imp = csrf_cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": too_long}),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(long_imp.status_code, 400)
+        long_live = csrf_cli.post(
+            reverse("analyze_live_api"),
+            data=json.dumps({"text": too_long}),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(long_live.status_code, 400)
+
+    def test_hardened_pii_money_cuit_mod11_secondary_fields_and_formal_note_demo_fix(self):
+        # 1. Montos de dinero NO se enmascaran como DNI
+        money_samples = [
+            "Tengo un presupuesto de 1.500.000 pesos para equipamiento",
+            "Gasto mensual de $ 1.200.000 en proveedores",
+            "Tengo 1200000 de gastos fijos mensuales y margen del 30%",
+        ]
+        for txt in money_samples:
+            masked_m, warn_m = detect_and_mask_pii(txt)
+            self.assertEqual(warn_m, [], f"Falso positivo PII en monto: {txt}")
+            self.assertNotIn("[DNI_CUIL_OCULTO]", masked_m)
+
+        # 2. CUIT de 11 dígitos sin guiones válido Módulo 11 SÍ se enmascara; inválido NO; AFIP intacto
+        masked_ok, warn_ok = detect_and_mask_pii("CUIT 20345678906 comprobante 0004-00018291")
+        self.assertIn("[DNI_CUIL_OCULTO]", masked_ok)
+        self.assertIn("0004-00018291", masked_ok)
+        self.assertEqual({w["type"] for w in warn_ok}, {"dni_cuil"})
+
+        masked_bad, warn_bad = detect_and_mask_pii("Código interno 20345678901 sin guiones")
+        self.assertNotIn("[DNI_CUIL_OCULTO]", masked_bad)
+        self.assertEqual(warn_bad, [])
+
+        # 3. Alias en prosa con punto y celular argentino con 15
+        masked_extra, warn_extra = detect_and_mask_pii(
+            "Transferir a alias comercio.jujuy.mp o llamar al 388 15 4123456"
+        )
+        self.assertIn("alias: [ALIAS_OCULTO]", masked_extra)
+        self.assertIn("[TELEFONO_OCULTO]", masked_extra)
+        self.assertEqual({w["type"] for w in warn_extra}, {"alias_bancario", "telefono"})
+
+        # 4. PII en user_example y form_data queda protegido con mask_pii=True y por default en /api/improve/
+        res_sec = get_gemini_response(
+            "Redactame un correo formal de seguimiento",
+            level="Completa",
+            form_data={"Público": "Titular DNI 33.456.789"},
+            user_example="Contacto: maria.gomez@correo.com",
+            mask_pii=True,
+        )
+        self.assertTrue(res_sec["has_pii_masked"])
+        self.assertIn("[DNI_CUIL_OCULTO]", res_sec["improved_prompt"])
+        self.assertIn("[EMAIL_OCULTO]", res_sec["improved_prompt"])
+        self.assertNotIn("33.456.789", res_sec["improved_prompt"])
+        self.assertNotIn("maria.gomez@correo.com", res_sec["improved_prompt"])
+
+        cli = Client()
+        default_api_resp = cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({
+                "text": "Redactame una nota formal para Juan DNI 33.456.789 con factura 0004-00018291",
+                "level": "Completa",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(default_api_resp.status_code, 200)
+        d_api = default_api_resp.json()
+        self.assertTrue(d_api["has_pii_masked"])
+        self.assertIn("[DNI_CUIL_OCULTO]", d_api["improved_prompt"])
+        self.assertIn("0004-00018291", d_api["improved_prompt"])
+
+        # 5. Bug demo: 4.º ejemplo de nota oficial NO debe decir 'Desglose de licencia'
+        nota_social = (
+            "Redactame una nota formal de seguimiento por una asistencia alimentaria para María Gómez, "
+            "CUIL 27-34567890-4, cel 3884123456, mail maria.gomez@correo.com, "
+            "adjuntando el comprobante AFIP 0004-00018291, en tono claro y respetuoso."
+        )
+        res_nota = get_gemini_response(nota_social, level="Completa", mask_pii=True)
+        self.assertNotIn("Desglose de licencia", res_nota["improved_prompt"])
+        self.assertIn("Desglose de nota formal", res_nota["improved_prompt"])
+
+    def test_csv_export_neutralizes_spreadsheet_formulas(self):
+        cli = Client()
+        user = User.objects.create_user(username="csv_formula_user", password="secret123")
+        cli.force_login(user)
+        Prompt.objects.create(
+            user=user,
+            original_text='=HYPERLINK("http://evil.example","Click")',
+            improved_text='+SUM(A1:A2)',
+            category="Otro / General",
+        )
+        csv_resp = cli.get(reverse("export_csv"))
+        self.assertEqual(csv_resp.status_code, 200)
+        rows = list(csv.reader(io.StringIO(csv_resp.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][36], '\'=HYPERLINK("http://evil.example","Click")')
+        self.assertEqual(rows[1][37], "'+SUM(A1:A2)")
+
+    def test_delete_root_prompt_promotes_oldest_child_preserving_family(self):
+        cli = Client()
+        user = User.objects.create_user(username="ver_del_user", password="secret123")
+        cli.force_login(user)
+        p1 = Prompt.objects.create(
+            user=user,
+            original_text="Explicar SQL v1",
+            improved_text="# Objetivo\nSQL v1.",
+            category="Tecnología y Programación",
+            version_number=1,
+        )
+        p2 = Prompt.objects.create(
+            user=user,
+            original_text="Explicar SQL v2",
+            improved_text="# Objetivo\nSQL v2.",
+            category="Tecnología y Programación",
+            parent_prompt=p1,
+            root_prompt=p1,
+            version_number=2,
+        )
+        p3 = Prompt.objects.create(
+            user=user,
+            original_text="Explicar SQL v3",
+            improved_text="# Objetivo\nSQL v3.",
+            category="Tecnología y Programación",
+            parent_prompt=p2,
+            root_prompt=p1,
+            version_number=3,
+        )
+
+        del_resp = cli.post(reverse("delete_prompt", args=[p1.id]))
+        self.assertEqual(del_resp.status_code, 302)
+        self.assertFalse(Prompt.objects.filter(id=p1.id).exists())
+
+        p2.refresh_from_db()
+        p3.refresh_from_db()
+        self.assertIsNone(p2.root_prompt)
+        self.assertIsNone(p2.parent_prompt)
+        self.assertEqual(p3.root_prompt_id, p2.id)
+        self.assertEqual(p3.parent_prompt_id, p2.id)
+
+        hist_body = cli.get(reverse("history")).content.decode("utf-8")
+        self.assertIn("Ver evolución (2 versiones)", hist_body)
 
 

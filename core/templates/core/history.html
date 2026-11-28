@@ -223,9 +223,29 @@
 </div>
 
 <script>
+function _fallbackCopyHistory(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+        ok = document.execCommand('copy');
+    } catch (_e) {
+        ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+}
+
 function copyText(elementId, btn) {
-    const text = document.getElementById(elementId).innerText;
-    navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById(elementId);
+    if (!el || !btn) return;
+    const text = el.innerText;
+    const markCopied = () => {
         const original = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado';
         btn.classList.add('btn-success', 'text-white');
@@ -235,7 +255,27 @@ function copyText(elementId, btn) {
             btn.classList.remove('btn-success', 'text-white');
             btn.classList.add('btn-pl-secondary');
         }, 1500);
-    });
+    };
+    const markError = () => {
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Error al copiar';
+        setTimeout(() => {
+            btn.innerHTML = original;
+        }, 1800);
+    };
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(text).then(markCopied).catch(() => {
+            if (_fallbackCopyHistory(text)) {
+                markCopied();
+            } else {
+                markError();
+            }
+        });
+    } else if (_fallbackCopyHistory(text)) {
+        markCopied();
+    } else {
+        markError();
+    }
 }
 
 function toggleExpand(elementId, btn) {

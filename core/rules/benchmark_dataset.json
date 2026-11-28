@@ -33,19 +33,19 @@
   },
   {
     "id": "BM-005",
-    "text": "Necesito automatizar en Python con unas líneas que renombre los recibos PDF de sueldo bajados en una carpeta según el mes",
+    "text": "Necesito automatizar en Python sin librerías externas el renombrado masivo de recibos de sueldo bajados por fecha",
     "expected_action": "generar_codigo",
     "expected_category": "Tecnología y programación",
     "difficulty": "borde",
-    "notes": "Pedido cotidiano de automatización sin decir crear función"
+    "notes": "Automatización cotidiana de archivos en Python estándar"
   },
   {
     "id": "BM-006",
-    "text": "Cómo armo en Bash o Python un validador automático de archivos PDF y recibos descargados en carpetas",
+    "text": "Cómo armo en JavaScript y Django la validación de turnos médicos activos devolviendo respuesta en JSON",
     "expected_action": "generar_codigo",
     "expected_category": "Tecnología y programación",
     "difficulty": "borde",
-    "notes": "Pedido corto técnico de código sin verbo explícito del catálogo"
+    "notes": "Validación backend/frontend sin verbo crear ni programar"
   },
   {
     "id": "BM-007",
@@ -81,19 +81,19 @@
   },
   {
     "id": "BM-011",
-    "text": "Che se clava la pantalla del sistema de cajas y tira cartel rojo de excepción apenas guardo un cobro con tarjeta",
+    "text": "Che se clava la pantalla del sistema de cajas y tira cartel rojo apenas guardo un cobro con tarjeta",
     "expected_action": "depurar_error",
     "expected_category": "Tecnología y programación",
     "difficulty": "borde",
-    "notes": "Jerga cotidiana argentina de fallo de software"
+    "notes": "Jerga cotidiana argentina de fallo en punto de venta"
   },
   {
     "id": "BM-012",
-    "text": "En la consola aparece cartel rojo al guardar el formulario web y se corta la carga en mitad del registro",
+    "text": "Cuando cruzo descuentos nulos en el formulario POST de facturación me duplica filas en PostgreSQL",
     "expected_action": "depurar_error",
     "expected_category": "Tecnología y programación",
     "difficulty": "borde",
-    "notes": "Descripción coloquial de fallo sin usar traceback ni bug"
+    "notes": "Anomalía en cruce de facturación sin decir bug ni depurar"
   },
   {
     "id": "BM-013",
@@ -129,19 +129,19 @@
   },
   {
     "id": "BM-017",
-    "text": "Fijate en los registros de asistencia del comedor comunitario si asoma algún comportamiento estacional los días de lluvia",
+    "text": "Fijate en la planilla Excel de consumo eléctrico de la cooperativa dónde saltan outliers y valores nulos",
     "expected_action": "analizar_datos",
     "expected_category": "Ciencia de Datos e IA",
     "difficulty": "borde",
-    "notes": "Pedido social implícito de exploración de datos"
+    "notes": "Inspección de consumo cooperativo sin verbo analizar"
   },
   {
     "id": "BM-018",
-    "text": "Miremos los registros históricos de entregas barriales por comedor para ver dónde hay desvíos o comportamiento estacional",
+    "text": "Miremos en Pandas la encuesta de egresados terciarios para cruzar correlación con inserción laboral y tendencias mensuales",
     "expected_action": "analizar_datos",
     "expected_category": "Ciencia de Datos e IA",
     "difficulty": "borde",
-    "notes": "Jerga cotidiana sin verbo analizar explícito"
+    "notes": "Exploración de encuesta educativa sin verbo analizar"
   },
   {
     "id": "BM-019",
@@ -177,19 +177,19 @@
   },
   {
     "id": "BM-023",
-    "text": "No cazo una de cómo opera el árbol de decisión ni la entropía para el coloquio de mañana en la cátedra",
+    "text": "No cazo una sobre qué es el overfitting en ciencia de datos para primer año de facultad, bajalo desde cero",
     "expected_action": "explicar_concepto",
     "expected_category": "Estudio y academia",
     "difficulty": "borde",
-    "notes": "Jerga estudiantil argentina para pedir explicación"
+    "notes": "Jerga estudiantil universitaria pidiendo comprensión desde cero"
   },
   {
     "id": "BM-024",
-    "text": "Para el coloquio de la cátedra todavía no cazo una sobre intervalos de confianza e hipótesis nula",
+    "text": "Mi hermana recién arranca un kiosco en Argentina y pregunta cómo opera ingresos brutos con ejemplos cotidianos sin tecnicismos",
     "expected_action": "explicar_concepto",
     "expected_category": "Estudio y academia",
     "difficulty": "borde",
-    "notes": "Modismo estudiantil sin verbo explicar"
+    "notes": "Consulta familiar impositiva sin verbo explicar"
   },
   {
     "id": "BM-025",
@@ -225,19 +225,19 @@
   },
   {
     "id": "BM-029",
-    "text": "Cómo ordenamos por semanas el operativo barrial de vacunación y relevamiento puerta a puerta con diez voluntarios",
+    "text": "Cómo ordenamos en 4 semanas con hitos semanales la apertura de una panadería de barrio dedicando 2 horas por tarde",
     "expected_action": "planificar_pasos",
-    "expected_category": "Planificación y productividad",
+    "expected_category": "Negocios y comercio",
     "difficulty": "borde",
-    "notes": "Gestión pública y social sin palabra plan ni cronograma"
+    "notes": "Organización de apertura comercial sin decir plan ni cronograma"
   },
   {
     "id": "BM-030",
-    "text": "Ordenemos por semanas las postas del operativo barrial con voluntarios puerta a puerta antes de fin de mes",
+    "text": "Rindo el recuperatorio de Estadística en 7 días entre trabajos prácticos y repaso del campus universitario",
     "expected_action": "planificar_pasos",
-    "expected_category": "Planificación y productividad",
+    "expected_category": "Estudio y academia",
     "difficulty": "borde",
-    "notes": "Jerga territorial argentina de organización por semanas"
+    "notes": "Organización de estudio contrarreloj sin verbo planificar"
   },
   {
     "id": "BM-031",
@@ -273,19 +273,19 @@
   },
   {
     "id": "BM-035",
-    "text": "Hay que elevar una solicitud prolija a desarrollo social por el refuerzo de mercadería seca para el merendero",
+    "text": "Hay que elevar una presentación cordial a la secretaría de obras pidiendo 15 días de prórroga por lluvia en la vereda",
     "expected_action": "redactar_contenido",
     "expected_category": "Trámites y documentos",
     "difficulty": "borde",
-    "notes": "Gestión social sin verbo redactar ni escribir"
+    "notes": "Pedido vecinal administrativo sin verbo redactar"
   },
   {
     "id": "BM-036",
-    "text": "Necesito elevar una solicitud prolija a la dirección municipal pidiendo autorización de uso del polideportivo para el merendero",
+    "text": "Preciso mandarle un texto breve sin clichés al consorcio avisando el corte de agua por limpieza de tanque",
     "expected_action": "redactar_contenido",
-    "expected_category": "Trámites y documentos",
+    "expected_category": "Redacción y comunicación",
     "difficulty": "borde",
-    "notes": "Pedido administrativo municipal implícito"
+    "notes": "Aviso cotidiano de consorcio sin verbo escribir"
   },
   {
     "id": "BM-037",
@@ -321,19 +321,19 @@
   },
   {
     "id": "BM-041",
-    "text": "Pone en la balanza contratar flete tercerizado o mantener reparto con utilitario propio para distribuir viandas",
+    "text": "Poné en la balanza contratar flete tercerizado frente a reparto propio para distribuir viandas mirando costos y mantenimiento",
     "expected_action": "comparar_evaluar",
     "expected_category": "Toma de decisiones",
     "difficulty": "borde",
-    "notes": "Expresión idiomática poner en la balanza"
+    "notes": "Modismo poner en la balanza en logística gastronómica"
   },
   {
     "id": "BM-042",
-    "text": "Pongamos en la balanza alquilar depósito compartido o usar flete tercerizado directo según costos fijos y riesgo",
+    "text": "Estamos en duda entre facturación local o servicio en la nube para la clínica evaluando precisión, backups y concurrencia",
     "expected_action": "comparar_evaluar",
-    "expected_category": "Toma de decisiones",
+    "expected_category": "Tecnología y programación",
     "difficulty": "borde",
-    "notes": "Modismo argentino sin verbo comparar"
+    "notes": "Dilema tecnológico sanitario sin verbo comparar"
   },
   {
     "id": "BM-043",
@@ -369,19 +369,19 @@
   },
   {
     "id": "BM-047",
-    "text": "Mirame con lupa este pliego de compra directa del municipio a ver si tiene alguna trampa en las garantías exigidas",
+    "text": "Mirame con lupa este pliego municipal de viandas escolares a ver si tiene vacíos legales o penalidades ocultas",
     "expected_action": "auditar_criticar",
     "expected_category": "Trámites y documentos",
     "difficulty": "borde",
-    "notes": "Modismo mirar con lupa / trampa"
+    "notes": "Modismo mirar con lupa en compra pública"
   },
   {
     "id": "BM-048",
-    "text": "Fijate con lupa el anexo de garantías y multas del pliego de mantenimiento por si esconde alguna trampa",
+    "text": "Antes de firmar el boleto de compraventa del terreno quiero detectar puntos débiles o cláusulas abusivas en la letra chica",
     "expected_action": "auditar_criticar",
     "expected_category": "Trámites y documentos",
     "difficulty": "borde",
-    "notes": "Jerga administrativa sin palabra auditar ni cláusula"
+    "notes": "Chequeo preventivo inmobiliario sin verbo auditar"
   },
   {
     "id": "BM-049",
@@ -417,19 +417,19 @@
   },
   {
     "id": "BM-053",
-    "text": "Me mandaron por audio transcripto todo mezclado el detalle de bultos y precios mayoristas, dejalo prolijo en columnas separadas",
+    "text": "Me mandaron por audio desgrabado todo mezclado el detalle de repuestos con nombre, rubro y precio; dejalo en columnas",
     "expected_action": "transformar_formato",
     "expected_category": "Negocios y comercio",
     "difficulty": "borde",
-    "notes": "Pedido coloquial de estructuración sin decir JSON ni CSV"
+    "notes": "Estructuración tabular desde audio corrido"
   },
   {
     "id": "BM-054",
-    "text": "Tengo todo mezclado en renglones sueltos el detalle de bultos del depósito, dejalo prolijo en columnas separadas",
+    "text": "Tengo pegados sin orden los postulantes a becas con apellido, DNI y localidad para pasarlo limpio a tabla Markdown",
     "expected_action": "transformar_formato",
-    "expected_category": "Negocios y comercio",
+    "expected_category": "Trámites y documentos",
     "difficulty": "borde",
-    "notes": "Pedido coloquial de estructuración tabular"
+    "notes": "Normalización de padrón desordenado sin verbo transformar"
   },
   {
     "id": "BM-055",
@@ -465,18 +465,18 @@
   },
   {
     "id": "BM-059",
-    "text": "Ponete en el papel de un vecino ofuscado en ventanilla de reclamos municipales así fogueo a los chicos de mesa de entrada",
+    "text": "Ponete en el papel de un vecino ofuscado en ventanilla municipal así fogueo la respuesta de mesa de entrada pregunta por turno",
     "expected_action": "simular_practicar",
     "expected_category": "Trámites y documentos",
     "difficulty": "borde",
-    "notes": "Jerga argentina foguear en ventanilla sin palabra simular"
+    "notes": "Roleplay municipal en ventanilla"
   },
   {
     "id": "BM-060",
-    "text": "Ponete en el papel de un vecino impaciente en mesa de entrada reclamando expediente así fogueo al personal nuevo",
+    "text": "Hacé de comprador mayorista exigente regateando precios por WhatsApp para practicar mis argumentos con feedback al final",
     "expected_action": "simular_practicar",
-    "expected_category": "Trámites y documentos",
+    "expected_category": "Negocios y comercio",
     "difficulty": "borde",
-    "notes": "Roleplay municipal coloquial sin palabra simular"
+    "notes": "Ensayo comercial interactivo sin verbo simular"
   }
 ]

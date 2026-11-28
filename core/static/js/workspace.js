@@ -123,7 +123,7 @@
             '<span class="pl-fmt-pii-mask">$1</span>'
         );
         codeTokens.forEach((html, idx) => {
-            out = out.replace(`__PL_CODE_TOK_${idx}__`, html);
+            out = out.replace(`__PL_CODE_TOK_${idx}__`, () => html);
         });
         return out;
     }
@@ -766,6 +766,32 @@
             .filter(Boolean);
     }
 
+    function isValidCuitMod11(cuitDigits) {
+        if (!/^(?:20|23|24|27|30|33|34)\d{9}$/.test(cuitDigits)) return false;
+        const weights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+        let acc = 0;
+        for (let i = 0; i < 10; i++) {
+            acc += Number(cuitDigits[i]) * weights[i];
+        }
+        const rem = 11 - (acc % 11);
+        const dv = Number(cuitDigits[10]);
+        if (rem === 11) return dv === 0;
+        if (rem === 10) return cuitDigits.startsWith("23") && (dv === 9 || dv === 4);
+        return dv === rem;
+    }
+
+    function isMoneyContextAround(fullStr, startIdx, endIdx, token) {
+        if (token.includes("-")) return false;
+        const immediateBefore = fullStr.slice(Math.max(0, startIdx - 20), startIdx);
+        if (/\b(?:dni|cuil|cuit|documento|doc\.?)\s*[:=-]?\s*$/i.test(immediateBefore)) {
+            return false;
+        }
+        const beforeChunk = fullStr.slice(Math.max(0, startIdx - 22), startIdx).split(/[,;\n]/).pop() || "";
+        const afterChunk = (fullStr.slice(endIdx, Math.min(fullStr.length, endIdx + 22)).split(/[,;\n]/)[0]) || "";
+        const moneyRe = /(?:\$|\b(?:pesos?|ars|usd|u\$s|d[oó]lares?|d[oó]lar|presupuesto|gastos?|monto|precios?|importe|cuotas?)\b)/i;
+        return moneyRe.test(beforeChunk) || moneyRe.test(afterChunk);
+    }
+
     function detectPiiClientSide(text) {
         if (!text) return [];
         const warnings = [];
@@ -777,10 +803,16 @@
             warnings.push({ type: "cbu", label: "CBU bancario (22 dígitos)", count: cbuMatches.length });
         }
 
-        const aliasMatches = working.match(/\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b/gi) || [];
-        if (aliasMatches.length) {
-            working = working.replace(/\b(?:alias\s*(?:cbu|bancario)?\s*[:=]\s*)([a-z0-9._-]{6,30})\b/gi, "alias: [ALIAS_OCULTO]");
-            warnings.push({ type: "alias_bancario", label: "Alias bancario", count: aliasMatches.length });
+        const aliasRe = /\b(?:alias(?:\s+(?:cbu|bancario))?\s*[:=]\s*([a-z0-9._-]{6,30})|alias(?:\s+(?:cbu|bancario))?\s+(?:de\s+|es\s+)?([a-z0-9_-]{2,}(?:\.[a-z0-9_-]{2,})+))(?![a-z0-9._-])/gi;
+        let aliasCount = 0;
+        working = working.replace(aliasRe, (m, g1, g2) => {
+            const val = g1 || g2 || "";
+            if (val.length < 6 || val.length > 30) return m;
+            aliasCount += 1;
+            return "alias: [ALIAS_OCULTO]";
+        });
+        if (aliasCount > 0) {
+            warnings.push({ type: "alias_bancario", label: "Alias bancario", count: aliasCount });
         }
 
         const emailMatches = working.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g) || [];
@@ -796,8 +828,32 @@
             return `${label}[TELEFONO_OCULTO]`;
         });
 
-        const dniRe = /\b(?:\d{2}-\d{7,8}-\d|[1-9]\d?\.\d{3}\.\d{3}|\d{7,8})\b/g;
+        const cell15Re = /(?:^|[^\d])((?:11|2\d{2,3}|3\d{2,3})[\s.-]?15[\s.-]?\d{3,4}[\s.-]?\d{3,4})(?!\d)/g;
+        working = working.replace(cell15Re, (m, body, offset, fullStr) => {
+            const prefix = m.slice(0, m.length - body.length);
+            const cleanBody = body.trim();
+            if (cleanBody.startsWith("000") || /^\d{4,5}-\d{8}$/.test(cleanBody)) return m;
+            const before = fullStr.slice(Math.max(0, offset - 40), offset + prefix.length);
+            if (/(?:\b(?:factura|fc|comprobante|remito|orden|ticket|recibo)(?:\s+(?:nro|n[°º]|numero|#))?\s*[:=-]?\s*)$/i.test(before)) {
+                return m;
+            }
+            phoneCount += 1;
+            return `${prefix}[TELEFONO_OCULTO]`;
+        });
+
         let dniCount = 0;
+        const cuit11Re = /\b(?:20|23|24|27|30|33|34)\d{9}\b/g;
+        working = working.replace(cuit11Re, (m, offset, fullStr) => {
+            const prevChar = offset > 0 ? fullStr[offset - 1] : "";
+            const nextChar = offset + m.length < fullStr.length ? fullStr[offset + m.length] : "";
+            if (prevChar === "$" || prevChar === "-" || nextChar === "-") return m;
+            if (!isValidCuitMod11(m)) return m;
+            if (isMoneyContextAround(fullStr, offset, offset + m.length, m)) return m;
+            dniCount += 1;
+            return "[DNI_CUIL_OCULTO]";
+        });
+
+        const dniRe = /\b(?:\d{2}-\d{7,8}-\d|[1-9]\d?\.\d{3}\.\d{3}|\d{7,8})\b/g;
         working = working.replace(dniRe, (m, offset, fullStr) => {
             const prevChar = offset > 0 ? fullStr[offset - 1] : "";
             const nextChar = offset + m.length < fullStr.length ? fullStr[offset + m.length] : "";
@@ -812,6 +868,9 @@
                 if (/(?:\b(?:factura|fc|comprobante|remito|orden|ticket|recibo)(?:\s+(?:nro|n[°º]|numero|#))?\s*[:=-]?\s*(?:\d{4,5}\s*-\s*)?|\b\d{4,5}\s*-\s*)$/i.test(before)) {
                     return m;
                 }
+            }
+            if (isMoneyContextAround(fullStr, offset, offset + m.length, m)) {
+                return m;
             }
             dniCount += 1;
             return "[DNI_CUIL_OCULTO]";
@@ -1084,7 +1143,10 @@
             try {
                 const resp = await fetch("/api/analyze-live/", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCsrfToken(),
+                    },
                     body: JSON.stringify({
                         text: text,
                         category: $("category-select") ? $("category-select").value : "",
@@ -1408,7 +1470,10 @@
             }
             const response = await fetch("/api/improve/", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrfToken(),
+                },
                 body: JSON.stringify(reqBody),
             });
 
@@ -1519,10 +1584,29 @@
     // Copiar, Exportar, Comparar, Limpiar
     // ------------------------------------------------------------------
 
+    function _fallbackCopyText(text) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try {
+            ok = document.execCommand("copy");
+        } catch (_e) {
+            ok = false;
+        }
+        document.body.removeChild(ta);
+        return ok;
+    }
+
     function copiarAlPortapapeles() {
         const output = $("generated-prompt-output");
         if (!output || !output.value) return;
-        navigator.clipboard.writeText(output.value).then(() => {
+        const textToCopy = output.value;
+        const onCopied = () => {
             const btnCopy = $("btn-copy");
             if (!btnCopy) return;
             const originalHtml = btnCopy.innerHTML;
@@ -1534,7 +1618,27 @@
                 btnCopy.classList.remove("btn-success");
                 btnCopy.classList.add("btn-brand");
             }, 2000);
-        });
+        };
+        const onCopyError = () => {
+            mostrarAviso("No se pudo acceder al portapapeles automáticamente. Copiá el texto manualmente desde Editar texto.");
+        };
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard
+                .writeText(textToCopy)
+                .then(onCopied)
+                .catch(() => {
+                    if (_fallbackCopyText(textToCopy)) {
+                        onCopied();
+                    } else {
+                        onCopyError();
+                    }
+                });
+        } else if (_fallbackCopyText(textToCopy)) {
+            onCopied();
+        } else {
+            onCopyError();
+        }
     }
 
     function descargarArchivo(formato) {

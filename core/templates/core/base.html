@@ -8,14 +8,18 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='2' y1='2' x2='30' y2='30' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%235b52f5'/%3E%3Cstop offset='55%25' stop-color='%237c73ff'/%3E%3Cstop offset='100%25' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23131b2e' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M8.5 11L13.5 16L8.5 21' stroke='%23f8fafc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='16.5' y1='11.5' x2='23.5' y2='11.5' stroke='%2322d3ee' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='16.5' y1='16' x2='21.5' y2='16' stroke='%237c73ff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='16.5' y1='20.5' x2='23.5' y2='20.5' stroke='%2310b981' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
     <script>
         (function() {
-            var savedTheme = localStorage.getItem('promptlab_theme') || 'dark';
+            var savedTheme = 'dark';
+            try {
+                savedTheme = localStorage.getItem('promptlab_theme') || 'dark';
+            } catch (e) {
+                savedTheme = 'dark';
+            }
             document.documentElement.setAttribute('data-theme', savedTheme);
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
     </script>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
-    <!-- compat: promptlab.css?v=7.2.1 promptlab.css?v=7.2.2 promptlab.css?v=7.2.3 -->
     <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=8.0">
 </head>
 <body class="d-flex">
@@ -105,7 +109,7 @@
                     </form>
                 </div>
                 {% else %}
-                <div class="pl-account-guest-label mb-2">
+                <div class="pl-account-guest-label mb-2" title="Espacio de prueba compartido. Creá una cuenta gratis para tener historial y plantillas privadas.">
                     <i class="bi bi-person-circle text-info me-1"></i>Modo invitado
                 </div>
                 <div class="d-flex gap-2">
@@ -184,7 +188,7 @@
                         </form>
                     </div>
                     {% else %}
-                    <div class="pl-account-guest-label mb-2">
+                    <div class="pl-account-guest-label mb-2" title="Espacio de prueba compartido. Creá una cuenta gratis para tener historial y plantillas privadas.">
                         <i class="bi bi-person-circle text-info me-1"></i>Modo invitado
                     </div>
                     <div class="d-flex gap-2">
@@ -239,7 +243,9 @@
             const next = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', next);
             document.documentElement.setAttribute('data-bs-theme', next);
-            localStorage.setItem('promptlab_theme', next);
+            try {
+                localStorage.setItem('promptlab_theme', next);
+            } catch (e) {}
             updateThemeToggleUI(next);
             window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: next } }));
         }
