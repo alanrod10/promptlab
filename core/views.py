@@ -29,6 +29,7 @@ from .scientific_eval import (
     run_scientific_benchmark,
 )
 from .universal_engine import mine_long_tail_candidates
+from .glossary_data import GLOSSARY_CATALOG, GLOSSARY_CATEGORIES
 from .models import Prompt, ActiveLearningRule, UserTemplate
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,17 @@ def _get_active_user(request):
             return guest
     except IntegrityError:
         return User.objects.get(username=GUEST_SENTINEL_USERNAME)
+
+
+def _get_active_user_info(request) -> dict:
+    active_user = _get_active_user(request)
+    is_authenticated = bool(request.user.is_authenticated)
+    return {
+        "user": active_user,
+        "username": active_user.username,
+        "is_authenticated": is_authenticated,
+        "is_guest": not is_authenticated,
+    }
 
 
 def login_view(request):
@@ -2063,3 +2075,44 @@ def import_user_templates_json(request):
         "text": summary_msg,
     }
     return redirect(f"{reverse('templates_gallery')}#mis-plantillas")
+
+
+_GLOSSARY_LINK_LABELS = {
+    "workspace": "Ir al Espacio de Trabajo",
+    "templates_gallery": "Explorar Plantillas",
+    "history": "Ir a Mi Historial",
+    "analytics": "Ver Estadísticas y Datos",
+}
+
+
+def glossary_view(request):
+    active_user_info = _get_active_user_info(request)
+    glossary_items = []
+    for item in GLOSSARY_CATALOG:
+        rel_name = item.get("related_url_name") or "workspace"
+        rel_url = reverse(rel_name)
+        rel_label = _GLOSSARY_LINK_LABELS.get(rel_name, "Ver en PromptLab")
+        glossary_items.append({
+            **item,
+            "related_url": rel_url,
+            "related_label": rel_label,
+        })
+
+    glossary_categories = [
+        {
+            "name": cat,
+            "count": sum(1 for entry in glossary_items if entry["category"] == cat),
+        }
+        for cat in GLOSSARY_CATEGORIES
+    ]
+
+    return render(
+        request,
+        "core/glossary.html",
+        {
+            "glossary_items": glossary_items,
+            "glossary_categories": glossary_categories,
+            "total_terms": len(glossary_items),
+            "active_user_info": active_user_info,
+        },
+    )

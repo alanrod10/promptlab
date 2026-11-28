@@ -1198,8 +1198,8 @@ class PromptLabV721AuditRegressionTests(TestCase):
 
         ws = self.client.get(reverse("workspace"))
         self.assertEqual(ws.status_code, 200)
-        self.assertContains(ws, 'promptlab.css?v=8.0"')
-        self.assertContains(ws, 'workspace.js?v=8.0"')
+        self.assertContains(ws, 'promptlab.css?v=8.0.2"')
+        self.assertContains(ws, 'workspace.js?v=8.0.2"')
 
     def test_n6_five_day_study_plan_clean_topic_daily_tasks_and_filtered_slots(self):
         raw = (
@@ -1265,16 +1265,16 @@ class PromptLabTemplatesCatalogTests(TestCase):
         self.assertContains(resp, "Plantillas Listas para Usar")
         self.assertContains(resp, "1. Elegí tu caso")
         self.assertContains(resp, "Usar esta plantilla")
-        self.assertContains(resp, 'promptlab.css?v=8.0"')
-        self.assertContains(resp, 'templates_gallery.js?v=8.0"')
+        self.assertContains(resp, 'promptlab.css?v=8.0.2"')
+        self.assertContains(resp, 'templates_gallery.js?v=8.0.2"')
         self.assertContains(resp, "Mostrando 18 de 18 plantillas")
         for cat in self.EXPECTED_CATEGORIES:
             self.assertContains(resp, cat)
 
         ws = self.client.get(reverse("workspace"))
         self.assertEqual(ws.status_code, 200)
-        self.assertContains(ws, 'promptlab.css?v=8.0"')
-        self.assertContains(ws, 'workspace.js?v=8.0"')
+        self.assertContains(ws, 'promptlab.css?v=8.0.2"')
+        self.assertContains(ws, 'workspace.js?v=8.0.2"')
 
     def test_catalog_has_18_templates_across_6_categories_with_valid_fields(self):
         import re as _re
@@ -1356,7 +1356,7 @@ class PromptLabStatsDashboardTests(TestCase):
         self.assertContains(resp, "Todavía no hay estadísticas para mostrar")
         self.assertContains(resp, reverse("workspace"))
         self.assertContains(resp, reverse("templates_gallery"))
-        self.assertContains(resp, 'promptlab.css?v=8.0"')
+        self.assertContains(resp, 'promptlab.css?v=8.0.2"')
         for term in self.FORBIDDEN_JARGON:
             self.assertNotContains(resp, term)
 
@@ -1538,7 +1538,7 @@ class PromptLabStatsDashboardTests(TestCase):
         html_body = resp.content.decode("utf-8")
 
         self.assertIn('id="analytics-chart-data"', html_body)
-        self.assertIn('analytics_charts.js?v=8.0"', html_body)
+        self.assertIn('analytics_charts.js?v=8.0.2"', html_body)
         for container_id in (
             'id="chart-domains-svg"',
             'id="chart-donut-svg"',
@@ -1606,7 +1606,7 @@ class PromptLabStatsDashboardTests(TestCase):
 
 
 class PromptLabSiteCoherenceTests(TestCase):
-    """Pruebas de coherencia de diseño, lenguaje, cache-busting v7.2.4 y navegación entre las 4 pestañas."""
+    """Pruebas de coherencia de diseño, lenguaje, cache-busting v8.0.2 y navegación entre las pestañas."""
 
     EXTERNAL_CDNS = (
         "cdn.jsdelivr.net",
@@ -1658,7 +1658,7 @@ class PromptLabSiteCoherenceTests(TestCase):
         )
 
     def test_all_tabs_respond_200_empty_and_populated(self):
-        routes = ("workspace", "templates_gallery", "history", "favorites", "analytics")
+        routes = ("workspace", "templates_gallery", "history", "favorites", "analytics", "glossary")
         for route_name in routes:
             resp = self.client.get(reverse(route_name))
             self.assertEqual(resp.status_code, 200, f"Falló {route_name} con DB vacía")
@@ -1671,11 +1671,12 @@ class PromptLabSiteCoherenceTests(TestCase):
     def test_cache_busting_v724_and_no_external_cdns(self):
         self._create_sample_prompts()
         checks = [
-            ("workspace", ["promptlab.css?v=8.0", "workspace.js?v=8.0"]),
-            ("templates_gallery", ["promptlab.css?v=8.0", "templates_gallery.js?v=8.0"]),
-            ("history", ["promptlab.css?v=8.0"]),
-            ("favorites", ["promptlab.css?v=8.0"]),
-            ("analytics", ["promptlab.css?v=8.0", "analytics_charts.js?v=8.0"]),
+            ("workspace", ["promptlab.css?v=8.0.2", "workspace.js?v=8.0.2"]),
+            ("templates_gallery", ["promptlab.css?v=8.0.2", "templates_gallery.js?v=8.0.2"]),
+            ("history", ["promptlab.css?v=8.0.2"]),
+            ("favorites", ["promptlab.css?v=8.0.2"]),
+            ("analytics", ["promptlab.css?v=8.0.2", "analytics_charts.js?v=8.0.2"]),
+            ("glossary", ["promptlab.css?v=8.0.2", "glossary.js?v=8.0.2"]),
         ]
         for route_name, expected_assets in checks:
             resp = self.client.get(reverse(route_name))
@@ -1688,13 +1689,13 @@ class PromptLabSiteCoherenceTests(TestCase):
 
     def test_no_raw_jargon_or_internal_mode_names_in_ui(self):
         self._create_sample_prompts()
-        for route_name in ("workspace", "templates_gallery", "history", "favorites", "analytics"):
+        for route_name in ("workspace", "templates_gallery", "history", "favorites", "analytics", "glossary"):
             resp = self.client.get(reverse(route_name))
             body = resp.content.decode("utf-8")
             for term in self.RAW_JARGON:
                 self.assertNotIn(term, body, f"Jerga cruda '{term}' encontrada en {route_name}")
 
-        for route_name in ("templates_gallery", "history", "favorites", "analytics"):
+        for route_name in ("templates_gallery", "history", "favorites", "analytics", "glossary"):
             resp = self.client.get(reverse(route_name))
             body = resp.content.decode("utf-8")
             for raw_mode in self.RAW_MODE_WORDS:
@@ -1712,6 +1713,7 @@ class PromptLabSiteCoherenceTests(TestCase):
             ("history", "Mi Historial · PromptLab", reverse("history")),
             ("favorites", "Favoritos · PromptLab", reverse("favorites")),
             ("analytics", "Estadísticas y Datos · PromptLab", reverse("analytics")),
+            ("glossary", "Glosario IA · PromptLab", reverse("glossary")),
         ]
         for route_name, expected_title, expected_href in expected:
             resp = self.client.get(expected_href)
@@ -1719,7 +1721,14 @@ class PromptLabSiteCoherenceTests(TestCase):
             body = resp.content.decode("utf-8")
             self.assertIn(f"<title>{expected_title}</title>", body)
             self.assertIn('aria-current="page"', body)
-            for nav_label in ("Espacio de Trabajo", "Mi Historial", "Favoritos", "Plantillas", "Estadísticas y Datos"):
+            for nav_label in (
+                "Espacio de Trabajo",
+                "Mi Historial",
+                "Favoritos",
+                "Plantillas",
+                "Estadísticas y Datos",
+                "Glosario IA",
+            ):
                 self.assertIn(nav_label, body)
             self.assertIn("Motor Híbrido v8.0 • 100% Offline", body)
             self.assertIn("themeChanged", body)
@@ -3021,5 +3030,114 @@ class PromptLabV801SecurityAndAuditFixesTests(TestCase):
 
         hist_body = cli.get(reverse("history")).content.decode("utf-8")
         self.assertIn("Ver evolución (2 versiones)", hist_body)
+
+
+class PromptLabV802GlossaryTests(TestCase):
+    """Pruebas v8.0.2: Pestaña didáctica Glosario IA 100 % offline y puente desde Workspace."""
+
+    EXPECTED_CATEGORIES = {
+        "Lo básico para empezar": 5,
+        "Cómo pedir mejor": 6,
+        "Límites y cuidados": 4,
+        "Cómo funciona por dentro": 3,
+    }
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+
+    def test_glossary_view_renders_200_18_terms_4_categories_slugs_and_offline_js(self):
+        from .glossary_data import GLOSSARY_CATALOG
+
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "glossary.js"
+        self.assertTrue(js_path.is_file(), "Falta archivo estático core/static/js/glossary.js")
+        self.assertIsNotNone(finders.find("js/glossary.js"))
+
+        resp = self.client.get(reverse("glossary"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+
+        self.assertIn("<title>Glosario IA · PromptLab</title>", body)
+        self.assertIn('aria-current="page"', body)
+        self.assertIn("Mostrando 18 de 18 conceptos", body)
+        self.assertIn("Entendé el idioma de la IA sin vueltas", body)
+        self.assertIn("Limpiar filtros", body)
+        self.assertIn('glossary.js?v=8.0.2"', body)
+        self.assertIn('promptlab.css?v=8.0.2"', body)
+
+        for cat_name, expected_count in self.EXPECTED_CATEGORIES.items():
+            self.assertIn(f"{cat_name} ({expected_count})", body)
+
+        for key_slug in ("token", "ventana-de-contexto", "alucinacion", "datos-sensibles-pii"):
+            self.assertIn(f'id="{key_slug}"', body)
+
+        for item in GLOSSARY_CATALOG:
+            self.assertIn(f'id="{item["slug"]}"', body)
+            self.assertIn(item["term"], body)
+
+        for section_lbl in ("En pocas palabras", "Analogía cotidiana", "Ejemplo práctico", "Dónde lo ves en PromptLab"):
+            self.assertIn(section_lbl, body)
+
+        clean_body = body.replace("http://www.w3.org/2000/svg", "")
+        self.assertNotIn("http://", clean_body)
+        self.assertNotIn("https://", clean_body)
+        for cdn in self.EXTERNAL_CDNS:
+            self.assertNotIn(cdn, body)
+
+    def test_glossary_catalog_integrity_18_unique_slugs_required_fields_and_reverse_urls(self):
+        from .glossary_data import GLOSSARY_CATALOG, GLOSSARY_CATEGORIES
+        from .urls import urlpatterns
+
+        self.assertEqual(len(urlpatterns), 20)
+        self.assertEqual(list(GLOSSARY_CATEGORIES), list(self.EXPECTED_CATEGORIES.keys()))
+        self.assertEqual(len(GLOSSARY_CATALOG), 18)
+
+        required_fields = (
+            "slug",
+            "term",
+            "tagline",
+            "category",
+            "level",
+            "plain_definition",
+            "analogy",
+            "example",
+            "in_promptlab",
+            "related_url_name",
+        )
+        seen_slugs = set()
+        cat_counts = {}
+
+        for item in GLOSSARY_CATALOG:
+            for field in required_fields:
+                self.assertIn(field, item)
+                self.assertTrue(str(item[field]).strip(), f"Campo vacío '{field}' en {item.get('slug')}")
+
+            slug = item["slug"]
+            self.assertNotIn(slug, seen_slugs, f"Slug duplicado: {slug}")
+            seen_slugs.add(slug)
+
+            self.assertIn(item["category"], self.EXPECTED_CATEGORIES)
+            cat_counts[item["category"]] = cat_counts.get(item["category"], 0) + 1
+            self.assertIn(item["level"], ("Inicial", "Intermedio"))
+
+            words = item["tagline"].split()
+            self.assertGreaterEqual(len(words), 4, f"Tagline muy corto en {slug}")
+            self.assertLessEqual(len(words), 7, f"Tagline muy largo en {slug}")
+
+            self.assertIn(item["related_url_name"], ("workspace", "templates_gallery", "history", "analytics"))
+            resolved_url = reverse(item["related_url_name"])
+            self.assertTrue(resolved_url.startswith("/"))
+
+        self.assertEqual(cat_counts, self.EXPECTED_CATEGORIES)
+
+    def test_workspace_includes_contextual_glossary_token_link(self):
+        resp = self.client.get(reverse("workspace"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn(f'{reverse("glossary")}#token', body)
+        self.assertIn("¿Qué es un token? Ver Glosario →", body)
+        self.assertIn("1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor.", body)
 
 

@@ -1,6 +1,6 @@
-# PromptLab Studio · DS & IA (v8.0.1)
+# PromptLab Studio · DS & IA (v8.0.2)
 
-**PromptLab** es una plataforma web desarrollada en Django para diseñar, estructurar, versionar y evaluar *prompts* con una **arquitectura híbrida 100 % offline** (`Motor Universal v7.2` determinístico de Caja Blanca + `Capa Científica Probabilística y Gestión de Prompts v8.0.1`), **cero paquetes externos de ML o APIs**, cero CDNs y base de datos local SQLite por defecto.
+**PromptLab** es una plataforma web desarrollada en Django para diseñar, estructurar, versionar y evaluar *prompts* con una **arquitectura híbrida 100 % offline** (`Motor Universal v7.2` determinístico de Caja Blanca + `Capa Científica Probabilística y Gestión de Prompts v8.0.2`), **cero paquetes externos de ML o APIs**, cero CDNs y base de datos local SQLite por defecto.
 
 Nació como proyecto académico para la **Tecnicatura Superior en Ciencia de Datos e Inteligencia Artificial (IES N° 11)** y combina un pipeline determinístico de Procesamiento de Lenguaje Natural (NLP), un desempate probabilístico liviano en **Python puro** (*Multinomial Naive Bayes* sobre los 21 arquetipos), evaluación científica reproducible mediante **Validación Cruzada Estratificada 5-Fold y CV Repetida 10×5**, capa supervisada reversible (*Human-in-the-Loop*) restringida a administradores, versionado iterativo `v1 → v2 → v3` y portabilidad `.JSON` con escaneo automático de datos personales argentinos.
 
@@ -20,13 +20,13 @@ PromptLab transforma pedidos cotidianos o incompletos en instrucciones claras y 
 
 ---
 
-## Las 4 pestañas principales y cuenta opcional
+## Las 5 pestañas principales y cuenta opcional
 
 ### 1. Espacio de Trabajo (`/`)
 - Editor principal con selector progresivo (`Express`, `Guiado`, `Estudio Pro`), **4 chips de ejemplos rápidos auto-ocultables** (incluyendo control de ventas en Excel, análisis CSV, cálculo de punto de equilibrio y nota oficial con resguardo de PII/facturas AFIP) y atajo `Ctrl + Enter` (límite de entrada de `15.000` caracteres en APIs protegidas con CSRF).
 - **Detección en vivo** (`/api/analyze-live/`) mientras escribís: identifica área temática, tipo de tarea, entregable, restricciones negativas, contradicciones e insumos pegados (CSV, listas, código, trazas de error).
 - **Protección de privacidad y Sello de Privacidad verificada:** detecta y anonimiza DNI, CUIL/CUIT con o sin guiones (validando Módulo 11 oficial en 11 dígitos), teléfonos y celulares con `15`, correos electrónicos, CBU (22 dígitos) y alias bancarios en forma sincronizada entre Python y JavaScript (`workspace.js`), excluyendo cifras monetarias y comprobantes AFIP (`XXXX-XXXXXXXX`), y protegiendo también campos secundarios (`form_data`, ejemplo de referencia, tema y restricciones) cuando `mask_pii=True` (activo por defecto en `/api/improve/`).
-- **Estimación heurística orientativa para español (ChatGPT · Gemini · Claude):** estima en tiempo real el consumo de tokens de manera **100 % offline sin APIs ni tokenizadores externos** mostrando porcentaje orientativo sobre ventanas de `128K`, `1M` y `200K`, acompañado de ayuda pedagógica (*"1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor."*) tanto en la salida principal como en el **Comparador Antes vs. Después**.
+- **Estimación heurística orientativa para español (ChatGPT · Gemini · Claude):** estima en tiempo real el consumo de tokens de manera **100 % offline sin APIs ni tokenizadores externos** mostrando porcentaje orientativo sobre ventanas de `128K`, `1M` y `200K`, acompañado de ayuda pedagógica (*"1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor."*) con enlace directo al Glosario (`/glosario/#token`) tanto en la salida principal como en el **Comparador Antes vs. Después**.
 - **Versionado iterativo (`v1 → v2 → v3`) y guardado como plantilla:** badge de versión `vN`, botón **`Iterar nueva versión`** con banner de nota de cambio opcional, trazabilidad hacia el prompt padre/raíz y modal **`Guardar como plantilla`** para transformar cualquier salida en plantilla propia reutilizable.
 - **Asistente Guiado y calidad (0–100):** preguntas contextuales de alto impacto, reglas rápidas en 1 clic, evaluación no circular de 5 criterios y exportación a `.MD` y `.JSON`.
 
@@ -46,13 +46,18 @@ PromptLab transforma pedidos cotidianos o incompletos en instrucciones claras y 
 - **Capa incremental supervisada (*Human-in-the-Loop*, Overlay SQLite):** descubrimiento local *Log-Odds* de términos recurrentes con aprobación (`/analitica/aprendizaje/aprobar/`) y reversión (`/analitica/aprendizaje/revertir/<id>/`) restringidas exclusivamente a **cuentas administradoras (`is_staff=True`)**, con validación anti-PII y sin mutar jamás `core/rules/knowledge_base.json`.
 - **Dataset académico `.CSV` de 38 columnas** (`/analitica/exportar-csv/`) con neutralización contra inyección de fórmulas (`=`, `+`, `-`, `@`).
 
+### 5. Glosario IA (`/glosario/`)
+- **Catálogo didáctico 100 % offline y de solo lectura con 18 conceptos clave en 4 categorías:** *Lo básico para empezar* (5), *Cómo pedir mejor* (6), *Límites y cuidados* (4) y *Cómo funciona por dentro* (3).
+- Cada tarjeta incluye explicación en lenguaje cotidiano (*En pocas palabras*), *Analogía cotidiana*, *Ejemplo práctico* y el pie *Dónde lo ves en PromptLab* con enlace directo a la pestaña donde se aplica.
+- Filtrado instantáneo 100 % *client-side* (`glossary.js`) por búsqueda sin tildes, categoría y nivel (`Inicial` / `Intermedio`), anclas HTML estables (`#token`, `#alucinacion`, `#datos-sensibles-pii`, etc.) y resaltado suave al llegar desde enlaces contextuales.
+
 ### Modo Invitado y Cuenta Opcional Privada
 - **Modo Invitado:** espacio compartido de demostración (`invitado_demo`, con contraseña inutilizable que impide login directo) pensado para probar la herramienta de inmediato sin fricción. No recibe ni comparte refuerzos aprendidos entre usuarios.
 - **Cuenta registrada (`/ingresar/`, `/registro/`, `/salir/`):** espacio privado estrictamente aislado en historial, favoritos, plantillas propias, estadísticas, refuerzos aprendidos por corrección (`user_corrected`) y exportación `.CSV`.
 
 ---
 
-## Todas las rutas de la aplicación (19 endpoints en `core/urls.py`)
+## Todas las rutas de la aplicación (20 endpoints en `core/urls.py`)
 
 | Método | Ruta | Nombre / Propósito |
 | :--- | :--- | :--- |
@@ -70,6 +75,7 @@ PromptLab transforma pedidos cotidianos o incompletos en instrucciones claras y 
 | `GET` | `/analitica/exportar-csv/` | `export_csv` — Exporta `promptlab_dataset.csv` UTF-8 BOM (38 columnas seguras). |
 | `POST` | `/analitica/aprendizaje/aprobar/` | `approve_learning_rule` — Aprueba término en `ActiveLearningRule` (solo `is_staff`, anti-PII). |
 | `POST` | `/analitica/aprendizaje/revertir/<int:rule_id>/` | `toggle_learning_rule` — Activa/revierte una regla de la capa overlay (solo `is_staff`). |
+| `GET` | `/glosario/` | `glossary` — Glosario IA 100 % offline de solo lectura (18 conceptos en 4 categorías). |
 | `POST` | `/api/improve/` | `improve_prompt_api` — Compila prompt, evalúa rúbrica y guarda versión (CSRF real, tope 15.000 chars, `mask_pii=True` por defecto). |
 | `POST` | `/api/analyze-live/` | `analyze_live_api` — Diagnóstico NLP en vivo sin persistencia (CSRF real, tope 15.000 chars). |
 | `GET / POST` | `/ingresar/` | `login` — Inicio de sesión en cuenta privada. |
@@ -94,12 +100,13 @@ Proyecto PromptLab/
 │   └── asgi.py
 └── core/
     ├── models.py                          # Prompt (versionado vN), ActiveLearningRule, UserTemplate
-    ├── views.py                           # Vistas, 18 plantillas curadas, colecciones JSON, Analítica, CSRF y Auth
-    ├── urls.py                            # 19 rutas completas de la plataforma
+    ├── glossary_data.py                   # Catálogo curado de 18 conceptos IA en 4 categorías (offline)
+    ├── views.py                           # Vistas, 18 plantillas curadas, Glosario IA, JSON, Analítica, CSRF y Auth
+    ├── urls.py                            # 20 rutas completas de la plataforma
     ├── services.py                        # Pipeline NLP v7.2, rúbrica v2, PII Módulo 11, caché por usuario y puente híbrido
     ├── universal_engine.py                # Motor universal determinístico (21 arquetipos, cálculo, Log-Odds)
     ├── scientific_eval.py                 # Multinomial NB 21 clases, CV 5-Fold/10×5, Wilson, McNemar, Jaccard y Overlay
-    ├── tests.py                           # 90 tests automatizados en 15 suites
+    ├── tests.py                           # 93 tests automatizados en 16 suites
     ├── management/
     │   └── commands/
     │       └── evaluate_engine.py         # Comando CLI `./venv/bin/python manage.py evaluate_engine`
@@ -108,11 +115,12 @@ Proyecto PromptLab/
     │   └── benchmark_dataset.json         # Conjunto curado de 60 casos de referencia (10 clases × 6, Jaccard < 0.35)
     ├── migrations/                        # Migraciones SQLite 0001–0009
     ├── templates/core/
-    │   ├── base.html                      # Layout global, sidebar v8.0, invitado compartido, cuenta y ?v=8.0
+    │   ├── base.html                      # Layout global, sidebar v8.0, invitado compartido, cuenta y ?v=8.0.2
     │   ├── workspace.html                 # Espacio de Trabajo inteligente, tokens orientativos, privacidad y vN
     │   ├── templates_gallery.html         # 18 plantillas curadas + Mis Plantillas + importar/exportar JSON
     │   ├── history.html                   # Mi Historial, Favoritos, línea de tiempo y copia resiliente
     │   ├── analytics.html                 # 5 gráficos SVG + Benchmark 5-Fold/10×5 + Auditoría casos + Overlay staff
+    │   ├── glossary.html                  # Glosario IA 100 % offline con búsqueda, chips y anclas
     │   ├── login.html                     # Inicio de sesión opcional WCAG AA
     │   └── register.html                  # Registro opcional WCAG AA
     └── static/
@@ -121,7 +129,8 @@ Proyecto PromptLab/
         ├── js/
         │   ├── workspace.js               # Detección en vivo, CSRF, PII Módulo 11 client-side, tokens y versionado
         │   ├── templates_gallery.js       # Filtros 18+N, borrado 2 pasos y colección JSON
-        │   └── analytics_charts.js        # 5 gráficos SVG interactivos 100 % offline
+        │   ├── analytics_charts.js        # 5 gráficos SVG interactivos 100 % offline
+        │   └── glossary.js                # Buscador sin tildes, filtros y resaltado por hash en Glosario IA
         └── vendor/                        # Assets locales offline (Bootstrap 5 y Bootstrap Icons)
 ```
 
@@ -183,10 +192,11 @@ Requisitos: **Python 3.10+** (entorno verificado con **Python 3.14.4**, **`Djang
    - Plantillas: `http://127.0.0.1:8001/plantillas/`
    - Mi Historial: `http://127.0.0.1:8001/historial/`
    - Estadísticas y Datos: `http://127.0.0.1:8001/analitica/`
+   - Glosario IA: `http://127.0.0.1:8001/glosario/`
 
 ---
 
-## Verificación de calidad y suite de tests (90 tests)
+## Verificación de calidad y suite de tests (93 tests)
 
 Ejecutar desde la raíz del proyecto:
 
@@ -198,7 +208,7 @@ for f in core/static/js/*.js; do node --check "$f" && echo "OK: $f"; done
 ./venv/bin/python manage.py test -v 2
 ```
 
-La suite cuenta con **90 tests en verde** distribuidos en **15 clases** en `core/tests.py`:
+La suite cuenta con **93 tests en verde** distribuidos en **16 clases** en `core/tests.py`:
 
 - **`PromptLabServicesTests` (4):** sensibilidad de rúbrica, entradas cortas/triviales y combinaciones de niveles y técnicas.
 - **`PromptLabViewsAndIntegrationTests` (13):** assets offline, rutas vacías, carga/preset, APIs `/api/improve/` y `/api/analyze-live/`, favoritos/eliminación por POST, CSV de 38 columnas, voseo/clíticos, PII, contradicciones y ausencia de URLs externas.
@@ -209,18 +219,19 @@ La suite cuenta con **90 tests en verde** distribuidos en **15 clases** en `core
 - **`PromptLabV721AuditRegressionTests` (6):** casos reales N1–N6 (analogías sin fórmulas, SQL sin falso público cliente, `guion_video`, exclusión de facturas AFIP en PII, pluralización y plan de estudio diario).
 - **`PromptLabTemplatesCatalogTests` (3):** vista `/plantillas/` HTTP 200, validación de las 18 plantillas en 6 categorías y carga en Workspace.
 - **`PromptLabStatsDashboardTests` (6):** estado vacío, dashboard poblado sin jerga cruda, filtrado por período (`all`/`30d`/`7d`/inválido), período vacío con historial previo, `analytics-chart-data` con 5 contenedores SVG y caso borde de 1 solo prompt.
-- **`PromptLabSiteCoherenceTests` (4):** HTTP 200 en todas las pestañas, cache-busting `?v=8.0` sin CDNs externos, cero jerga interna ni modos crudos en la UI y coherencia de `<title>`, etiqueta `Motor Híbrido v8.0 • 100% Offline` y `aria-current="page"`.
+- **`PromptLabSiteCoherenceTests` (4):** HTTP 200 en todas las pestañas (incluyendo `/glosario/`), cache-busting `?v=8.0.2` sin CDNs externos, cero jerga interna ni modos crudos en la UI y coherencia de `<title>`, etiqueta `Motor Híbrido v8.0 • 100% Offline` y `aria-current="page"`.
 - **`PromptLabV73WorkspaceSmartFeaturesTests` (4):** chips auto-ocultables con 4° ejemplo institucional/AFIP, Sello de Privacidad verificada en Python/UI, estimador heurístico offline de tokens para español y ausencia de nombres internos en la interfaz.
 - **`PromptLabV73OptionalAuthTests` (5):** modo invitado operativo sin login obligatorio, registro/ingreso/salida, rechazo de `next` externo y aislamiento estricto por usuario en historial, favoritos, analítica, borrado y CSV.
 - **`PromptLabV80ScientificAndActiveLearningTests` (6):** validación del dataset curado de 60 casos, 5 folds balanceados (12×5), Jaccard `< 0,35`, NB `21/21`, CV 10×5 / Wilson / McNemar / invariancia frente a SQLite (`elapsed_ms < 2000.0`, `regressions_count == 0`, `hybrid["macro_f1"] >= baseline["macro_f1"]`), comando `evaluate_engine`, aislamiento estricto de refuerzos aprendidos por usuario/invitado, aprobación/reversión de capa Overlay (`is_staff`) sin mutar `knowledge_base.json` y render auditable en `/analitica/`.
 - **`PromptLabV80VersioningAndCollectionsTests` (5):** versionado `v1 → v2 → v3` con `root_prompt` y aislamiento por usuario, creación/borrado seguro de `UserTemplate`, carga vía `?user_tpl=<id>`, exportación `.JSON` `promptlab-collection-v1` y validación/sanitización PII + AFIP en importación `.JSON`.
 - **`PromptLabV801SecurityAndAuditFixesTests` (6):** candado `is_staff` + rechazo anti-PII en capa Overlay, usuario centinela `invitado_demo` con clave inutilizable y sin fallback al primer usuario, CSRF estricto (`403` sin token) + tope `15.000` caracteres, PII endurecido (exclusión monetaria, CUIT 11 dígitos Módulo 11, alias en prosa, celular con `15`, protección secundaria en `user_example`/`form_data` y fix de `Desglose de nota formal`), neutralización de fórmulas en `.CSV` y promoción atómica de nueva raíz al borrar `v1`.
+- **`PromptLabV802GlossaryTests` (3):** render HTTP 200 de `/glosario/` con 18 conceptos en 4 categorías, slugs clave y `glossary.js?v=8.0.2` sin URLs externas; integridad del catálogo (`GLOSSARY_CATALOG`, 18 slugs únicos, campos obligatorios y 20 rutas en `core/urls.py`); y enlace puente contextual `/glosario/#token` desde el Espacio de Trabajo.
 
 ---
 
 ## Actualización en PythonAnywhere
 
-Para desplegar **PromptLab v8.0.1** en **PythonAnywhere**:
+Para desplegar **PromptLab v8.0.2** en **PythonAnywhere**:
 
 1. Configurar variables de entorno de producción en el WSGI / consola (al menos `DJANGO_SECRET_KEY`; cuando `PYTHONANYWHERE_DOMAIN` está presente, `DEBUG` pasa automáticamente a `False` con cookies seguras y `X_FRAME_OPTIONS = 'DENY'`).
 2. Abrir una consola Bash dentro del directorio del proyecto y traer los cambios:

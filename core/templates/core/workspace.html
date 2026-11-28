@@ -403,7 +403,10 @@
                     </div>
                     <div class="pl-token-footnote mt-2">
                         <div><i class="bi bi-info-circle me-1"></i>Estimación heurística orientativa para español; 100 % offline sin APIs.</div>
-                        <div class="mt-1">1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor.</div>
+                        <div class="mt-1 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <span>1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor.</span>
+                            <a href="{% url 'glossary' %}#token" class="pl-token-glossary-link">¿Qué es un token? Ver Glosario →</a>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -661,5 +664,5 @@
 </div>
 
 <script id="workspace-boot-data" type="application/json">{{ workspace_boot_json|safe }}</script>
-<script src="{% static 'js/workspace.js' %}?v=8.0"></script>
+<script src="{% static 'js/workspace.js' %}?v=8.0.2"></script>
 {% endblock %}

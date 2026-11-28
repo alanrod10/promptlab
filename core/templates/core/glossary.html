@@ -1,0 +1,172 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Glosario IA · PromptLab{% endblock %}
+{% block content %}
+<div class="pl-page-shell">
+    <!-- Encabezado unificado -->
+    <header class="pl-page-header">
+        <div>
+            <h1 class="pl-page-title">Glosario IA</h1>
+            <p class="pl-page-subtitle">
+                Diccionario claro y 100 % offline para entender qué significa cada término de inteligencia artificial, cómo pedir mejor y dónde se aplica en PromptLab.
+            </p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="{% url 'workspace' %}" class="btn btn-brand btn-sm px-3 py-2 fw-semibold">
+                <i class="bi bi-pencil-square me-1"></i> Ir al Espacio de Trabajo
+            </a>
+        </div>
+    </header>
+
+    <!-- Mini barra introductoria didáctica -->
+    <section class="pl-card pl-glossary-intro p-3 px-md-4 mb-4" aria-label="Introducción al glosario">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="pl-glossary-intro-icon" aria-hidden="true">
+                    <i class="bi bi-book-half"></i>
+                </span>
+                <p class="mb-0 fw-semibold pl-text-primary small">
+                    Entendé el idioma de la IA sin vueltas — {{ total_terms }} conceptos clave explicados en lenguaje cotidiano
+                </p>
+            </div>
+            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">
+                Solo lectura &middot; 100 % Offline
+            </span>
+        </div>
+    </section>
+
+    <!-- Barra de buscador instantáneo, nivel y chips de categoría (100 % client-side) -->
+    <section class="pl-card p-3 mb-4 pl-glossary-filter-bar" aria-label="Filtros del glosario">
+        <div class="row g-3 align-items-center mb-3">
+            <div class="col-lg-7">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text pl-input border-end-0">
+                        <i class="bi bi-search pl-text-secondary"></i>
+                    </span>
+                    <input type="text"
+                           id="glossary-search-input"
+                           class="form-control pl-input border-start-0"
+                           placeholder="Buscá un concepto, ej: token, alucinación, DNI, ejemplos, 5-Fold..."
+                           aria-label="Buscar en el glosario">
+                    <button type="button"
+                            id="glossary-search-clear"
+                            class="btn btn-pl-secondary btn-sm d-none"
+                            title="Limpiar búsqueda"
+                            aria-label="Limpiar búsqueda">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-lg-5 d-flex flex-wrap align-items-center justify-content-lg-end gap-2">
+                <span class="small pl-text-secondary fw-medium me-1">Nivel:</span>
+                <button type="button" class="pl-glossary-level-chip active" data-level="" aria-pressed="true">Todos</button>
+                <button type="button" class="pl-glossary-level-chip" data-level="Inicial" aria-pressed="false">Inicial</button>
+                <button type="button" class="pl-glossary-level-chip" data-level="Intermedio" aria-pressed="false">Intermedio</button>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 pl-border-top">
+            <div class="d-flex flex-wrap gap-2" role="group" aria-label="Filtrar por categoría">
+                <button type="button" class="pl-glossary-cat-chip active" data-category="" aria-pressed="true">
+                    Todos ({{ total_terms }})
+                </button>
+                {% for cat in glossary_categories %}
+                <button type="button" class="pl-glossary-cat-chip" data-category="{{ cat.name }}" aria-pressed="false">
+                    {{ cat.name }} ({{ cat.count }})
+                </button>
+                {% endfor %}
+            </div>
+            <div id="glossary-results-counter" class="small fw-semibold pl-text-secondary ms-auto" aria-live="polite">
+                Mostrando {{ total_terms }} de {{ total_terms }} conceptos
+            </div>
+        </div>
+    </section>
+
+    <!-- Estado vacío amigable -->
+    <div id="glossary-empty-state" class="pl-empty-state d-none mb-4">
+        <div class="pl-empty-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </div>
+        <h5 class="fw-bold pl-text-primary mb-1">No encontramos conceptos con esos filtros</h5>
+        <p class="pl-text-secondary small mb-3">
+            Probá con otra palabra clave o limpiá los filtros activos para volver a ver los {{ total_terms }} conceptos.
+        </p>
+        <button type="button" id="btn-reset-glossary-filters" class="btn btn-brand btn-sm px-4 py-2 fw-medium">
+            Limpiar filtros
+        </button>
+    </div>
+
+    <!-- Grilla responsiva: 2 columnas en escritorio/proyector 1280x720, 1 columna en móvil 390px -->
+    <div class="row g-4" id="glossary-cards-grid">
+        {% for item in glossary_items %}
+        <div class="col-12 col-md-6 pl-glossary-item"
+             data-slug="{{ item.slug }}"
+             data-category="{{ item.category }}"
+             data-level="{{ item.level }}"
+             data-search="{{ item.term }} {{ item.tagline }} {{ item.category }} {{ item.level }} {{ item.plain_definition }} {{ item.analogy }} {{ item.example }} {{ item.in_promptlab }}">
+            <article id="{{ item.slug }}" class="pl-card pl-card-hover pl-glossary-card h-100 d-flex flex-column p-4">
+                <!-- Fila superior: categoría y nivel -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <span class="pl-glossary-cat-badge">{{ item.category }}</span>
+                    <span class="pl-glossary-level-badge pl-glossary-level-badge--{{ item.level|lower }}">
+                        Nivel {{ item.level }}
+                    </span>
+                </div>
+
+                <!-- Título y subtítulo -->
+                <div class="mb-3">
+                    <div class="d-flex align-items-baseline justify-content-between gap-2">
+                        <h2 class="h5 fw-bold pl-text-primary mb-1" style="line-height: 1.3;">{{ item.term }}</h2>
+                        <a href="#{{ item.slug }}"
+                           class="pl-glossary-anchor"
+                           title="Enlace directo a {{ item.term }}"
+                           aria-label="Enlace directo a {{ item.term }}">#</a>
+                    </div>
+                    <p class="pl-glossary-tagline mb-0">{{ item.tagline }}</p>
+                </div>
+
+                <!-- Bloque: En pocas palabras -->
+                <div class="pl-glossary-block mb-3">
+                    <div class="pl-glossary-block-label">
+                        <i class="bi bi-chat-square-text text-primary me-1"></i>En pocas palabras
+                    </div>
+                    <p class="small pl-text-primary mb-0" style="line-height: 1.55;">{{ item.plain_definition }}</p>
+                </div>
+
+                <!-- Bloque: Analogía cotidiana -->
+                <div class="pl-glossary-analogy-box p-3 mb-3">
+                    <div class="pl-glossary-block-label">
+                        <i class="bi bi-lightbulb text-warning me-1"></i>Analogía cotidiana
+                    </div>
+                    <p class="small pl-text-secondary mb-0" style="line-height: 1.5;">{{ item.analogy }}</p>
+                </div>
+
+                <!-- Bloque: Ejemplo práctico -->
+                <div class="pl-glossary-example-box p-3 mb-3 flex-grow-1">
+                    <div class="pl-glossary-block-label">
+                        <i class="bi bi-terminal text-info me-1"></i>Ejemplo práctico
+                    </div>
+                    <p class="small pl-text-primary mb-0" style="line-height: 1.5;">{{ item.example }}</p>
+                </div>
+
+                <!-- Pie destacado: Dónde lo ves en PromptLab -->
+                <footer class="pl-glossary-footer pt-3 mt-auto pl-border-top">
+                    <div class="pl-glossary-block-label mb-1">
+                        <i class="bi bi-compass text-success me-1"></i>Dónde lo ves en PromptLab
+                    </div>
+                    <p class="small pl-text-secondary mb-2" style="line-height: 1.48;">{{ item.in_promptlab }}</p>
+                    <a href="{{ item.related_url }}" class="pl-glossary-bridge-link">
+                        {{ item.related_label }} &rarr;
+                    </a>
+                </footer>
+            </article>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="{% static 'js/glossary.js' %}?v=8.0.2"></script>
+{% endblock %}

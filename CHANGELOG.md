@@ -4,6 +4,20 @@ Todas las mejoras relevantes de **PromptLab** se documentan en este archivo.
 
 ---
 
+## [v8.0.2] — Nueva pestaña didáctica Glosario IA (18 conceptos offline) (93 tests)
+
+- **Catálogo curado y vista read-only (`core/glossary_data.py`, `core/views.py`, `core/urls.py`):**
+  - Incorporado `GLOSSARY_CATALOG` con **18 conceptos curados** en voseo argentino claro distribuidos en **4 categorías**: *Lo básico para empezar* (5), *Cómo pedir mejor* (6), *Límites y cuidados* (4) y *Cómo funciona por dentro* (3).
+  - Agregada la ruta `GET /glosario/` (`name="glossary"`, total **20 rutas** en `core/urls.py`) y la vista `glossary_view` con conteos por categoría, URLs relacionadas validadas y contexto estándar de cuenta (`_get_active_user_info`).
+- **Interfaz, filtrado client-side y puente contextual (`glossary.html`, `glossary.js`, `base.html`, `workspace.html`, `promptlab.css`):**
+  - Agregado el enlace **Glosario IA** con ícono SVG de libro abierto y `aria-current="page"` en el sidebar de escritorio y en el menú móvil, ajustando la media query de proyector (`1280×720`) para alojar cómodamente los 6 enlaces de navegación, tarjeta de cuenta, selector de tema y estado sin cortes.
+  - Creada la vista `glossary.html` y el script `glossary.js` (100 % *client-side*, cero CDNs, sin `innerHTML`) con buscador instantáneo insensible a tildes/mayúsculas, chips de categoría con contadores, filtro por nivel (`Inicial` / `Intermedio`), estado vacío con botón **`Limpiar filtros`** y resaltado accesible (`.pl-glossary-highlight`) al navegar con hash (`#token`, `#alucinacion`, `#datos-sensibles-pii`, etc.).
+  - Agregado el enlace puente `¿Qué es un token? Ver Glosario →` (`/glosario/#token`) en la tarjeta **Consumo estimado al copiar a una IA** del Espacio de Trabajo y unificado el *cache-busting* a **`?v=8.0.2`** en `base.html`, `workspace.html`, `templates_gallery.html`, `analytics.html`, `glossary.html` y `core/tests.py`.
+- **Tests y documentación (`core/tests.py`, `README.md`, `PRD.md`, `CHANGELOG.md`):**
+  - Actualizada `PromptLabSiteCoherenceTests` para cubrir `/glosario/` y `?v=8.0.2`, e incorporada la suite **`PromptLabV802GlossaryTests` (3 tests)** alcanzando **93 tests en verde** en **16 suites**, sin cambios de modelos ni migraciones (`No changes detected`).
+
+---
+
 ## [v8.0.1] — Blindaje de Seguridad, Privacidad PII, Rigor Científico 10×5 y Sincronización Documental (90 tests)
 
 - **Seguridad de producción y limpieza de dependencias (`promptlab/settings.py`, `requirements.txt`):**

@@ -614,7 +614,7 @@
     </section>
 
     {{ chart_payload|json_script:"analytics-chart-data" }}
-    <script src="{% static 'js/analytics_charts.js' %}?v=8.0"></script>
+    <script src="{% static 'js/analytics_charts.js' %}?v=8.0.2"></script>
     {% endif %}
 
     {% if total_prompts == 0 and learning_rules %}

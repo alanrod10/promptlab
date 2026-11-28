@@ -16,6 +16,7 @@ urlpatterns = [
     path('analitica/exportar-csv/', views.export_dataset_csv, name='export_csv'),
     path('analitica/aprendizaje/aprobar/', views.approve_learning_rule, name='approve_learning_rule'),
     path('analitica/aprendizaje/revertir/<int:rule_id>/', views.toggle_learning_rule, name='toggle_learning_rule'),
+    path('glosario/', views.glossary_view, name='glossary'),
     path('api/improve/', views.improve_prompt_api, name='improve_prompt_api'),
     path('api/analyze-live/', views.analyze_live_api, name='analyze_live_api'),
     path('ingresar/', views.login_view, name='login'),

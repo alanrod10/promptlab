@@ -20,7 +20,7 @@
     </script>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
-    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=8.0">
+    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=8.0.2">
 </head>
 <body class="d-flex">
     <!-- Isotipo SVG reutilizable LOGO-A (gradiente fuera de symbol para compatibilidad cross-browser) -->
@@ -89,6 +89,10 @@
         <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
             <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             <span>Estadísticas y Datos</span>
+        </a>
+        <a href="{% url 'glossary' %}" class="nav-link-item {% if request.resolver_match.url_name == 'glossary' %}active{% endif %}" {% if request.resolver_match.url_name == 'glossary' %}aria-current="page"{% endif %}>
+            <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Glosario IA</span>
         </a>
 
         <div class="mt-auto pt-2">
@@ -169,6 +173,10 @@
             <a href="{% url 'analytics' %}" class="nav-link-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
                 <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                 <span>Estadísticas y Datos</span>
+            </a>
+            <a href="{% url 'glossary' %}" class="nav-link-item {% if request.resolver_match.url_name == 'glossary' %}active{% endif %}" {% if request.resolver_match.url_name == 'glossary' %}aria-current="page"{% endif %}>
+                <svg class="pl-nav-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span>Glosario IA</span>
             </a>
             <div class="mt-auto pt-2">
                 <div class="pl-account-card">
