@@ -12,4 +12,7 @@ urlpatterns = [
     path('analitica/exportar-csv/', views.export_dataset_csv, name='export_csv'),
     path('api/improve/', views.improve_prompt_api, name='improve_prompt_api'),
     path('api/analyze-live/', views.analyze_live_api, name='analyze_live_api'),
+    path('ingresar/', views.login_view, name='login'),
+    path('registro/', views.register_view, name='register'),
+    path('salir/', views.logout_view, name='logout'),
 ]

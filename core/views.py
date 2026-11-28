@@ -8,8 +8,10 @@ from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import Count
+from django.utils.http import url_has_allowed_host_and_scheme
 from .services import (
     get_gemini_response,
     calculate_rubric_score,
@@ -18,6 +20,119 @@ from .services import (
 )
 from .universal_engine import mine_long_tail_candidates
 from .models import Prompt
+
+GUEST_DEFAULT_USERNAME = "alan"
+GUEST_FALLBACK_USERNAME = "invitado"
+_USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _get_active_user(request):
+    if request.user.is_authenticated:
+        return request.user
+    guest = User.objects.filter(username=GUEST_DEFAULT_USERNAME).first()
+    if guest is not None:
+        return guest
+    fallback = User.objects.filter(username=GUEST_FALLBACK_USERNAME).first()
+    if fallback is not None:
+        return fallback
+    first_user = User.objects.order_by("id").first()
+    if first_user is not None:
+        return first_user
+    return User.objects.create_user(username=GUEST_DEFAULT_USERNAME, password="123")
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect("workspace")
+
+    raw_next = (request.POST.get("next") or request.GET.get("next") or "").strip()
+    safe_next = (
+        raw_next
+        if raw_next
+        and url_has_allowed_host_and_scheme(
+            raw_next,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        )
+        else ""
+    )
+
+    error = ""
+    username_value = ""
+
+    if request.method == "POST":
+        username_value = (request.POST.get("username") or "").strip()
+        password = request.POST.get("password") or ""
+        if not username_value or not password:
+            error = "Completá tu nombre de usuario y tu contraseña para ingresar."
+        else:
+            user = authenticate(request, username=username_value, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect(safe_next or "workspace")
+            error = "El nombre de usuario o la contraseña no son correctos. Revisalos e intentá de nuevo."
+
+    return render(
+        request,
+        "core/login.html",
+        {
+            "error": error,
+            "username_value": username_value,
+            "next_url": safe_next,
+        },
+    )
+
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect("workspace")
+
+    error = ""
+    username_value = ""
+
+    if request.method == "POST":
+        username_value = (request.POST.get("username") or "").strip()
+        password = request.POST.get("password") or ""
+        password_confirm = request.POST.get("password_confirm") or ""
+
+        if len(username_value) < 3:
+            error = "El nombre de usuario debe tener al menos 3 caracteres."
+        elif len(username_value) > 50:
+            error = "El nombre de usuario no puede superar los 50 caracteres."
+        elif not _USERNAME_RE.fullmatch(username_value):
+            error = "Usá solo letras sin espacios, números, punto (.), guion bajo (_) o guion medio (-)."
+        elif User.objects.filter(username__iexact=username_value).exists():
+            error = "Ese nombre de usuario ya está en uso. Elegí otro diferente."
+        elif len(password) < 6:
+            error = "La contraseña debe tener al menos 6 caracteres."
+        elif password != password_confirm:
+            error = "Las contraseñas no coinciden. Volvé a escribirlas."
+        else:
+            if not User.objects.exists():
+                guest_name = (
+                    GUEST_FALLBACK_USERNAME
+                    if username_value.lower() == GUEST_DEFAULT_USERNAME
+                    else GUEST_DEFAULT_USERNAME
+                )
+                User.objects.create_user(username=guest_name, password="123")
+            new_user = User.objects.create_user(username=username_value, password=password)
+            login(request, new_user)
+            return redirect("workspace")
+
+    return render(
+        request,
+        "core/register.html",
+        {
+            "error": error,
+            "username_value": username_value,
+        },
+    )
+
+
+@require_POST
+def logout_view(request):
+    logout(request)
+    return redirect("workspace")
 
 TEMPLATE_CATEGORIES = [
     "Tecnología y Programación",
@@ -396,13 +511,14 @@ LEGACY_PRESETS = {
 def workspace(request):
     prompt_id = request.GET.get('load')
     preset_slug = request.GET.get('preset')
+    active_user = _get_active_user(request)
     loaded_prompt = None
     preset_data = None
     loaded_rubric_json = 'null'
 
     loaded_rubric = None
-    if prompt_id:
-        loaded_prompt = Prompt.objects.filter(id=prompt_id).first()
+    if prompt_id and str(prompt_id).isdigit():
+        loaded_prompt = Prompt.objects.filter(id=int(prompt_id), user=active_user).first()
         if loaded_prompt:
             rubric = calculate_rubric_score(loaded_prompt.improved_text)
             loaded_rubric = rubric['breakdown']
@@ -478,7 +594,8 @@ def _prepare_history_prompts(queryset):
 
 
 def history(request):
-    prompts = _prepare_history_prompts(Prompt.objects.all().order_by('-created_at'))
+    active_user = _get_active_user(request)
+    prompts = _prepare_history_prompts(Prompt.objects.filter(user=active_user).order_by('-created_at'))
     categories = sorted({p.category or 'General' for p in prompts})
     techniques = sorted({p.display_technique for p in prompts})
     return render(request, 'core/history.html', {
@@ -490,7 +607,8 @@ def history(request):
     })
 
 def favorites(request):
-    prompts = _prepare_history_prompts(Prompt.objects.filter(is_favorite=True).order_by('-created_at'))
+    active_user = _get_active_user(request)
+    prompts = _prepare_history_prompts(Prompt.objects.filter(user=active_user, is_favorite=True).order_by('-created_at'))
     categories = sorted({p.category or 'General' for p in prompts})
     techniques = sorted({p.display_technique for p in prompts})
     return render(request, 'core/history.html', {
@@ -503,7 +621,8 @@ def favorites(request):
 
 @require_POST
 def toggle_favorite(request, prompt_id):
-    prompt = get_object_or_404(Prompt, id=prompt_id)
+    active_user = _get_active_user(request)
+    prompt = get_object_or_404(Prompt, id=prompt_id, user=active_user)
     prompt.is_favorite = not prompt.is_favorite
     prompt.save()
     if (
@@ -518,7 +637,8 @@ def toggle_favorite(request, prompt_id):
 
 @require_POST
 def delete_prompt(request, prompt_id):
-    prompt = get_object_or_404(Prompt, id=prompt_id)
+    active_user = _get_active_user(request)
+    prompt = get_object_or_404(Prompt, id=prompt_id, user=active_user)
     prompt.delete()
     next_url = request.POST.get('next') or request.GET.get('next') or 'history'
     if next_url not in ('history', 'favorites'):
@@ -628,9 +748,7 @@ def improve_prompt_api(request):
             )
 
             if 'improved_prompt' in result:
-                user = request.user if request.user.is_authenticated else User.objects.first()
-                if not user:
-                    user = User.objects.create_user(username='alan', password='123')
+                user = _get_active_user(request)
 
                 resolved_cat = result.get('category') or category or 'General'
                 raw_orig = result.get('raw_objective') or user_text
@@ -764,7 +882,8 @@ def analytics_dashboard(request):
         "7d": "los últimos 7 días",
     }
 
-    all_qs = Prompt.objects.all().order_by("-created_at", "-id")
+    active_user = _get_active_user(request)
+    all_qs = Prompt.objects.filter(user=active_user).order_by("-created_at", "-id")
     total_all_time = all_qs.count()
 
     if period == "7d":
@@ -1225,7 +1344,8 @@ def export_dataset_csv(request):
         'prompt_mejorado'
     ])
 
-    for p in Prompt.objects.all().order_by('id'):
+    active_user = _get_active_user(request)
+    for p in Prompt.objects.filter(user=active_user).order_by('id'):
         o_words = max(len(p.original_text.split()), 1)
         i_words = max(len(p.improved_text.split()), 1)
         o_chars = len(p.original_text)

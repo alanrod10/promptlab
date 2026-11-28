@@ -116,6 +116,10 @@
             /(\[(?:COMPLETAR[^\]]*|PEG[AÁ]\s+AC[AÁ][^\]]*|PEGA\s+AQU[IÍ][^\]]*)\])/gi,
             '<span class="pl-fmt-placeholder">$1</span>'
         );
+        out = out.replace(
+            /(\[(?:DNI_CUIL|TELEFONO|EMAIL|CBU|ALIAS)_OCULTO\])/g,
+            '<span class="pl-fmt-pii-mask">$1</span>'
+        );
         codeTokens.forEach((html, idx) => {
             out = out.replace(`__PL_CODE_TOK_${idx}__`, html);
         });
@@ -849,8 +853,213 @@
         }
     }
 
+    // ------------------------------------------------------------------
+    // Ejemplos auto-ocultables, Estimador Multi-IA y Sello de Privacidad (v7.3)
+    // ------------------------------------------------------------------
+
+    function syncQuickExamplesVisibility() {
+        const box = $("express-examples");
+        if (!box) return;
+        const hasContent = getInputText().length > 0;
+        box.classList.toggle("is-hidden", hasContent);
+        box.setAttribute("aria-hidden", hasContent ? "true" : "false");
+        box.querySelectorAll("button.pl-example-pill").forEach((btn) => {
+            btn.tabIndex = hasContent ? -1 : 0;
+        });
+    }
+
+    function formatContextUsage(tokens, contextWindow) {
+        if (!tokens || tokens <= 0) return "0 % del contexto";
+        const pct = (tokens / contextWindow) * 100;
+        if (pct <= 0.1) return "< 0,1 % del contexto";
+        if (pct < 0.2) return "< 0,2 % del contexto";
+        return `${pct.toFixed(1).replace(".", ",")} % del contexto`;
+    }
+
+    /**
+     * Estimador determinístico 100% offline calibrado para texto en español.
+     * Diferencia ChatGPT (o200k_base, 128K), Gemini (SentencePiece, 1M) y
+     * Claude (BPE Anthropic, 200K) considerando palabras, caracteres, tildes/eñes,
+     * signos de puntuación, saltos de línea y bloques de código.
+     */
+    function estimateTokensByModel(text) {
+        const clean = String(text || "").trim();
+        const emptyModel = (contextWindow, windowLabel) => ({
+            tokens: 0,
+            contextWindow,
+            windowLabel,
+            pct: 0,
+            contextLabel: "0 % del contexto",
+        });
+
+        if (!clean) {
+            return {
+                words: 0,
+                chars: 0,
+                chatgpt: emptyModel(128000, "128K"),
+                gemini: emptyModel(1000000, "1M"),
+                claude: emptyModel(200000, "200K"),
+            };
+        }
+
+        let codeChars = 0;
+        let proseText = clean.replace(/```[\s\S]*?```/g, (block) => {
+            codeChars += block.length;
+            return " ";
+        });
+        proseText = proseText.replace(/`[^`\n]+`/g, (inline) => {
+            codeChars += inline.length;
+            return " ";
+        });
+
+        const words = proseText.trim() ? proseText.trim().split(/\s+/).length : 0;
+        const totalWords = clean.split(/\s+/).length;
+        const proseChars = proseText.length;
+        const totalChars = clean.length;
+        const diacritics = (clean.match(/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/g) || []).length;
+        const symbols = (proseText.match(/[.,;:!?()[\]{}<>#*_\-+/=\\|"'~^&%$@]/g) || []).length;
+        const newlines = (clean.match(/\n/g) || []).length;
+
+        const buildModelStats = (rawTokens, contextWindow, windowLabel) => {
+            const tokens = Math.max(1, Math.round(rawTokens));
+            const pct = (tokens / contextWindow) * 100;
+            return {
+                tokens,
+                contextWindow,
+                windowLabel,
+                pct,
+                contextLabel: formatContextUsage(tokens, contextWindow),
+            };
+        };
+
+        const chatgptRaw =
+            0.55 * (words * 1.24) +
+            0.45 * (proseChars / 4.35) +
+            diacritics * 0.06 +
+            symbols * 0.18 +
+            newlines * 0.20 +
+            codeChars / 3.40;
+
+        const geminiRaw =
+            0.55 * (words * 1.30) +
+            0.45 * (proseChars / 4.05) +
+            diacritics * 0.09 +
+            symbols * 0.22 +
+            newlines * 0.25 +
+            codeChars / 3.20;
+
+        const claudeRaw =
+            0.55 * (words * 1.38) +
+            0.45 * (proseChars / 3.70) +
+            diacritics * 0.18 +
+            symbols * 0.26 +
+            newlines * 0.30 +
+            codeChars / 3.00;
+
+        return {
+            words: totalWords,
+            chars: totalChars,
+            chatgpt: buildModelStats(chatgptRaw, 128000, "128K"),
+            gemini: buildModelStats(geminiRaw, 1000000, "1M"),
+            claude: buildModelStats(claudeRaw, 200000, "200K"),
+        };
+    }
+
+    function renderTokenEstimator(text) {
+        const est = estimateTokensByModel(text);
+        if ($("token-word-char-summary")) {
+            $("token-word-char-summary").innerText = `${est.words} palabras • ${est.chars} caracteres`;
+        }
+        if ($("token-val-chatgpt")) $("token-val-chatgpt").innerText = `~${est.chatgpt.tokens} tokens`;
+        if ($("token-ctx-chatgpt")) $("token-ctx-chatgpt").innerText = est.chatgpt.contextLabel;
+        if ($("token-val-gemini")) $("token-val-gemini").innerText = `~${est.gemini.tokens} tokens`;
+        if ($("token-ctx-gemini")) $("token-ctx-gemini").innerText = est.gemini.contextLabel;
+        if ($("token-val-claude")) $("token-val-claude").innerText = `~${est.claude.tokens} tokens`;
+        if ($("token-ctx-claude")) $("token-ctx-claude").innerText = est.claude.contextLabel;
+    }
+
+    const PII_SEAL_SPECS = [
+        { type: "dni_cuil", label: "CUIL/DNI", regex: /\[DNI_CUIL_OCULTO\]/g },
+        { type: "telefono", label: "Teléfono", regex: /\[TELEFONO_OCULTO\]/g },
+        { type: "email", label: "Correo", regex: /\[EMAIL_OCULTO\]/g },
+        { type: "cbu", label: "CBU bancario", regex: /\[CBU_OCULTO\]/g },
+        { type: "alias_bancario", label: "Alias bancario", regex: /\[ALIAS_OCULTO\]/g },
+    ];
+
+    function renderPrivacyVerifiedSeal(resultData, outputText) {
+        const seal = $("privacy-verified-seal");
+        const detailsEl = $("privacy-verified-details");
+        const afipEl = $("privacy-afip-note");
+        if (!seal || !detailsEl) return;
+
+        const outStr = String(outputText || "");
+        const rawStr = String((resultData && resultData.raw_objective) || "");
+        let totalOutputMarkers = 0;
+        const markerCounts = {};
+
+        PII_SEAL_SPECS.forEach((spec) => {
+            const countOut = (outStr.match(spec.regex) || []).length;
+            totalOutputMarkers += countOut;
+            if (countOut > 0) {
+                markerCounts[spec.type] = countOut;
+            } else if (resultData && resultData.has_pii_masked) {
+                const countRaw = (rawStr.match(spec.regex) || []).length;
+                if (countRaw > 0) markerCounts[spec.type] = countRaw;
+            }
+        });
+
+        const isProtected = Boolean(resultData && resultData.has_pii_masked) || totalOutputMarkers > 0;
+        if (!isProtected) {
+            seal.classList.add("d-none");
+            if (afipEl) afipEl.classList.add("d-none");
+            return;
+        }
+
+        const labelByType = Object.fromEntries(PII_SEAL_SPECS.map((s) => [s.type, s.label]));
+        const items = [];
+
+        if (
+            resultData &&
+            resultData.has_pii_masked &&
+            Array.isArray(resultData.pii_warnings) &&
+            resultData.pii_warnings.length > 0 &&
+            (totalOutputMarkers > 0 || !outStr)
+        ) {
+            const warningMap = {};
+            resultData.pii_warnings.forEach((w) => {
+                if (w && w.type) {
+                    warningMap[w.type] = (warningMap[w.type] || 0) + Number(w.count || 1);
+                }
+            });
+            PII_SEAL_SPECS.forEach((spec) => {
+                if (warningMap[spec.type] > 0) {
+                    items.push(`${labelByType[spec.type]} (${warningMap[spec.type]})`);
+                }
+            });
+        } else {
+            PII_SEAL_SPECS.forEach((spec) => {
+                if (markerCounts[spec.type] > 0) {
+                    items.push(`${spec.label} (${markerCounts[spec.type]})`);
+                }
+            });
+        }
+
+        detailsEl.innerText =
+            items.length > 0
+                ? `Datos anonimizados: ${items.join(", ")}.`
+                : "Datos sensibles reemplazados por marcadores seguros antes de exportar.";
+
+        if (afipEl) {
+            const hasAfipReceipt = /\b\d{4}-\d{8}\b/.test(`${outStr}\n${rawStr}`);
+            afipEl.classList.toggle("d-none", !hasAfipReceipt);
+        }
+
+        seal.classList.remove("d-none");
+    }
+
     function triggerLiveAnalyze() {
         clearTimeout(liveDebounceTimer);
+        syncQuickExamplesVisibility();
         const immediateText = getInputText();
         if (immediateText && immediateText.length >= 3) {
             renderPiiBanner(detectPiiClientSide(immediateText));
@@ -1101,6 +1310,8 @@
             }
             setOutputEditMode(false);
             autoResizeOutputTextarea();
+            renderPrivacyVerifiedSeal(data, data.improved_prompt || "");
+            renderTokenEstimator(data.improved_prompt || "");
 
             // Botón completar placeholders pendientes
             const fillBtn = $("btn-fill-placeholders");
@@ -1233,11 +1444,13 @@
     }
 
     function calcularMetricasTexto(texto) {
-        const clean = (texto || "").trim();
-        const words = clean ? clean.split(/\s+/).length : 0;
-        const chars = clean.length;
-        const tokens = Math.ceil(words * 1.3);
-        return { words, chars, tokens };
+        const est = estimateTokensByModel(texto);
+        return {
+            words: est.words,
+            chars: est.chars,
+            tokens: est.chatgpt.tokens,
+            models: est,
+        };
     }
 
     function abrirComparador() {
@@ -1246,14 +1459,36 @@
 
         const mOrig = calcularMetricasTexto(origText);
         const mImp = calcularMetricasTexto(impText);
+        const estOrig = mOrig.models;
+        const estImp = mImp.models;
 
         if ($("cmp-orig-text")) $("cmp-orig-text").innerText = origText;
         if ($("cmp-imp-text")) $("cmp-imp-text").innerText = impText;
         if ($("cmp-orig-metrics")) {
-            $("cmp-orig-metrics").innerText = `${mOrig.words} palabras • ${mOrig.chars} caracteres • ~${mOrig.tokens} tokens`;
+            $("cmp-orig-metrics").innerText = `${mOrig.words} palabras • ${mOrig.chars} caracteres`;
         }
         if ($("cmp-imp-metrics")) {
-            $("cmp-imp-metrics").innerText = `${mImp.words} palabras • ${mImp.chars} caracteres • ~${mImp.tokens} tokens`;
+            $("cmp-imp-metrics").innerText = `${mImp.words} palabras • ${mImp.chars} caracteres`;
+        }
+        if ($("cmp-tok-chatgpt")) {
+            $("cmp-tok-chatgpt").innerText = `~${estImp.chatgpt.tokens} tokens (antes ~${estOrig.chatgpt.tokens})`;
+        }
+        if ($("cmp-ctx-chatgpt")) $("cmp-ctx-chatgpt").innerText = estImp.chatgpt.contextLabel;
+        if ($("cmp-tok-gemini")) {
+            $("cmp-tok-gemini").innerText = `~${estImp.gemini.tokens} tokens (antes ~${estOrig.gemini.tokens})`;
+        }
+        if ($("cmp-ctx-gemini")) $("cmp-ctx-gemini").innerText = estImp.gemini.contextLabel;
+        if ($("cmp-tok-claude")) {
+            $("cmp-tok-claude").innerText = `~${estImp.claude.tokens} tokens (antes ~${estOrig.claude.tokens})`;
+        }
+        if ($("cmp-ctx-claude")) $("cmp-ctx-claude").innerText = estImp.claude.contextLabel;
+
+        const effBadge = $("cmp-efficiency-badge");
+        if (effBadge) {
+            const maxPct = Math.max(estImp.chatgpt.pct, estImp.gemini.pct, estImp.claude.pct);
+            const freePct = Math.max(0, 100 - maxPct);
+            const freeLabel = freePct >= 99.8 ? "> 99,8" : freePct.toFixed(1).replace(".", ",");
+            effBadge.innerText = `Prompt liviano: ${freeLabel} % de contexto libre`;
         }
     }
 
@@ -1284,6 +1519,10 @@
         if ($("template-loaded-banner")) $("template-loaded-banner").classList.add("d-none");
         if ($("disambiguation-card")) $("disambiguation-card").classList.add("d-none");
         if ($("btn-fill-placeholders")) $("btn-fill-placeholders").classList.add("d-none");
+
+        renderPrivacyVerifiedSeal(null, "");
+        renderTokenEstimator("");
+        syncQuickExamplesVisibility();
 
         switchOutputTab("editor");
         lastResultData = null;
@@ -1329,7 +1568,7 @@
             }
         });
 
-        // Ejemplos rápidos en Express
+        // Ejemplos rápidos auto-ocultables
         document.querySelectorAll(".pl-example-pill").forEach((btn) => {
             btn.addEventListener("click", () => {
                 const sample = btn.getAttribute("data-example") || "";
@@ -1338,6 +1577,7 @@
                     input.value = sample;
                     input.focus();
                 }
+                syncQuickExamplesVisibility();
                 triggerLiveAnalyze();
             });
         });
@@ -1407,6 +1647,13 @@
         if ($("btn-toggle-edit-output")) {
             $("btn-toggle-edit-output").addEventListener("click", () => setOutputEditMode(!isOutputEditing));
         }
+        const outEditEl = $("generated-prompt-output");
+        if (outEditEl) {
+            outEditEl.addEventListener("input", () => {
+                renderTokenEstimator(outEditEl.value);
+                renderPrivacyVerifiedSeal(lastResultData, outEditEl.value);
+            });
+        }
         if ($("btn-favorite")) $("btn-favorite").addEventListener("click", toggleCurrentFavorite);
         if ($("btn-compare")) $("btn-compare").addEventListener("click", abrirComparador);
         if ($("btn-export-md")) $("btn-export-md").addEventListener("click", () => descargarArchivo("md"));
@@ -1452,6 +1699,8 @@
                 }
             }
             autoResizeOutputTextarea();
+            const sealEl = $("privacy-verified-seal");
+            const loadedProtected = sealEl ? sealEl.getAttribute("data-loaded-protected") === "true" : false;
             lastResultData = {
                 prompt_id: lp.id,
                 raw_objective: inputEl ? inputEl.value : "",
@@ -1463,7 +1712,10 @@
                 final_score: lp.final_score,
                 quality_gain: lp.quality_gain,
                 rubric_breakdown: boot.loaded_rubric || null,
+                has_pii_masked: loadedProtected,
             };
+            renderPrivacyVerifiedSeal(lastResultData, outEl ? outEl.value : "");
+            renderTokenEstimator(outEl ? outEl.value : "");
             if (inputEl && inputEl.value.trim().length >= 3) {
                 triggerLiveAnalyze();
             }
@@ -1495,5 +1747,7 @@
             }
             setWorkspaceMode(savedMode, false);
         }
+
+        syncQuickExamplesVisibility();
     });
 })();

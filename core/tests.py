@@ -1668,11 +1668,11 @@ class PromptLabSiteCoherenceTests(TestCase):
     def test_cache_busting_v724_and_no_external_cdns(self):
         self._create_sample_prompts()
         checks = [
-            ("workspace", ["promptlab.css?v=7.2.4", "workspace.js?v=7.2.4"]),
-            ("templates_gallery", ["promptlab.css?v=7.2.4", "templates_gallery.js?v=7.2.4"]),
-            ("history", ["promptlab.css?v=7.2.4"]),
-            ("favorites", ["promptlab.css?v=7.2.4"]),
-            ("analytics", ["promptlab.css?v=7.2.4", "analytics_charts.js?v=7.2.4"]),
+            ("workspace", ["promptlab.css?v=7.3", "workspace.js?v=7.3"]),
+            ("templates_gallery", ["promptlab.css?v=7.3", "templates_gallery.js?v=7.3"]),
+            ("history", ["promptlab.css?v=7.3"]),
+            ("favorites", ["promptlab.css?v=7.3"]),
+            ("analytics", ["promptlab.css?v=7.3", "analytics_charts.js?v=7.3"]),
         ]
         for route_name, expected_assets in checks:
             resp = self.client.get(reverse(route_name))
@@ -1719,4 +1719,381 @@ class PromptLabSiteCoherenceTests(TestCase):
             for nav_label in ("Espacio de Trabajo", "Mi Historial", "Favoritos", "Plantillas", "Estadísticas y Datos"):
                 self.assertIn(nav_label, body)
             self.assertIn("themeChanged", body)
+
+
+class PromptLabV73WorkspaceSmartFeaturesTests(TestCase):
+    """Pruebas v7.3: ejemplos auto-ocultables, 4.º ejemplo social/PII, estimador multi-IA y sello de privacidad."""
+
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+    FORBIDDEN_INTERNAL_TERMS = (
+        "o200k_base",
+        "SentencePiece",
+        "tiktoken",
+        "has_pii_masked",
+        "pii_warnings",
+        "anchor_coverage",
+        "noise_ratio",
+        "subintent",
+        "user_score",
+        "final_score",
+    )
+    SOCIAL_PRIVACY_PROMPT = (
+        "Redactame una nota formal de seguimiento por una asistencia alimentaria para María Gómez, "
+        "CUIL 27-34567890-4, cel 3884123456, mail maria.gomez@correo.com, "
+        "adjuntando el comprobante AFIP 0004-00018291, en tono claro y respetuoso."
+    )
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="tester_v73", password="123")
+
+    def test_quick_examples_autohide_and_fourth_social_privacy_chip(self):
+        resp_empty = self.client.get(reverse("workspace"))
+        self.assertEqual(resp_empty.status_code, 200)
+        body_empty = resp_empty.content.decode("utf-8")
+        self.assertIn('id="express-examples"', body_empty)
+        self.assertIn("pl-examples-collapse", body_empty)
+        self.assertIn('aria-hidden="false"', body_empty)
+        self.assertNotIn("pl-examples-collapse is-hidden", body_empty)
+        self.assertIn("Proteger datos en nota oficial", body_empty)
+        self.assertIn(self.SOCIAL_PRIVACY_PROMPT, body_empty)
+
+        p = Prompt.objects.create(
+            user=self.user,
+            original_text="Nota de prueba cargada",
+            improved_text="# Rol\nEspecialista\n# Objetivo\nNota de prueba.",
+            category="Redacción y comunicación",
+            improvement_level="Completa",
+            technique="Estándar",
+            initial_score=40,
+            final_score=90,
+            quality_gain=50,
+            has_pii_masked=False,
+        )
+        resp_load = self.client.get(reverse("workspace") + f"?load={p.id}")
+        self.assertEqual(resp_load.status_code, 200)
+        body_load = resp_load.content.decode("utf-8")
+        self.assertIn("pl-examples-collapse is-hidden", body_load)
+        self.assertIn('aria-hidden="true"', body_load)
+
+        resp_preset = self.client.get(reverse("workspace") + "?preset=python-csv-sin-librerias")
+        self.assertEqual(resp_preset.status_code, 200)
+        body_preset = resp_preset.content.decode("utf-8")
+        self.assertIn("pl-examples-collapse is-hidden", body_preset)
+        self.assertIn('aria-hidden="true"', body_preset)
+
+    def test_fourth_example_live_pii_and_afip_preservation_end_to_end(self):
+        resp_live = self.client.post(
+            "/api/analyze-live/",
+            data=json.dumps({"text": self.SOCIAL_PRIVACY_PROMPT}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp_live.status_code, 200)
+        live_data = resp_live.json()
+        self.assertEqual(live_data["engine_version"], "v7.2")
+        self.assertTrue(live_data["has_pii"])
+        live_types = {w["type"] for w in live_data["pii_warnings"]}
+        self.assertEqual(live_types, {"dni_cuil", "telefono", "email"})
+
+        resp_imp = self.client.post(
+            "/api/improve/",
+            data=json.dumps({
+                "text": self.SOCIAL_PRIVACY_PROMPT,
+                "level": "Ligera",
+                "mask_pii": True,
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp_imp.status_code, 200)
+        imp_data = resp_imp.json()
+        self.assertEqual(imp_data["engine_version"], "v7.2")
+        self.assertTrue(imp_data["has_pii_masked"])
+        self.assertIn("[DNI_CUIL_OCULTO]", imp_data["improved_prompt"])
+        self.assertIn("[TELEFONO_OCULTO]", imp_data["improved_prompt"])
+        self.assertIn("[EMAIL_OCULTO]", imp_data["improved_prompt"])
+        self.assertIn("0004-00018291", imp_data["improved_prompt"])
+
+    def test_token_estimator_and_privacy_seal_in_workspace_no_cdns_or_jargon(self):
+        resp = self.client.get(reverse("workspace"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+
+        for expected in (
+            'id="token-estimator-card"',
+            "Consumo estimado al copiar a una IA",
+            "ChatGPT",
+            "Gemini",
+            "Claude",
+            "Estimación local calibrada para español (±10 %); 100 % offline sin APIs.",
+            'id="cmp-models-strip"',
+            'id="privacy-verified-seal"',
+            "Privacidad verificada antes de copiar a una IA externa",
+            "Comprobante AFIP preservado sin falsos positivos.",
+        ):
+            self.assertIn(expected, body)
+
+        self.assertIn('data-loaded-protected="false"', body)
+
+        p_pii = Prompt.objects.create(
+            user=self.user,
+            original_text="Nota con CUIL [DNI_CUIL_OCULTO] y comprobante 0004-00018291",
+            improved_text="# Objetivo\nNota para [DNI_CUIL_OCULTO] con comprobante AFIP 0004-00018291.",
+            category="Redacción y comunicación",
+            improvement_level="Ligera",
+            technique="Estándar",
+            initial_score=45,
+            final_score=88,
+            quality_gain=43,
+            has_pii_masked=True,
+        )
+        resp_pii = self.client.get(reverse("workspace") + f"?load={p_pii.id}")
+        self.assertEqual(resp_pii.status_code, 200)
+        body_pii = resp_pii.content.decode("utf-8")
+        self.assertIn('data-loaded-protected="true"', body_pii)
+
+        clean_body = body.replace("http://www.w3.org/2000/svg", "")
+        self.assertNotIn("http://", clean_body)
+        self.assertNotIn("https://", clean_body)
+        for cdn in self.EXTERNAL_CDNS:
+            self.assertNotIn(cdn, body)
+        for term in self.FORBIDDEN_INTERNAL_TERMS:
+            self.assertNotIn(term, body)
+
+    def test_static_workspace_js_has_token_estimator_and_privacy_seal_functions(self):
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "workspace.js"
+        js_text = js_path.read_text(encoding="utf-8")
+        for symbol in (
+            "estimateTokensByModel",
+            "syncQuickExamplesVisibility",
+            "renderTokenEstimator",
+            "renderPrivacyVerifiedSeal",
+            "128000",
+            "1000000",
+            "200000",
+            "[DNI_CUIL_OCULTO]",
+            "[TELEFONO_OCULTO]",
+            "[EMAIL_OCULTO]",
+            "[CBU_OCULTO]",
+            "[ALIAS_OCULTO]",
+        ):
+            self.assertIn(symbol, js_text)
+
+
+class PromptLabV73OptionalAuthTests(TestCase):
+    """Pruebas v7.3: registro simple opcional, login/logout y aislamiento estricto multiusuario."""
+
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+    FORBIDDEN_JARGON = (
+        "anchor_coverage",
+        "noise_ratio",
+        "subintent",
+        "user_score",
+        "final_score",
+        "Ligera",
+        "Completa",
+        "Profunda",
+    )
+
+    def test_auth_pages_render_200_offline_and_standardized_titles(self):
+        for route_name, expected_title, expected_link in (
+            ("login", "<title>Ingresar · PromptLab</title>", "Creala gratis"),
+            ("register", "<title>Crear cuenta · PromptLab</title>", "Ingresá"),
+        ):
+            resp = self.client.get(reverse(route_name))
+            self.assertEqual(resp.status_code, 200)
+            body = resp.content.decode("utf-8")
+            self.assertIn(expected_title, body)
+            self.assertIn(expected_link, body)
+            self.assertIn("Seguir sin cuenta", body)
+            clean_body = body.replace("http://www.w3.org/2000/svg", "")
+            self.assertNotIn("http://", clean_body)
+            self.assertNotIn("https://", clean_body)
+            for cdn in self.EXTERNAL_CDNS:
+                self.assertNotIn(cdn, body)
+            for term in self.FORBIDDEN_JARGON:
+                self.assertNotIn(term, body)
+
+    def test_register_validations_autologin_and_sidebar_username(self):
+        # 1. Usuario demasiado corto
+        r_short = self.client.post(
+            reverse("register"),
+            {"username": "ab", "password": "secret123", "password_confirm": "secret123"},
+        )
+        self.assertEqual(r_short.status_code, 200)
+        self.assertContains(r_short, "al menos 3 caracteres")
+
+        # 2. Caracteres inválidos
+        r_bad_chars = self.client.post(
+            reverse("register"),
+            {"username": "juan perez!", "password": "secret123", "password_confirm": "secret123"},
+        )
+        self.assertEqual(r_bad_chars.status_code, 200)
+        self.assertContains(r_bad_chars, "letras sin espacios")
+
+        # 3. Contraseña corta
+        r_short_pw = self.client.post(
+            reverse("register"),
+            {"username": "maria_gomez", "password": "123", "password_confirm": "123"},
+        )
+        self.assertEqual(r_short_pw.status_code, 200)
+        self.assertContains(r_short_pw, "al menos 6 caracteres")
+
+        # 4. Confirmación distinta
+        r_mismatch = self.client.post(
+            reverse("register"),
+            {"username": "maria_gomez", "password": "secret123", "password_confirm": "otra1234"},
+        )
+        self.assertEqual(r_mismatch.status_code, 200)
+        self.assertContains(r_mismatch, "no coinciden")
+
+        # 5. Registro exitoso (con espacios extremos que se recortan)
+        r_ok = self.client.post(
+            reverse("register"),
+            {"username": "  maria_gomez  ", "password": "secret123", "password_confirm": "secret123"},
+        )
+        self.assertRedirects(r_ok, reverse("workspace"))
+        user = User.objects.get(username="maria_gomez")
+        self.assertTrue(user.check_password("secret123"))
+
+        ws = self.client.get(reverse("workspace"))
+        self.assertContains(ws, "Sesión activa")
+        self.assertContains(ws, "@maria_gomez")
+
+        # 6. Usuario ya autenticado redirige al Espacio de Trabajo si entra a /registro/ o /ingresar/
+        self.assertRedirects(self.client.get(reverse("register")), reverse("workspace"))
+        self.assertRedirects(self.client.get(reverse("login")), reverse("workspace"))
+
+        # 7. Duplicado insensible a mayúsculas rechazado para otro cliente
+        other = Client()
+        r_dup = other.post(
+            reverse("register"),
+            {"username": "Maria_Gomez", "password": "secret123", "password_confirm": "secret123"},
+        )
+        self.assertEqual(r_dup.status_code, 200)
+        self.assertContains(r_dup, "ya está en uso")
+
+    def test_logout_post_only_and_login_flow(self):
+        User.objects.create_user(username="carlos_dev", password="clave_segura")
+
+        # GET /salir/ debe ser rechazado con 405
+        self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
+
+        # Credenciales incorrectas
+        r_bad = self.client.post(
+            reverse("login"),
+            {"username": "carlos_dev", "password": "incorrecta"},
+        )
+        self.assertEqual(r_bad.status_code, 200)
+        self.assertContains(r_bad, "no son correctos")
+
+        # Login exitoso respetando next interno seguro
+        r_ok = self.client.post(
+            reverse("login"),
+            {"username": "carlos_dev", "password": "clave_segura", "next": reverse("history")},
+        )
+        self.assertRedirects(r_ok, reverse("history"))
+
+        # Logout por POST vuelve a Modo invitado
+        r_out = self.client.post(reverse("logout"))
+        self.assertRedirects(r_out, reverse("workspace"))
+        ws_guest = self.client.get(reverse("workspace"))
+        self.assertContains(ws_guest, "Modo invitado")
+        self.assertNotContains(ws_guest, "@carlos_dev")
+
+        # next externo es ignorado y redirige a /
+        r_ext = self.client.post(
+            reverse("login"),
+            {"username": "carlos_dev", "password": "clave_segura", "next": "https://evil.example/steal"},
+        )
+        self.assertRedirects(r_ext, reverse("workspace"))
+
+    def test_strict_user_isolation_across_all_views_and_csv(self):
+        client_a = Client()
+        client_b = Client()
+        guest_client = Client()
+
+        # Registrar Usuario A y generar un prompt único
+        reg_a = client_a.post(
+            reverse("register"),
+            {"username": "usuario_a", "password": "password_a", "password_confirm": "password_a"},
+        )
+        self.assertRedirects(reg_a, reverse("workspace"))
+        secret_text_a = "Analizar inventario secreto alfa de usuario_a con Python y Pandas"
+        resp_imp_a = client_a.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": secret_text_a, "level": "Completa"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp_imp_a.status_code, 200)
+        prompt_a_id = resp_imp_a.json()["prompt_id"]
+
+        # Usuario A lo ve en historial, analítica y CSV
+        self.assertContains(client_a.get(reverse("history")), secret_text_a)
+        self.assertContains(client_a.get(reverse("analytics")), secret_text_a)
+        self.assertIn(secret_text_a, client_a.get(reverse("export_csv")).content.decode("utf-8-sig"))
+
+        # Modo invitado NO ve el prompt de Usuario A
+        self.assertNotContains(guest_client.get(reverse("history")), secret_text_a)
+        self.assertNotContains(guest_client.get(reverse("analytics")), secret_text_a)
+        self.assertNotIn(secret_text_a, guest_client.get(reverse("export_csv")).content.decode("utf-8-sig"))
+
+        # Registrar Usuario B
+        reg_b = client_b.post(
+            reverse("register"),
+            {"username": "usuario_b", "password": "password_b", "password_confirm": "password_b"},
+        )
+        self.assertRedirects(reg_b, reverse("workspace"))
+
+        # Usuario B NO ve el prompt de A en historial, favoritos, analítica ni CSV
+        self.assertNotContains(client_b.get(reverse("history")), secret_text_a)
+        self.assertNotContains(client_b.get(reverse("favorites")), secret_text_a)
+        self.assertNotContains(client_b.get(reverse("analytics")), secret_text_a)
+        self.assertNotIn(secret_text_a, client_b.get(reverse("export_csv")).content.decode("utf-8-sig"))
+
+        # Usuario B no puede cargar ?load=<id_de_A> ni mutar favorito/eliminar (404)
+        resp_load_b = client_b.get(reverse("workspace") + f"?load={prompt_a_id}")
+        self.assertEqual(resp_load_b.status_code, 200)
+        self.assertNotContains(resp_load_b, secret_text_a)
+
+        self.assertEqual(client_b.post(reverse("toggle_favorite", args=[prompt_a_id])).status_code, 404)
+        self.assertEqual(client_b.post(reverse("delete_prompt", args=[prompt_a_id])).status_code, 404)
+        self.assertTrue(Prompt.objects.filter(id=prompt_a_id).exists())
+
+    def test_guest_mode_remains_fully_operational_without_account(self):
+        guest = Client()
+        for name in ("workspace", "templates_gallery", "history", "favorites", "analytics", "export_csv"):
+            resp = guest.get(reverse(name))
+            self.assertEqual(resp.status_code, 200)
+
+        live = guest.post(
+            reverse("analyze_live_api"),
+            data=json.dumps({"text": "Explicar qué es una base de datos relacional"}),
+            content_type="application/json",
+        )
+        self.assertEqual(live.status_code, 200)
+
+        imp = guest.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": "Explicar qué es una base de datos relacional", "level": "Ligera"}),
+            content_type="application/json",
+        )
+        self.assertEqual(imp.status_code, 200)
+        pid = imp.json()["prompt_id"]
+
+        self.assertContains(guest.get(reverse("history")), "base de datos relacional")
+        self.assertEqual(guest.post(reverse("toggle_favorite", args=[pid]), {"next": "favorites"}).status_code, 302)
+        self.assertContains(guest.get(reverse("favorites")), "base de datos relacional")
+        self.assertEqual(guest.post(reverse("delete_prompt", args=[pid]), {"next": "history"}).status_code, 302)
+        self.assertFalse(Prompt.objects.filter(id=pid).exists())
+
 
