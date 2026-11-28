@@ -10,16 +10,24 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db.models import Count, Max, Q
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.urls import reverse
 from .services import (
     get_gemini_response,
     calculate_rubric_score,
     analyze_live_preview,
+    detect_and_mask_pii,
     invalidate_learned_boosts_cache,
+    KNOWLEDGE_BASE,
+)
+from .scientific_eval import (
+    invalidate_scientific_cache,
+    normalize_learning_term,
+    run_scientific_benchmark,
 )
 from .universal_engine import mine_long_tail_candidates
-from .models import Prompt
+from .models import Prompt, ActiveLearningRule, UserTemplate
 
 GUEST_DEFAULT_USERNAME = "alan"
 GUEST_FALLBACK_USERNAME = "invitado"
@@ -508,9 +516,28 @@ LEGACY_PRESETS = {
     },
 }
 
+_USER_TPL_MODE_META = {
+    "express": {"ui_modo": "express", "workspace_mode": "express", "modo_label": "Express", "level": "Ligera"},
+    "guiado": {"ui_modo": "guiado", "workspace_mode": "guiado", "modo_label": "Guiado", "level": "Completa"},
+    "pro": {"ui_modo": "estudio_pro", "workspace_mode": "pro", "modo_label": "Estudio Pro", "level": "Profunda"},
+    "estudio_pro": {"ui_modo": "estudio_pro", "workspace_mode": "pro", "modo_label": "Estudio Pro", "level": "Profunda"},
+}
+
+
+def _normalize_user_tpl_mode(raw_mode: str) -> str:
+    m = str(raw_mode or "").strip().lower()
+    if m in ("express", "ligera"):
+        return "express"
+    if m in ("pro", "estudio_pro", "profunda"):
+        return "pro"
+    return "guiado"
+
+
 def workspace(request):
     prompt_id = request.GET.get('load')
     preset_slug = request.GET.get('preset')
+    user_tpl_id = request.GET.get('user_tpl')
+    auto_iterate = request.GET.get('iterate') == '1'
     active_user = _get_active_user(request)
     loaded_prompt = None
     preset_data = None
@@ -523,6 +550,27 @@ def workspace(request):
             rubric = calculate_rubric_score(loaded_prompt.improved_text)
             loaded_rubric = rubric['breakdown']
             loaded_rubric_json = json.dumps(loaded_rubric)
+    elif user_tpl_id and str(user_tpl_id).isdigit():
+        ut = UserTemplate.objects.filter(id=int(user_tpl_id), user=active_user).first()
+        if ut:
+            mode_norm = _normalize_user_tpl_mode(ut.recommended_mode)
+            meta = _USER_TPL_MODE_META[mode_norm]
+            preset_data = {
+                'id': f"user-{ut.id}",
+                'slug': f"user-{ut.id}",
+                'titulo': ut.title,
+                'title': ut.title,
+                'categoria': ut.category or 'Otro / General',
+                'category': ut.category or 'Otro / General',
+                'modo': meta['ui_modo'],
+                'mode': meta['workspace_mode'],
+                'modo_label': meta['modo_label'],
+                'level': meta['level'],
+                'technique': 'Estándar',
+                'prompt': ut.prompt_body,
+                'text': ut.prompt_body,
+                'por_que_funciona': ut.why_it_works,
+            }
     elif preset_slug:
         if preset_slug in TEMPLATES_CATALOG:
             preset_data = TEMPLATES_CATALOG[preset_slug]
@@ -540,6 +588,11 @@ def workspace(request):
             'final_score': loaded_prompt.final_score,
             'quality_gain': loaded_prompt.quality_gain,
             'is_favorite': loaded_prompt.is_favorite,
+            'version_number': loaded_prompt.version_number or 1,
+            'version_note': loaded_prompt.version_note or '',
+            'root_prompt_id': loaded_prompt.root_prompt_id or loaded_prompt.id,
+            'parent_prompt_id': loaded_prompt.parent_prompt_id,
+            'auto_iterate': auto_iterate,
         } if loaded_prompt else None,
         'loaded_rubric': loaded_rubric,
         'preset_data': preset_data,
@@ -575,6 +628,52 @@ def workspace(request):
 
 def _prepare_history_prompts(queryset):
     items = list(queryset)
+    families_by_root = {}
+    if items:
+        owner_id = items[0].user_id
+        root_ids = {p.root_prompt_id or p.id for p in items}
+        family_members = list(
+            Prompt.objects.filter(user_id=owner_id)
+            .filter(Q(id__in=root_ids) | Q(root_prompt_id__in=root_ids))
+            .order_by('version_number', 'created_at', 'id')
+        )
+        grouped = {}
+        for m in family_members:
+            fid = m.root_prompt_id or m.id
+            grouped.setdefault(fid, []).append(m)
+
+        for fid, members in grouped.items():
+            members.sort(key=lambda obj: (obj.version_number or 1, obj.created_at, obj.id))
+            chain = []
+            prev_score = None
+            for idx, m in enumerate(members):
+                sc = int(m.final_score or 0)
+                if idx == 0 or prev_score is None:
+                    diff_fmt = ""
+                    diff_tone = "neutral"
+                else:
+                    diff_val = sc - prev_score
+                    if diff_val > 0:
+                        diff_fmt = f"+{diff_val} pts"
+                        diff_tone = "positive"
+                    elif diff_val < 0:
+                        diff_fmt = f"{diff_val} pts"
+                        diff_tone = "negative"
+                    else:
+                        diff_fmt = "0 pts"
+                        diff_tone = "neutral"
+                prev_score = sc
+                chain.append({
+                    "id": m.id,
+                    "version_number": m.version_number or 1,
+                    "final_score": sc,
+                    "score_diff_fmt": diff_fmt,
+                    "score_diff_tone": diff_tone,
+                    "version_note": m.version_note or "",
+                    "date_short": m.created_at.strftime("%d/%m/%Y %H:%M") if m.created_at else "—",
+                })
+            families_by_root[fid] = chain
+
     for p in items:
         mode_label = LEVEL_TO_DISPLAY_MODE.get(p.improvement_level or "Completa", "Guiado")
         p.display_mode = mode_label
@@ -590,6 +689,11 @@ def _prepare_history_prompts(queryset):
             p.technique or "Estándar",
         )
         p.quality_band = _quality_band_meta(p.final_score or 0)
+        fid = p.root_prompt_id or p.id
+        chain = families_by_root.get(fid, [])
+        p.family_size = len(chain) if chain else 1
+        p.version_chain = chain if len(chain) > 1 else []
+        p.has_version_chain = (len(chain) > 1) or ((p.version_number or 1) > 1) or bool(p.version_note)
     return items
 
 
@@ -645,7 +749,7 @@ def delete_prompt(request, prompt_id):
         next_url = 'history'
     return redirect(next_url)
 
-def templates_gallery(request):
+def _build_templates_gallery_context(request, active_user, flash=None):
     templates_list = list(TEMPLATES_CATALOG.values())
     categories = [
         {
@@ -654,12 +758,46 @@ def templates_gallery(request):
         }
         for cat in TEMPLATE_CATEGORIES
     ]
-    return render(request, 'core/templates_gallery.html', {
+    user_templates_qs = list(
+        UserTemplate.objects.filter(user=active_user).order_by('-updated_at', '-id')
+    )
+    user_templates = []
+    for ut in user_templates_qs:
+        mode_norm = _normalize_user_tpl_mode(ut.recommended_mode)
+        meta = _USER_TPL_MODE_META[mode_norm]
+        user_templates.append({
+            'id': ut.id,
+            'title': ut.title,
+            'category': ut.category or 'Otro / General',
+            'recommended_mode': mode_norm,
+            'ui_modo': meta['ui_modo'],
+            'workspace_mode': meta['workspace_mode'],
+            'modo_label': meta['modo_label'],
+            'prompt_body': ut.prompt_body,
+            'prompt_highlighted_html': _highlight_template_placeholders(ut.prompt_body),
+            'why_it_works': ut.why_it_works or '',
+            'updated_short': ut.updated_at.strftime("%d/%m/%Y %H:%M") if ut.updated_at else "—",
+        })
+
+    resolved_flash = flash if flash is not None else request.session.pop("tpl_flash", None)
+    return {
         'templates': TEMPLATES_CATALOG,
         'templates_list': templates_list,
         'categories': categories,
         'total_templates': len(templates_list),
-    })
+        'user_templates': user_templates,
+        'template_domains': list(KNOWLEDGE_BASE.get("domains", {}).keys()),
+        'tpl_flash': resolved_flash,
+    }
+
+
+def templates_gallery(request):
+    active_user = _get_active_user(request)
+    return render(
+        request,
+        'core/templates_gallery.html',
+        _build_templates_gallery_context(request, active_user),
+    )
 
 @csrf_exempt
 def analyze_live_api(request):
@@ -732,6 +870,9 @@ def improve_prompt_api(request):
                 negative_constraints = []
             user_example = data.get('user_example', '') or ''
             mask_pii = bool(data.get('mask_pii', False))
+            raw_parent_id = data.get('parent_prompt_id')
+            raw_version_note = data.get('version_note', '')
+            clean_version_note = raw_version_note.strip()[:240] if isinstance(raw_version_note, str) else ''
 
             result = get_gemini_response(
                 user_text=user_text,
@@ -749,6 +890,27 @@ def improve_prompt_api(request):
 
             if 'improved_prompt' in result:
                 user = _get_active_user(request)
+
+                parent_obj = None
+                root_obj = None
+                version_num = 1
+                final_version_note = clean_version_note
+                if raw_parent_id not in (None, ''):
+                    parent_str = str(raw_parent_id).strip()
+                    if parent_str.isdigit():
+                        parent_obj = Prompt.objects.filter(id=int(parent_str), user=user).first()
+                    if parent_obj is not None:
+                        root_obj = parent_obj.root_prompt or parent_obj
+                        max_ver = (
+                            Prompt.objects.filter(user=user)
+                            .filter(Q(id=root_obj.id) | Q(root_prompt=root_obj))
+                            .aggregate(max_v=Max('version_number'))
+                            .get('max_v')
+                            or 1
+                        )
+                        version_num = max_ver + 1
+                    else:
+                        final_version_note = ''
 
                 resolved_cat = result.get('category') or category or 'General'
                 raw_orig = result.get('raw_objective') or user_text
@@ -781,11 +943,19 @@ def improve_prompt_api(request):
                     verifiable_ratio=result.get('verifiable_ratio', 0.85),
                     user_corrected=result.get('user_corrected', False),
                     has_pii_masked=result.get('has_pii_masked', False),
+                    parent_prompt=parent_obj,
+                    root_prompt=root_obj,
+                    version_number=version_num,
+                    version_note=final_version_note,
                 )
                 if created_prompt.user_corrected:
                     invalidate_learned_boosts_cache()
                 result['prompt_id'] = created_prompt.id
                 result['is_favorite'] = created_prompt.is_favorite
+                result['version_number'] = created_prompt.version_number
+                result['root_prompt_id'] = created_prompt.root_prompt_id or created_prompt.id
+                result['parent_prompt_id'] = created_prompt.parent_prompt_id
+                result['version_note'] = created_prompt.version_note
 
             return JsonResponse(result)
         except json.JSONDecodeError:
@@ -1260,11 +1430,38 @@ def analytics_dashboard(request):
     }
 
     long_tail_candidates = mine_long_tail_candidates(prompts, top_n=8)
+    learning_rules_qs = list(
+        ActiveLearningRule.objects.select_related("created_by").order_by("-is_active", "-created_at", "-id")
+    )
+    rules_by_term = {normalize_learning_term(r.term): r for r in learning_rules_qs}
     for cand in long_tail_candidates:
         sugg = cand.get("suggested_action") or ""
         cand["suggested_action_label"] = ACTION_TO_NATURAL_LABEL.get(
             sugg, sugg.replace("_", " ").capitalize()
         )
+        norm_cand_term = normalize_learning_term(cand.get("term", ""))
+        matched_rule = rules_by_term.get(norm_cand_term)
+        cand["is_approved_active"] = bool(matched_rule and matched_rule.is_active)
+        cand["rule_id"] = matched_rule.id if matched_rule else None
+        cand["z_score_input"] = f"{float(cand.get('z_score', 0.0)):.2f}"
+
+    learning_rules = [
+        {
+            "id": r.id,
+            "term": r.term,
+            "target_action": r.target_action,
+            "target_action_label": ACTION_TO_NATURAL_LABEL.get(
+                r.target_action, r.target_action.replace("_", " ").capitalize()
+            ),
+            "target_category": r.target_category,
+            "source_z_score": round(float(r.source_z_score or 0.0), 2),
+            "is_active": r.is_active,
+            "created_by_name": r.created_by.username if r.created_by else "sistema",
+            "created_at_short": r.created_at.strftime("%d/%m/%Y %H:%M") if r.created_at else "—",
+        }
+        for r in learning_rules_qs
+    ]
+    scientific_benchmark = run_scientific_benchmark()
 
     context = {
         "period": period,
@@ -1293,9 +1490,100 @@ def analytics_dashboard(request):
         "personalized_tips": personalized_tips,
         "recent_prompts": evaluated_rows[:5],
         "long_tail_candidates": long_tail_candidates,
+        "learning_rules": learning_rules,
+        "scientific_benchmark": scientific_benchmark,
         "chart_payload": chart_payload,
     }
     return render(request, "core/analytics.html", context)
+
+
+def _is_ajax_or_json(request) -> bool:
+    return (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("Accept", "")
+        or "application/json" in (request.content_type or "")
+    )
+
+
+@require_POST
+def approve_learning_rule(request):
+    if "application/json" in (request.content_type or ""):
+        try:
+            payload = json.loads(request.body or "{}")
+            if not isinstance(payload, dict):
+                payload = {}
+        except json.JSONDecodeError:
+            payload = {}
+    else:
+        payload = request.POST
+
+    raw_term = str(payload.get("term") or "").strip()
+    term = normalize_learning_term(raw_term)
+    target_action = str(payload.get("target_action") or "").strip()
+    target_category = str(payload.get("target_category") or "").strip()
+    raw_z = str(payload.get("source_z_score") or "0").strip().replace(",", ".")
+
+    try:
+        z_score = float(raw_z)
+    except ValueError:
+        z_score = 0.0
+
+    valid_actions = KNOWLEDGE_BASE.get("actions", {})
+    valid_domains = KNOWLEDGE_BASE.get("domains", {})
+    if target_category not in valid_domains:
+        target_category = ""
+
+    if len(term) < 2 or target_action not in valid_actions:
+        if _is_ajax_or_json(request):
+            return JsonResponse(
+                {"error": "Término o tarea objetivo inválida para aprobar en la capa de aprendizaje."},
+                status=400,
+            )
+        return redirect(f"{reverse('analytics')}#bloque-aprendizaje")
+
+    active_user = _get_active_user(request)
+    rule, _created = ActiveLearningRule.objects.update_or_create(
+        term=term,
+        defaults={
+            "target_action": target_action,
+            "target_category": target_category,
+            "source_z_score": z_score,
+            "is_active": True,
+            "created_by": active_user,
+        },
+    )
+    invalidate_scientific_cache()
+    invalidate_learned_boosts_cache()
+
+    if _is_ajax_or_json(request):
+        return JsonResponse({
+            "ok": True,
+            "id": rule.id,
+            "term": rule.term,
+            "target_action": rule.target_action,
+            "target_category": rule.target_category,
+            "source_z_score": rule.source_z_score,
+            "is_active": rule.is_active,
+        })
+    return redirect(f"{reverse('analytics')}#bloque-aprendizaje")
+
+
+@require_POST
+def toggle_learning_rule(request, rule_id):
+    rule = get_object_or_404(ActiveLearningRule, id=rule_id)
+    rule.is_active = not rule.is_active
+    rule.save(update_fields=["is_active"])
+    invalidate_scientific_cache()
+    invalidate_learned_boosts_cache()
+
+    if _is_ajax_or_json(request):
+        return JsonResponse({
+            "ok": True,
+            "id": rule.id,
+            "term": rule.term,
+            "is_active": rule.is_active,
+        })
+    return redirect(f"{reverse('analytics')}#bloque-aprendizaje")
 
 def export_dataset_csv(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -1397,3 +1685,306 @@ def export_dataset_csv(request):
         ])
 
     return response
+
+
+MAX_IMPORT_COLLECTION_BYTES = 512 * 1024
+MAX_IMPORT_COLLECTION_ITEMS = 200
+COLLECTION_SCHEMA_VERSION = "promptlab-collection-v1"
+
+
+@require_POST
+def create_user_template(request):
+    active_user = _get_active_user(request)
+    is_json_req = "application/json" in (request.content_type or "")
+    if is_json_req:
+        try:
+            payload = json.loads(request.body or "{}")
+            if not isinstance(payload, dict):
+                payload = {}
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "JSON malformado al crear la plantilla."}, status=400)
+    else:
+        payload = request.POST
+
+    raw_title = payload.get("title") or ""
+    raw_category = payload.get("category") or "Otro / General"
+    raw_mode = payload.get("recommended_mode") or "guiado"
+    raw_body = payload.get("prompt_body") or ""
+    raw_why = payload.get("why_it_works") or ""
+
+    title = str(raw_title).strip()[:140]
+    category = str(raw_category).strip()[:120] or "Otro / General"
+    recommended_mode = _normalize_user_tpl_mode(str(raw_mode))
+    prompt_body = str(raw_body).strip()[:15000]
+    why_it_works = str(raw_why).strip()[:280]
+
+    if len(title) < 2 or len(prompt_body) < 3:
+        msg = "Ingresá un título (mínimo 2 caracteres) y el texto de la plantilla para guardarla."
+        if _is_ajax_or_json(request):
+            return JsonResponse({"error": msg}, status=400)
+        return render(
+            request,
+            "core/templates_gallery.html",
+            _build_templates_gallery_context(
+                request,
+                active_user,
+                flash={"tone": "danger", "text": msg},
+            ),
+            status=400,
+        )
+
+    ut = UserTemplate.objects.create(
+        user=active_user,
+        title=title,
+        category=category,
+        recommended_mode=recommended_mode,
+        prompt_body=prompt_body,
+        why_it_works=why_it_works,
+    )
+    if _is_ajax_or_json(request):
+        return JsonResponse({
+            "ok": True,
+            "id": ut.id,
+            "title": ut.title,
+            "category": ut.category,
+            "recommended_mode": ut.recommended_mode,
+            "message": f"Plantilla '{ut.title}' guardada en Mis Plantillas.",
+        })
+
+    request.session["tpl_flash"] = {
+        "tone": "success",
+        "text": f"Guardamos '{ut.title}' en tu colección de Mis Plantillas.",
+    }
+    return redirect(f"{reverse('templates_gallery')}#mis-plantillas")
+
+
+@require_POST
+def delete_user_template(request, template_id):
+    active_user = _get_active_user(request)
+    ut = get_object_or_404(UserTemplate, id=template_id, user=active_user)
+    deleted_title = ut.title
+    ut.delete()
+    if _is_ajax_or_json(request):
+        return JsonResponse({"ok": True, "deleted_id": template_id})
+    request.session["tpl_flash"] = {
+        "tone": "info",
+        "text": f"Eliminaste la plantilla propia '{deleted_title}'.",
+    }
+    return redirect(f"{reverse('templates_gallery')}#mis-plantillas")
+
+
+def export_user_templates_json(request):
+    active_user = _get_active_user(request)
+    templates_qs = UserTemplate.objects.filter(user=active_user).order_by("id")
+    templates_out = [
+        {
+            "title": ut.title,
+            "category": ut.category or "Otro / General",
+            "recommended_mode": _normalize_user_tpl_mode(ut.recommended_mode),
+            "prompt_body": ut.prompt_body,
+            "why_it_works": ut.why_it_works or "",
+        }
+        for ut in templates_qs
+    ]
+    payload = {
+        "schema_version": COLLECTION_SCHEMA_VERSION,
+        "exported_at": timezone.now().isoformat(),
+        "count": len(templates_out),
+        "templates": templates_out,
+    }
+    safe_user = re.sub(r"[^A-Za-z0-9._-]+", "_", active_user.username or "usuario").strip("_") or "usuario"
+    response = HttpResponse(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        content_type="application/json; charset=utf-8",
+    )
+    response["Content-Disposition"] = f'attachment; filename="promptlab_coleccion_{safe_user}.json"'
+    return response
+
+
+def _import_error_response(request, active_user, message: str):
+    if _is_ajax_or_json(request):
+        return JsonResponse({"error": message}, status=400)
+    return render(
+        request,
+        "core/templates_gallery.html",
+        _build_templates_gallery_context(
+            request,
+            active_user,
+            flash={"tone": "danger", "text": message},
+        ),
+        status=400,
+    )
+
+
+@require_POST
+def import_user_templates_json(request):
+    active_user = _get_active_user(request)
+    uploaded = request.FILES.get("collection_file") or request.FILES.get("file")
+
+    if uploaded is not None:
+        if uploaded.size > MAX_IMPORT_COLLECTION_BYTES:
+            return _import_error_response(
+                request,
+                active_user,
+                "El archivo supera el límite permitido de 512 KB.",
+            )
+        raw_bytes = uploaded.read()
+    elif "application/json" in (request.content_type or "") and request.body:
+        if len(request.body) > MAX_IMPORT_COLLECTION_BYTES:
+            return _import_error_response(
+                request,
+                active_user,
+                "La carga JSON supera el límite permitido de 512 KB.",
+            )
+        raw_bytes = request.body
+    else:
+        return _import_error_response(
+            request,
+            active_user,
+            "Seleccioná un archivo .json válido para importar tu colección.",
+        )
+
+    if len(raw_bytes) > MAX_IMPORT_COLLECTION_BYTES:
+        return _import_error_response(
+            request,
+            active_user,
+            "El archivo supera el límite permitido de 512 KB.",
+        )
+
+    try:
+        decoded = raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return _import_error_response(
+            request,
+            active_user,
+            "El archivo no tiene codificación UTF-8 válida.",
+        )
+
+    try:
+        data = json.loads(decoded)
+    except json.JSONDecodeError:
+        return _import_error_response(
+            request,
+            active_user,
+            "El archivo JSON está malformado y no se pudo leer.",
+        )
+
+    if not isinstance(data, dict) or data.get("schema_version") != COLLECTION_SCHEMA_VERSION:
+        return _import_error_response(
+            request,
+            active_user,
+            "Esquema inválido: se esperaba una colección exportada con schema_version 'promptlab-collection-v1'.",
+        )
+
+    items = data.get("templates")
+    if not isinstance(items, list):
+        return _import_error_response(
+            request,
+            active_user,
+            "El archivo debe incluir una lista válida en el campo 'templates'.",
+        )
+    if len(items) > MAX_IMPORT_COLLECTION_ITEMS:
+        return _import_error_response(
+            request,
+            active_user,
+            f"La colección supera el máximo de {MAX_IMPORT_COLLECTION_ITEMS} plantillas por importación.",
+        )
+
+    normalized_entries = []
+    for idx, entry in enumerate(items, start=1):
+        if not isinstance(entry, dict):
+            return _import_error_response(
+                request,
+                active_user,
+                f"El elemento #{idx} de 'templates' no es un objeto válido.",
+            )
+        raw_title = entry.get("title")
+        raw_body = entry.get("prompt_body")
+        raw_cat = entry.get("category", "Otro / General")
+        raw_mode = entry.get("recommended_mode", "guiado")
+        raw_why = entry.get("why_it_works", "")
+
+        if not isinstance(raw_title, str) or not isinstance(raw_body, str):
+            return _import_error_response(
+                request,
+                active_user,
+                f"La plantilla #{idx} debe tener campos de texto 'title' y 'prompt_body'.",
+            )
+        if not all(isinstance(v, str) for v in (raw_cat, raw_mode, raw_why)):
+            return _import_error_response(
+                request,
+                active_user,
+                f"La plantilla #{idx} contiene campos opcionales con formato inválido.",
+            )
+
+        clean_title_src = raw_title.strip()
+        clean_body_src = raw_body.strip()
+        if len(clean_title_src) < 2 or len(clean_body_src) < 3:
+            return _import_error_response(
+                request,
+                active_user,
+                f"La plantilla #{idx} tiene título o contenido demasiado corto.",
+            )
+
+        masked_title, w_title = detect_and_mask_pii(clean_title_src)
+        masked_body, w_body = detect_and_mask_pii(clean_body_src)
+        masked_why, w_why = detect_and_mask_pii(raw_why.strip())
+        had_pii = bool(w_title or w_body or w_why)
+
+        normalized_entries.append({
+            "title": masked_title[:140],
+            "category": (raw_cat.strip()[:120] or "Otro / General"),
+            "recommended_mode": _normalize_user_tpl_mode(raw_mode),
+            "prompt_body": masked_body[:15000],
+            "why_it_works": masked_why[:280],
+            "had_pii": had_pii,
+        })
+
+    existing_pairs = set(
+        UserTemplate.objects.filter(user=active_user).values_list("title", "prompt_body")
+    )
+    imported_count = 0
+    skipped_duplicates = 0
+    pii_sanitized_count = 0
+
+    for item in normalized_entries:
+        pair = (item["title"], item["prompt_body"])
+        if pair in existing_pairs:
+            skipped_duplicates += 1
+            continue
+        UserTemplate.objects.create(
+            user=active_user,
+            title=item["title"],
+            category=item["category"],
+            recommended_mode=item["recommended_mode"],
+            prompt_body=item["prompt_body"],
+            why_it_works=item["why_it_works"],
+        )
+        existing_pairs.add(pair)
+        imported_count += 1
+        if item["had_pii"]:
+            pii_sanitized_count += 1
+
+    parts = [f"Importación finalizada: se sumaron {imported_count} plantilla(s)"]
+    if skipped_duplicates:
+        parts.append(f"se omitieron {skipped_duplicates} duplicada(s)")
+    if pii_sanitized_count:
+        parts.append(
+            f"se protegieron datos sensibles automáticamente en {pii_sanitized_count} plantilla(s)"
+        )
+    summary_msg = ", ".join(parts) + "."
+
+    if _is_ajax_or_json(request):
+        return JsonResponse({
+            "ok": True,
+            "imported": imported_count,
+            "skipped_duplicates": skipped_duplicates,
+            "pii_sanitized": pii_sanitized_count,
+            "message": summary_msg,
+        })
+
+    request.session["tpl_flash"] = {
+        "tone": "success" if imported_count > 0 else "info",
+        "text": summary_msg,
+    }
+    return redirect(f"{reverse('templates_gallery')}#mis-plantillas")

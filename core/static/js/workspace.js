@@ -80,6 +80,8 @@
     let lastResultData = null;
     let lastLiveData = null;
     let currentPromptId = null;
+    let currentVersionNumber = 1;
+    let iteratingParentId = null;
     let currentIsFavorite = false;
     let liveDebounceTimer = null;
     let overrideDomain = "";
@@ -1233,6 +1235,119 @@
         }
     }
 
+    function updateVersionUI(versionNum) {
+        currentVersionNumber = Number(versionNum) || 1;
+        const badge = $("output-version-badge");
+        if (badge) badge.innerText = `v${currentVersionNumber}`;
+    }
+
+    function enterIterationMode(promptId, versionNum) {
+        if (!promptId) {
+            mostrarAviso("Generá o cargá un prompt antes de crear una nueva versión.");
+            return;
+        }
+        iteratingParentId = promptId;
+        const baseVer = Number(versionNum) || currentVersionNumber || 1;
+        const banner = $("iteration-mode-banner");
+        const txt = $("iteration-mode-text");
+        if (txt) {
+            txt.innerHTML = `Iterando sobre versión <strong>v${baseVer}</strong> — los cambios se guardarán como <strong>v${baseVer + 1}</strong>`;
+        }
+        if (banner) banner.classList.remove("d-none");
+        const noteEl = $("version-note-input");
+        if (noteEl) noteEl.focus();
+    }
+
+    function cancelIterationMode() {
+        iteratingParentId = null;
+        const banner = $("iteration-mode-banner");
+        if (banner) banner.classList.add("d-none");
+        const noteEl = $("version-note-input");
+        if (noteEl) noteEl.value = "";
+    }
+
+    function openSaveTemplateModal() {
+        const titleEl = $("save-tpl-title");
+        const catEl = $("save-tpl-category");
+        const modeEl = $("save-tpl-mode");
+        const bodyEl = $("save-tpl-body");
+        const whyEl = $("save-tpl-why");
+        const fbEl = $("save-tpl-feedback");
+
+        if (fbEl) fbEl.classList.add("d-none");
+        const rawInput = getInputText();
+        const outEl = $("generated-prompt-output");
+        const outVal = outEl ? outEl.value.trim() : "";
+
+        if (bodyEl) bodyEl.value = outVal || rawInput;
+        if (titleEl && !titleEl.value.trim()) {
+            const snippet = rawInput.split(/\r?\n/)[0].slice(0, 64).trim();
+            titleEl.value = snippet ? `Plantilla: ${snippet}` : "Mi nueva plantilla";
+        }
+        if (catEl) {
+            const detCat = (lastResultData && lastResultData.category) || ($("category-select") ? $("category-select").value : "");
+            if (detCat) {
+                const matchOpt = Array.from(catEl.options).find((o) => o.value === detCat);
+                if (matchOpt) catEl.value = detCat;
+            }
+        }
+        if (modeEl) {
+            modeEl.value = currentMode === "pro" ? "pro" : currentMode === "express" ? "express" : "guiado";
+        }
+        if (whyEl && !whyEl.value.trim() && lastResultData && lastResultData.action_label) {
+            whyEl.value = `Estructura optimizada para ${String(lastResultData.action_label).toLowerCase()}.`;
+        }
+    }
+
+    async function submitSaveTemplateModal(evt) {
+        evt.preventDefault();
+        const fbEl = $("save-tpl-feedback");
+        const submitBtn = $("btn-save-tpl-submit");
+        const payload = {
+            title: $("save-tpl-title") ? $("save-tpl-title").value.trim() : "",
+            category: $("save-tpl-category") ? $("save-tpl-category").value : "Otro / General",
+            recommended_mode: $("save-tpl-mode") ? $("save-tpl-mode").value : "guiado",
+            prompt_body: $("save-tpl-body") ? $("save-tpl-body").value.trim() : "",
+            why_it_works: $("save-tpl-why") ? $("save-tpl-why").value.trim() : "",
+        };
+
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+            const resp = await fetch("/plantillas/propias/crear/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": getCsrfToken(),
+                },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.error) {
+                if (fbEl) {
+                    fbEl.className = "alert alert-danger small py-2 px-3 mb-3";
+                    fbEl.innerText = data.error || "No pudimos guardar la plantilla.";
+                    fbEl.classList.remove("d-none");
+                }
+                return;
+            }
+            if (fbEl) {
+                fbEl.className = "alert alert-success small py-2 px-3 mb-3";
+                fbEl.innerText = data.message || "Plantilla guardada en Mis Plantillas.";
+                fbEl.classList.remove("d-none");
+            }
+        } catch (_err) {
+            if (fbEl) {
+                fbEl.className = "alert alert-danger small py-2 px-3 mb-3";
+                fbEl.innerText = "Error de conexión al guardar la plantilla.";
+                fbEl.classList.remove("d-none");
+            }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
+
     // ------------------------------------------------------------------
     // Generación principal (POST /api/improve/) — NO sobrescribe entrada
     // ------------------------------------------------------------------
@@ -1259,6 +1374,7 @@
         const userExample =
             currentMode === "pro" && $("user-example-input") ? ($("user-example-input").value || "").trim() : "";
         const maskPii = $("mask-pii-checkbox") ? $("mask-pii-checkbox").checked : true;
+        const versionNote = $("version-note-input") ? ($("version-note-input").value || "").trim() : "";
 
         const origMainHtml = btnMain ? btnMain.innerHTML : "";
         const origAssistHtml = btnAssist ? btnAssist.innerHTML : "";
@@ -1273,22 +1389,27 @@
 
         let succeeded = false;
         try {
+            const reqBody = {
+                text: text,
+                category: category || "Ninguna especificada",
+                form_data: formData,
+                level: level,
+                technique: technique,
+                override_domain: overrideDomain,
+                override_action: overrideAction,
+                override_deliverable: overrideDeliverable,
+                negative_constraints: negConstraints,
+                user_example: userExample,
+                mask_pii: maskPii,
+            };
+            if (iteratingParentId) {
+                reqBody.parent_prompt_id = iteratingParentId;
+                reqBody.version_note = versionNote;
+            }
             const response = await fetch("/api/improve/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: text,
-                    category: category || "Ninguna especificada",
-                    form_data: formData,
-                    level: level,
-                    technique: technique,
-                    override_domain: overrideDomain,
-                    override_action: overrideAction,
-                    override_deliverable: overrideDeliverable,
-                    negative_constraints: negConstraints,
-                    user_example: userExample,
-                    mask_pii: maskPii,
-                }),
+                body: JSON.stringify(reqBody),
             });
 
             const data = await response.json();
@@ -1300,6 +1421,8 @@
             succeeded = true;
             lastResultData = data;
             currentPromptId = data.prompt_id || null;
+            updateVersionUI(data.version_number || 1);
+            cancelIterationMode();
             updateFavoriteButtonUI(Boolean(data.is_favorite));
 
             if (outputEl) {
@@ -1528,6 +1651,8 @@
         lastResultData = null;
         lastLiveData = null;
         currentPromptId = null;
+        updateVersionUI(1);
+        cancelIterationMode();
         clearPendingAssistantChanges();
         updateFavoriteButtonUI(false);
         if ($("prompt-input")) $("prompt-input").focus();
@@ -1655,6 +1780,33 @@
             });
         }
         if ($("btn-favorite")) $("btn-favorite").addEventListener("click", toggleCurrentFavorite);
+        if ($("btn-iterate-version")) {
+            $("btn-iterate-version").addEventListener("click", () => {
+                enterIterationMode(currentPromptId, currentVersionNumber);
+            });
+        }
+        if ($("btn-cancel-iteration")) {
+            $("btn-cancel-iteration").addEventListener("click", cancelIterationMode);
+        }
+        const saveTplModalEl = $("saveTemplateModal");
+        if (saveTplModalEl) {
+            saveTplModalEl.addEventListener("show.bs.modal", openSaveTemplateModal);
+        }
+        const saveTplForm = $("save-template-form");
+        if (saveTplForm) {
+            saveTplForm.addEventListener("submit", submitSaveTemplateModal);
+        }
+        if ($("btn-tpl-src-idea")) {
+            $("btn-tpl-src-idea").addEventListener("click", () => {
+                if ($("save-tpl-body")) $("save-tpl-body").value = getInputText();
+            });
+        }
+        if ($("btn-tpl-src-output")) {
+            $("btn-tpl-src-output").addEventListener("click", () => {
+                const out = $("generated-prompt-output");
+                if ($("save-tpl-body") && out) $("save-tpl-body").value = out.value.trim();
+            });
+        }
         if ($("btn-compare")) $("btn-compare").addEventListener("click", abrirComparador);
         if ($("btn-export-md")) $("btn-export-md").addEventListener("click", () => descargarArchivo("md"));
         if ($("btn-export-json")) $("btn-export-json").addEventListener("click", () => descargarArchivo("json"));
@@ -1686,7 +1838,11 @@
             setWorkspaceMode(initialMode, false);
 
             currentPromptId = lp.id;
+            updateVersionUI(lp.version_number || 1);
             updateFavoriteButtonUI(Boolean(lp.is_favorite));
+            if (lp.auto_iterate) {
+                enterIterationMode(lp.id, lp.version_number || 1);
+            }
 
             if (boot.loaded_rubric) {
                 renderRubricBars(boot.loaded_rubric);

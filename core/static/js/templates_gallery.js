@@ -157,7 +157,7 @@
 
         document.querySelectorAll(".tpl-copy-btn").forEach((btn) => {
             btn.addEventListener("click", () => {
-                const card = btn.closest(".tpl-gallery-item");
+                const card = btn.closest(".tpl-gallery-item, .user-tpl-card-item");
                 const rawEl = card ? card.querySelector(".tpl-raw-prompt") : null;
                 const rawText = rawEl ? rawEl.value : "";
                 if (!rawText) return;
@@ -178,7 +178,7 @@
 
         document.querySelectorAll(".tpl-use-btn").forEach((link) => {
             link.addEventListener("click", () => {
-                const card = link.closest(".tpl-gallery-item");
+                const card = link.closest(".tpl-gallery-item, .user-tpl-card-item");
                 if (!card) return;
                 const rawEl = card.querySelector(".tpl-raw-prompt");
                 const wsMode = card.getAttribute("data-workspace-mode") || "guiado";
@@ -193,8 +193,35 @@
                 try {
                     sessionStorage.setItem("promptlab_selected_template", JSON.stringify(payload));
                 } catch (_e) {
-                    // Fallback: continúa con ?preset=<slug> en el href
+                    // Fallback: continúa con ?preset=<slug> o ?user_tpl=<id> en el href
                 }
+            });
+        });
+
+        document.querySelectorAll(".btn-user-tpl-del-init").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const form = btn.closest(".user-tpl-delete-form");
+                if (!form) return;
+                btn.classList.add("d-none");
+                const grp = form.querySelector(".user-tpl-del-confirm");
+                if (grp) {
+                    grp.classList.remove("d-none");
+                    grp.classList.add("d-inline-flex");
+                }
+            });
+        });
+
+        document.querySelectorAll(".btn-user-tpl-del-cancel").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const form = btn.closest(".user-tpl-delete-form");
+                if (!form) return;
+                const grp = form.querySelector(".user-tpl-del-confirm");
+                const initBtn = form.querySelector(".btn-user-tpl-del-init");
+                if (grp) {
+                    grp.classList.add("d-none");
+                    grp.classList.remove("d-inline-flex");
+                }
+                if (initBtn) initBtn.classList.remove("d-none");
             });
         });
 

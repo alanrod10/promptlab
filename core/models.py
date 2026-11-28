@@ -36,8 +36,59 @@ class Prompt(models.Model):
     user_corrected = models.BooleanField(default=False)
     has_pii_masked = models.BooleanField(default=False)
 
+    parent_prompt = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='child_versions',
+    )
+    root_prompt = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='version_family',
+    )
+    version_number = models.PositiveIntegerField(default=1)
+    version_note = models.CharField(max_length=240, blank=True, default="")
+
     is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"[{self.engine_version}] {self.category or 'General'} - {self.original_text[:35]}..."
+        return f"[{self.engine_version}] v{self.version_number} {self.category or 'General'} - {self.original_text[:35]}..."
+
+
+class ActiveLearningRule(models.Model):
+    term = models.CharField(max_length=100, unique=True)
+    target_action = models.CharField(max_length=80)
+    target_category = models.CharField(max_length=120, blank=True, default="")
+    source_z_score = models.FloatField(default=0.0)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_active", "-created_at", "-id"]
+
+    def __str__(self):
+        state = "activa" if self.is_active else "inactiva"
+        return f"{self.term} -> {self.target_action} ({state})"
+
+
+class UserTemplate(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='custom_templates')
+    title = models.CharField(max_length=140)
+    category = models.CharField(max_length=120, default="Otro / General")
+    recommended_mode = models.CharField(max_length=20, default="guiado")
+    prompt_body = models.TextField()
+    why_it_works = models.CharField(max_length=280, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+
+    def __str__(self):
+        return f"{self.title} ({self.recommended_mode})"

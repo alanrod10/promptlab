@@ -4,6 +4,40 @@ Todas las mejoras relevantes de **PromptLab** se documentan en este archivo.
 
 ---
 
+## [v8.0] — Plataforma Híbrida Científica, Versionado vN, Portabilidad .JSON y Auditoría WCAG AA/AAA (83 tests)
+
+### Fase 3 — Cierre Integral, WCAG AA/AAA, Proyector 1280×720 y Documentación Oficial
+- **Auditoría visual WCAG AA/AAA y proyector `1280×720` (`promptlab.css`, `workspace.html`):**
+  - Agregada ayuda didáctica no técnica en el estimador de tokens (*"1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor."*) manteniendo intacta la leyenda offline calibrada para español.
+  - Reforzado contraste WCAG AAA en `#cmp-efficiency-badge`, categorías de *Mis Plantillas* y alertas `.alert-success` / `.alert-danger` / `.alert-info` en Modo Oscuro.
+  - Ajustada la envolvente limpia de los 4 chips `.pl-example-pill`, capas `z-index` seguras en `.stats-svg-tooltip` y diseño compacto responsivo de la barra lateral y la grilla de 3 modelos para resoluciones de proyector `1280×720` y móvil `390px`.
+- **Cache-busting unificado a `?v=8.0`:** actualizado en `base.html`, `workspace.html`, `templates_gallery.html`, `analytics.html` y `PromptLabSiteCoherenceTests`.
+- **Sincronización documental:** actualizados `README.md`, `PRD.md` y `CHANGELOG.md` con las 19 rutas reales, migraciones `0001`–`0009`, métricas del benchmark 5-Fold, 14 suites de tests (83 tests) y hoja de ruta `v9.0`.
+
+### Fase 2 — Versionado Iterativo `v1 → v2 → v3`, Mis Plantillas Propias y Portabilidad `.JSON`
+- **Modelos y migración única `0009` (`core/models.py`):** agregados `parent_prompt`, `root_prompt`, `version_number` y `version_note` en `Prompt`, y creado `UserTemplate` aislado por usuario.
+- **Versionado en Workspace e Historial (`workspace.html`, `workspace.js`, `history.html`, `views.py`):** badge `vN`, flujo `/?load=<id>&iterate=1` con nota de cambio, línea de tiempo comparativa con delta de puntaje respecto de la versión anterior y guardado rápido como plantilla propia desde cualquier resultado.
+- **Mis Plantillas e intercambio offline `.JSON` (`templates_gallery.html`, `templates_gallery.js`, `views.py`, `urls.py`):** 4 rutas nuevas (`/plantillas/propias/crear/`, `/plantillas/propias/eliminar/<id>/`, `/plantillas/propias/exportar-json/`, `/plantillas/propias/importar-json/`), esquema `promptlab-collection-v1` (límite `512 KB`), deduplicación y sanitización automática de PII preservando facturas AFIP.
+- **Tests:** incorporada `PromptLabV80VersioningAndCollectionsTests` (5 tests) alcanzando **83 tests en verde**.
+
+### Fase 1 — Benchmark Científico 5-Fold en Python Puro + Overlay Reversible de Active Learning
+- **Dataset Dorado Curado (`core/rules/benchmark_dataset.json`):** 60 casos reales en español distribuidos equilibradamente en 10 arquetipos × 6 ejemplos (casos normales y casos borde).
+- **Evaluador Científico sin dependencias (`core/scientific_eval.py`, `evaluate_engine.py`):** `MultinomialNaiveBayesClassifier` en Python estándar (`log-sum-exp`, suavizado $\alpha=1.0$), desempate híbrido conservador y Validación Cruzada Estratificada 5-Fold *out-of-fold* sin *data leakage*, elevando Exactitud de **80,0 % → 95,0 %** y Macro F1 de **83,1 % → 95,5 %** (**9/11** casos rescatados, **0** regresiones, **< 200 ms**).
+- **Capa Overlay Reversible (`ActiveLearningRule`, migración `0008`):** aprobación (`/analitica/aprendizaje/aprobar/`) y reversión (`/analitica/aprendizaje/revertir/<id>/`) en SQLite sin mutar jamás `core/rules/knowledge_base.json`, junto con tabla comparativa y Matriz de Confusión 10 × 10 en `/analitica/`.
+- **Tests:** incorporada `PromptLabV80ScientificAndActiveLearningTests` (5 tests) alcanzando **78 tests en verde**.
+
+---
+
+## [v7.3] — Espacio de Trabajo Inteligente, Privacidad Verificada, Tokens Offline y Cuenta Opcional (73 tests)
+
+- **Ejemplos rápidos auto-ocultables (4 casos):** chips interactivos sobre el editor incluyendo el 4° caso institucional/AFIP (*Proteger datos en nota oficial*) con ocultamiento automático al escribir.
+- **Sello de Privacidad verificada (`.pl-privacy-seal` y `.pl-fmt-pii-mask`):** indicador visible WCAG AAA cuando se resguardan datos personales argentinos en Python/JS sin afectar facturas AFIP (`XXXX-XXXXXXXX`).
+- **Estimador Comparativo Offline de Tokens (ChatGPT · Gemini · Claude):** cálculo heurístico local calibrado para español en el Espacio de Trabajo y en el Comparador Antes vs. Después sin APIs ni tokenizadores externos.
+- **Cuenta opcional multiusuario (`/ingresar/`, `/registro/`, `/salir/`):** aislamiento estricto por usuario mediante `_get_active_user`, conservación intacta del modo **Invitado** y migración segura de prompts previos al crear o abrir cuenta.
+- **Tests:** incorporadas `PromptLabV73WorkspaceSmartFeaturesTests` (4 tests) y `PromptLabV73OptionalAuthTests` (5 tests) alcanzando **73 tests en verde**.
+
+---
+
 ## [v7.2.4] — Armonización Integral de Diseño, UX y Lenguaje (64 tests)
 
 - **Sistema visual unificado (`promptlab.css`):** consolidación de tokens `--pl-*` (`--pl-text-muted`, `--pl-surface-elevated`, `--pl-radius-card`, `--pl-radius-pill`) y componentes compartidos (`.pl-page-shell`, `.pl-page-header`, `.pl-page-title`, `.pl-page-subtitle`, `.pl-mode-badge--*`, `.pl-empty-state`, `.btn-pl-danger`) para Modo Oscuro y Modo Claro.

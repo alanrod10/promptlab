@@ -2348,3 +2348,370 @@ body {
 [data-theme="dark"] .pl-auth-link {
     color: #a5b4fc;
 }
+
+/* ==========================================================================
+   PromptLab v8.0 — Evaluación Científica 5-Fold y Capa Overlay (WCAG AA/AAA)
+   ========================================================================== */
+
+.pl-bench-seal {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    background-color: rgba(91, 82, 245, 0.10);
+    color: #3730a3;
+    border: 1px solid rgba(91, 82, 245, 0.28);
+}
+
+[data-theme="dark"] .pl-bench-seal {
+    background-color: rgba(124, 115, 255, 0.16);
+    color: #c7d2fe;
+    border-color: rgba(124, 115, 255, 0.36);
+}
+
+.pl-bench-card {
+    background-color: var(--pl-surface-alt);
+    border: 1px solid var(--pl-border);
+    border-radius: 13px;
+}
+
+.pl-bench-diff {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.pl-bench-diff--positive {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #064e3b;
+    border: 1px solid rgba(5, 150, 105, 0.32);
+}
+
+[data-theme="dark"] .pl-bench-diff--positive {
+    color: #6ee7b7;
+    border-color: rgba(52, 211, 153, 0.38);
+}
+
+.pl-bench-diff--neutral {
+    background-color: var(--pl-surface-soft);
+    color: var(--pl-text-secondary);
+    border: 1px solid var(--pl-border);
+}
+
+.pl-bench-diff--negative {
+    background-color: rgba(239, 68, 68, 0.14);
+    color: #991b1b;
+    border: 1px solid rgba(220, 38, 38, 0.32);
+}
+
+[data-theme="dark"] .pl-bench-diff--negative {
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.38);
+}
+
+.pl-bench-verdict {
+    border-radius: 12px;
+    border: 1px solid var(--pl-border);
+    background-color: var(--pl-surface-alt);
+}
+
+.pl-bench-verdict--success {
+    border-color: rgba(5, 150, 105, 0.34);
+    background-color: rgba(16, 185, 129, 0.08);
+}
+
+.pl-bench-verdict--info {
+    border-color: rgba(6, 182, 212, 0.34);
+    background-color: rgba(6, 182, 212, 0.08);
+}
+
+.pl-bench-verdict--warning {
+    border-color: rgba(217, 119, 6, 0.36);
+    background-color: rgba(245, 158, 11, 0.09);
+}
+
+/* Matriz de Confusión (mapa de calor con contraste WCAG AA/AAA en ambos temas) */
+.pl-cm-table th,
+.pl-cm-table td {
+    border: 1px solid var(--pl-border);
+    padding: 0.42rem 0.5rem;
+    font-size: 0.78rem;
+}
+
+.pl-cm-corner,
+.pl-cm-col-head,
+.pl-cm-row-head {
+    background-color: var(--pl-surface-soft);
+    color: var(--pl-text);
+    font-weight: 700;
+}
+
+.pl-cm-cell {
+    font-weight: 700;
+    min-width: 58px;
+}
+
+.pl-cm-cell--zero {
+    background-color: var(--pl-surface);
+    color: var(--pl-text-secondary);
+    font-weight: 500;
+}
+
+.pl-cm-cell--diag-high {
+    background-color: #d1fae5;
+    color: #064e3b;
+}
+
+.pl-cm-cell--diag-mid {
+    background-color: #e0f2fe;
+    color: #0c4a6e;
+}
+
+.pl-cm-cell--err-low {
+    background-color: #fef3c7;
+    color: #78350f;
+}
+
+.pl-cm-cell--err-high {
+    background-color: #fee2e2;
+    color: #7f1d1d;
+}
+
+[data-theme="dark"] .pl-cm-cell--diag-high {
+    background-color: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .pl-cm-cell--diag-mid {
+    background-color: #0c4a6e;
+    color: #e0f2fe;
+}
+
+[data-theme="dark"] .pl-cm-cell--err-low {
+    background-color: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .pl-cm-cell--err-high {
+    background-color: #7f1d1d;
+    color: #fee2e2;
+}
+
+/* ==========================================================================
+   PromptLab v8.0 Fase 2 — Versionado Iterativo, Mis Plantillas y Portabilidad
+   ========================================================================== */
+
+.pl-version-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    background-color: rgba(91, 82, 245, 0.13);
+    color: #3730a3;
+    border: 1px solid rgba(91, 82, 245, 0.34);
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .pl-version-badge {
+    background-color: rgba(124, 115, 255, 0.20);
+    color: #c7d2fe;
+    border-color: rgba(124, 115, 255, 0.42);
+}
+
+.pl-iter-banner {
+    background-color: rgba(91, 82, 245, 0.09);
+    border: 1px solid rgba(91, 82, 245, 0.32);
+    color: var(--pl-text);
+}
+
+[data-theme="dark"] .pl-iter-banner {
+    background-color: rgba(124, 115, 255, 0.15);
+    border-color: rgba(124, 115, 255, 0.38);
+}
+
+.pl-version-timeline {
+    background-color: var(--pl-surface-alt);
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.pl-version-step {
+    padding: 0.45rem 0.65rem;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background-color: var(--pl-surface);
+}
+
+.pl-version-step.is-current {
+    border-color: rgba(91, 82, 245, 0.38);
+    background-color: rgba(91, 82, 245, 0.07);
+}
+
+[data-theme="dark"] .pl-version-step.is-current {
+    background-color: rgba(124, 115, 255, 0.13);
+}
+
+.pl-ver-diff {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.71rem;
+    font-weight: 700;
+}
+
+.pl-ver-diff--positive {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #064e3b;
+}
+
+[data-theme="dark"] .pl-ver-diff--positive {
+    color: #6ee7b7;
+}
+
+.pl-ver-diff--negative {
+    background-color: rgba(239, 68, 68, 0.14);
+    color: #991b1b;
+}
+
+[data-theme="dark"] .pl-ver-diff--negative {
+    color: #fca5a5;
+}
+
+.pl-ver-diff--neutral {
+    background-color: var(--pl-surface-soft);
+    color: var(--pl-text-secondary);
+}
+
+.pl-user-templates-box {
+    border-color: rgba(91, 82, 245, 0.28);
+}
+
+/* ==========================================================================
+   PromptLab v8.0 Fase 3 — Auditoría Visual WCAG AA/AAA y Proyector 1280x720
+   ========================================================================== */
+
+/* Contraste WCAG AAA en badge de eficiencia de ventana (Modal Comparador) */
+#cmp-efficiency-badge {
+    background-color: rgba(16, 185, 129, 0.16) !important;
+    color: #064e3b !important;
+    border: 1px solid rgba(5, 150, 105, 0.34);
+    font-weight: 700;
+}
+
+[data-theme="dark"] #cmp-efficiency-badge {
+    background-color: rgba(16, 185, 129, 0.18) !important;
+    color: #6ee7b7 !important;
+    border-color: rgba(52, 211, 153, 0.40);
+}
+
+/* Contraste WCAG AA/AAA en badges de categoría de Mis Plantillas */
+.user-tpl-card-item .badge.bg-secondary.bg-opacity-15 {
+    background-color: rgba(100, 116, 139, 0.14) !important;
+    color: #334155 !important;
+    border: 1px solid rgba(100, 116, 139, 0.28);
+}
+
+[data-theme="dark"] .user-tpl-card-item .badge.bg-secondary.bg-opacity-15 {
+    background-color: rgba(148, 163, 184, 0.18) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.34);
+}
+
+/* Alertas y textos de ayuda de alto contraste en Modo Oscuro */
+[data-theme="dark"] .alert-success {
+    background-color: rgba(16, 185, 129, 0.16);
+    border-color: rgba(52, 211, 153, 0.42);
+    color: #a7f3d0;
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: rgba(239, 68, 68, 0.16);
+    border-color: rgba(248, 113, 113, 0.42);
+    color: #fecaca;
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: rgba(34, 211, 238, 0.14);
+    border-color: rgba(34, 211, 238, 0.38);
+    color: #cffafe;
+}
+
+[data-theme="dark"] .form-text {
+    color: var(--pl-text-secondary);
+}
+
+/* Chips de ejemplos rápidos auto-ocultables: envoltura limpia en 1280x720 y móvil 390px */
+.pl-example-pill {
+    white-space: normal;
+    text-align: left;
+    line-height: 1.35;
+}
+
+/* Evitar cortes y desbordes en botones de acciones de Mis Plantillas e Historial */
+.pl-version-step .btn,
+.user-tpl-card-item .btn {
+    white-space: nowrap;
+}
+
+/* Capa segura para tooltips SVG en Analítica sobre encabezados de tabla sticky */
+.stats-svg-tooltip {
+    z-index: 1080;
+}
+
+/* Grilla de tokens comparativos cómoda en proyector 1280x720 (columna de 8 cols) */
+@media (min-width: 992px) and (max-width: 1366px) {
+    .pl-token-grid {
+        gap: 0.5rem;
+    }
+
+    .pl-token-model-card {
+        padding: 0.55rem 0.7rem;
+    }
+
+    .pl-token-count {
+        font-size: 0.95rem;
+    }
+}
+
+/* Sidebar sin recorte vertical en proyectores 1280x720 (720px de alto) */
+@media (min-width: 768px) and (max-height: 760px) {
+    .sidebar {
+        max-height: 100vh;
+        overflow-y: auto;
+        padding-top: 14px !important;
+        padding-bottom: 14px !important;
+    }
+
+    .brand-lockup {
+        margin-bottom: 0.65rem !important;
+    }
+
+    .sidebar .nav-link-item {
+        padding: 8px 14px;
+        margin-bottom: 3px;
+    }
+
+    .pl-account-card {
+        padding: 7px 10px;
+        margin: 0 12px 6px;
+    }
+
+    .status-card {
+        margin-top: 6px;
+        padding: 9px 12px;
+    }
+}

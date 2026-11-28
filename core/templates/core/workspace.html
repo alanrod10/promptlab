@@ -186,6 +186,23 @@
                     </div>
                 </div>
 
+                <!-- Aviso de iteración de versión (descartable) -->
+                <div id="iteration-mode-banner" class="pl-iter-banner rounded-3 py-2 px-3 small mt-3 d-none">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <div>
+                            <i class="bi bi-arrow-repeat text-primary me-1"></i>
+                            <span id="iteration-mode-text">Iterando sobre versión <strong>v1</strong> — los cambios se guardarán como <strong>v2</strong></span>
+                        </div>
+                        <button type="button" id="btn-cancel-iteration" class="btn-close btn-sm" aria-label="Cancelar nueva versión"></button>
+                    </div>
+                    <input type="text"
+                           id="version-note-input"
+                           maxlength="240"
+                           class="form-control form-control-sm pl-input"
+                           placeholder="Nota de versión (opcional), ej: Agregué formato tabla y casos borde"
+                           aria-label="Nota de versión">
+                </div>
+
                 <!-- Acciones de entrada -->
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 pl-border-top">
                     <button type="button" id="btn-clear-all" class="btn btn-sm btn-pl-secondary px-3">
@@ -202,12 +219,16 @@
                 <!-- Barra superior de acciones del resultado -->
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 pl-border-bottom">
                     <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span id="output-version-badge" class="pl-version-badge" title="Versión actual del prompt">v{% if loaded_prompt %}{{ loaded_prompt.version_number|default:1 }}{% else %}1{% endif %}</span>
                         <span id="output-score-pill" class="pl-score-pill small">
                             <i class="bi bi-award-fill me-1"></i>
                             <strong id="output-score-val">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}—/100{% endif %}</strong>
                             <span class="mx-1">&middot;</span>
                             <span id="output-score-band">{% if loaded_prompt %}{% if loaded_prompt.final_score >= 90 %}Excelente{% elif loaded_prompt.final_score >= 80 %}Muy bueno{% elif loaded_prompt.final_score >= 70 %}Bueno{% else %}Mejorable{% endif %}{% else %}Sin evaluar{% endif %}</span>
                         </span>
+                        <button type="button" id="btn-iterate-version" class="btn btn-sm btn-pl-accent-outline px-3 fw-medium" title="Generar una versión mejorada sobre este prompt">
+                            <i class="bi bi-arrow-repeat me-1"></i> Iterar nueva versión
+                        </button>
                         <button type="button" id="btn-fill-placeholders" class="btn btn-sm btn-outline-warning rounded-pill px-3 d-none">
                             <i class="bi bi-input-cursor-text me-1"></i> Completar datos pendientes
                         </button>
@@ -222,6 +243,9 @@
                         </button>
                         <button type="button" id="btn-favorite" class="btn btn-sm btn-pl-secondary px-3 {% if loaded_prompt and loaded_prompt.is_favorite %}btn-fav-active{% endif %}" title="Guardar en favoritos">
                             <i class="bi {% if loaded_prompt and loaded_prompt.is_favorite %}bi-star-fill{% else %}bi-star{% endif %}"></i>
+                        </button>
+                        <button type="button" id="btn-open-save-template" class="btn btn-sm btn-pl-secondary px-3" data-bs-toggle="modal" data-bs-target="#saveTemplateModal" title="Guardar en Mis Plantillas">
+                            <i class="bi bi-bookmark-plus me-1"></i> Guardar como plantilla
                         </button>
                         <button type="button" id="btn-compare" class="btn btn-sm btn-pl-secondary px-3" data-bs-toggle="modal" data-bs-target="#compareModal" title="Comparar Antes vs. Después">
                             <i class="bi bi-layout-split me-1"></i> Comparar <span class="d-none d-xl-inline">Antes vs. Después</span>
@@ -378,7 +402,8 @@
                         </div>
                     </div>
                     <div class="pl-token-footnote mt-2">
-                        <i class="bi bi-info-circle me-1"></i>Estimación local calibrada para español (±10 %); 100 % offline sin APIs.
+                        <div><i class="bi bi-info-circle me-1"></i>Estimación local calibrada para español (±10 %); 100 % offline sin APIs.</div>
+                        <div class="mt-1">1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor.</div>
                     </div>
                 </div>
             </section>
@@ -566,7 +591,76 @@
     </div>
 </div>
 
+<!-- Modal Guardar como Plantilla Propia -->
+<div class="modal fade" id="saveTemplateModal" tabindex="-1" aria-labelledby="saveTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header pl-border-bottom">
+                <h5 class="modal-title fw-bold pl-text-primary" id="saveTemplateModalLabel">
+                    <i class="bi bi-bookmark-plus text-primary me-2"></i>Guardar en Mis Plantillas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="save-template-form">
+                <div class="modal-body p-4">
+                    <div id="save-tpl-feedback" class="alert small py-2 px-3 d-none mb-3"></div>
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label for="save-tpl-title" class="form-label small fw-bold pl-text-primary">Título de tu plantilla</label>
+                            <input type="text" id="save-tpl-title" maxlength="140" required class="form-control form-control-sm pl-input" placeholder="Ej: Informe semanal de ventas para almacén">
+                        </div>
+                        <div class="col-md-5">
+                            <label for="save-tpl-mode" class="form-label small fw-bold pl-text-primary">Modo recomendado</label>
+                            <select id="save-tpl-mode" class="form-select form-select-sm pl-input">
+                                <option value="express">Express</option>
+                                <option value="guiado" selected>Guiado</option>
+                                <option value="pro">Estudio Pro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="save-tpl-category" class="form-label small fw-bold pl-text-primary">Área temática</label>
+                            <select id="save-tpl-category" class="form-select form-select-sm pl-input">
+                                <option value="Ciencia de Datos e IA">Ciencia de Datos e IA</option>
+                                <option value="Tecnología y programación">Tecnología y programación</option>
+                                <option value="Estudio y academia">Estudio y academia</option>
+                                <option value="Negocios y comercio">Negocios y comercio</option>
+                                <option value="Redacción y comunicación">Redacción y comunicación</option>
+                                <option value="Investigar y analizar">Investigar y analizar</option>
+                                <option value="Trámites y documentos">Trámites y documentos</option>
+                                <option value="Planificación y productividad">Planificación y productividad</option>
+                                <option value="Toma de decisiones">Toma de decisiones</option>
+                                <option value="Otro / General" selected>Otro / General</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="save-tpl-why" class="form-label small fw-bold pl-text-primary">Por qué funciona (opcional)</label>
+                            <input type="text" id="save-tpl-why" maxlength="280" class="form-control form-control-sm pl-input" placeholder="Ej: Fija columnas claras y evita inventar cifras">
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                                <label for="save-tpl-body" class="form-label small fw-bold pl-text-primary mb-0">Texto de la plantilla (podés editar y poner [corchetes])</label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" id="btn-tpl-src-idea" class="btn btn-sm btn-pl-secondary py-0 px-2" style="font-size: 0.74rem;">Usar idea original</button>
+                                    <button type="button" id="btn-tpl-src-output" class="btn btn-sm btn-pl-secondary py-0 px-2" style="font-size: 0.74rem;">Usar prompt generado</button>
+                                </div>
+                            </div>
+                            <textarea id="save-tpl-body" rows="6" required class="form-control form-control-sm pl-input" placeholder="Escribí tu plantilla reutilizable con campos entre [corchetes]..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer pl-border-top d-flex justify-content-between">
+                    <a href="{% url 'templates_gallery' %}#mis-plantillas" class="btn btn-sm btn-pl-secondary px-3">Ver Mis Plantillas</a>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-pl-secondary px-3" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" id="btn-save-tpl-submit" class="btn btn-sm btn-brand px-4 fw-semibold">Guardar plantilla</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- compat: promptlab.css?v=7.2.1 workspace.js?v=7.2.1 promptlab.css?v=7.2.2 workspace.js?v=7.2.2 workspace.js?v=7.2.3 -->
 <script id="workspace-boot-data" type="application/json">{{ workspace_boot_json|safe }}</script>
-<script src="{% static 'js/workspace.js' %}?v=7.3"></script>
+<script src="{% static 'js/workspace.js' %}?v=8.0"></script>
 {% endblock %}

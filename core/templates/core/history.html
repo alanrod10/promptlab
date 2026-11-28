@@ -87,6 +87,9 @@
                     <div class="card-body p-4">
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
+                                {% if p.has_version_chain %}
+                                <span class="pl-version-badge" title="Versión en cadena de iteraciones">v{{ p.version_number|default:1 }}</span>
+                                {% endif %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">{{ p.category|default:"General" }}</span>
                                 <span class="pl-mode-badge pl-mode-badge--{{ p.display_mode_key }}">Modo {{ p.display_mode }}</span>
                                 <span class="badge bg-secondary bg-opacity-10 pl-text-secondary rounded-pill px-3 py-1">
@@ -122,6 +125,9 @@
                                 <button type="button" class="btn btn-sm btn-pl-secondary px-3" onclick="copyText('prompt-text-{{ p.id }}', this)">
                                     <i class="bi bi-clipboard me-1"></i> Copiar
                                 </button>
+                                <a href="{% url 'workspace' %}?load={{ p.id }}&iterate=1" class="btn btn-sm btn-pl-accent-outline px-3 fw-medium" title="Iterar una nueva versión sobre este prompt">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Nueva versión
+                                </a>
                                 <a href="{% url 'workspace' %}?load={{ p.id }}" class="btn btn-sm btn-brand px-3 fw-medium">
                                     <i class="bi bi-pencil-square me-1"></i> Usar en Espacio de Trabajo
                                 </a>
@@ -140,12 +146,53 @@
                             </div>
                         </div>
                         <p class="pl-text-secondary small mb-3"><strong class="pl-text-primary">Tu idea inicial (Puntaje inicial {{ p.initial_score }}/100):</strong> {{ p.original_text }}</p>
+                        {% if p.version_note %}
+                        <p class="small pl-text-secondary mb-2">
+                            <i class="bi bi-journal-text text-primary me-1"></i>
+                            <strong class="pl-text-primary">Nota de versión v{{ p.version_number|default:1 }}:</strong> {{ p.version_note }}
+                        </p>
+                        {% endif %}
                         <div class="p-3 pl-code-block position-relative">
                             <pre id="prompt-text-{{ p.id }}" class="mb-0 pl-text-primary pl-pre-collapsed" style="white-space: pre-wrap; font-family: inherit; font-size: 0.92rem; line-height: 1.65;">{{ p.improved_text }}</pre>
                             <button type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none fw-medium toggle-expand-btn" onclick="toggleExpand('prompt-text-{{ p.id }}', this)">
                                 <i class="bi bi-chevron-down me-1"></i>Ver más
                             </button>
                         </div>
+                        {% if p.family_size > 1 %}
+                        <div class="mt-3 pt-2 pl-border-top">
+                            <button type="button"
+                                    class="btn btn-sm btn-pl-secondary px-3 fw-medium"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#ver-chain-{{ p.id }}"
+                                    aria-expanded="false">
+                                <i class="bi bi-diagram-2 text-primary me-1"></i>Ver evolución ({{ p.family_size }} versiones)
+                            </button>
+                            <div id="ver-chain-{{ p.id }}" class="collapse mt-2">
+                                <div class="pl-version-timeline p-3">
+                                    {% for ver in p.version_chain %}
+                                    <div class="pl-version-step {% if ver.id == p.id %}is-current{% endif %}">
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                            <div class="d-flex flex-wrap align-items-center gap-2 small">
+                                                <span class="pl-version-badge">v{{ ver.version_number }}</span>
+                                                <span class="pl-text-secondary">{{ ver.date_short }}</span>
+                                                <strong class="pl-text-primary">{{ ver.final_score }}/100</strong>
+                                                {% if ver.score_diff_fmt %}
+                                                <span class="pl-ver-diff pl-ver-diff--{{ ver.score_diff_tone }}">{{ ver.score_diff_fmt }}</span>
+                                                {% endif %}
+                                                {% if ver.version_note %}
+                                                <span class="pl-text-secondary">&mdash; {{ ver.version_note }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <a href="{% url 'workspace' %}?load={{ ver.id }}" class="btn btn-sm btn-pl-secondary py-0 px-2" style="font-size: 0.74rem;">
+                                                Abrir
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

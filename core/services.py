@@ -16,6 +16,11 @@ from .universal_engine import (
     split_request_payload,
     synthesize_universal_directives,
 )
+from .scientific_eval import (
+    classify_hybrid_action,
+    invalidate_scientific_cache,
+    match_overlay_rules,
+)
 
 ENGINE_VERSION = "v7.2"
 
@@ -316,6 +321,24 @@ def normalize_and_lemmatize(text: str) -> Tuple[str, List[str], List[str]]:
 
 
 _KW_NORM_CACHE: Dict[str, str] = {}
+_KW_BOUNDARY_RE_CACHE: Dict[str, re.Pattern] = {}
+_ENT_BOUNDARY_RE_CACHE: Dict[str, re.Pattern] = {}
+
+
+def _get_kw_boundary_re(kw_norm: str) -> re.Pattern:
+    pat = _KW_BOUNDARY_RE_CACHE.get(kw_norm)
+    if pat is None:
+        pat = re.compile(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])")
+        _KW_BOUNDARY_RE_CACHE[kw_norm] = pat
+    return pat
+
+
+def _get_ent_boundary_re(term: str) -> re.Pattern:
+    pat = _ENT_BOUNDARY_RE_CACHE.get(term)
+    if pat is None:
+        pat = re.compile(rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])")
+        _ENT_BOUNDARY_RE_CACHE[term] = pat
+    return pat
 
 
 def _norm_kw(kw: str) -> str:
@@ -332,7 +355,7 @@ def _kw_in(kw: str, normalized_text: str) -> bool:
     kw_norm = _norm_kw(kw)
     if not kw_norm:
         return False
-    return bool(re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text))
+    return bool(_get_kw_boundary_re(kw_norm).search(normalized_text))
 
 SEGMENT_CONNECTORS_RE = re.compile(
     r"\s*(?:;|(?:\by\s+(?:además|ademas|también|tambien))|(?:\bpor otro lado\b)|(?:\bluego\b))\s*",
@@ -613,8 +636,7 @@ def _extract_entities_and_constraints(
         if term in _GENERIC_EVAL_TERMS:
             continue
         target_norm = constr_norm_no_al_final if term == "final" else constr_norm
-        pattern = r"(?<![a-z0-9_])" + re.escape(term) + r"(?![a-z0-9_])"
-        if re.search(pattern, target_norm) and term not in seen_ent:
+        if _get_ent_boundary_re(term).search(target_norm) and term not in seen_ent:
             seen_ent.add(term)
             entities.append(term)
 
@@ -778,18 +800,27 @@ def _get_learned_correction_boosts() -> Dict[str, Dict[str, Dict[str, float]]]:
     Seguro si la BD aún no existe o corre fuera de Django.
     """
     try:
+        now = time.monotonic()
+        if (
+            _LEARNED_BOOSTS_CACHE["db_key"] is not None
+            and (now - _LEARNED_BOOSTS_CACHE["ts"]) < _LEARNED_CACHE_TTL
+        ):
+            return _LEARNED_BOOSTS_CACHE["data"]
+
+        from django.apps import apps
+        if not apps.ready:
+            return {"actions": {}, "domains": {}}
         from .models import Prompt  # import local para evitar ciclo en carga inicial
 
         qs = Prompt.objects.filter(user_corrected=True)
         count = qs.count()
         if count == 0:
             empty = {"actions": {}, "domains": {}}
-            _LEARNED_BOOSTS_CACHE.update({"ts": time.monotonic(), "db_key": (0, None), "data": empty})
+            _LEARNED_BOOSTS_CACHE.update({"ts": now, "db_key": (0, None), "data": empty})
             return empty
 
         last_id = qs.order_by("-id").values_list("id", flat=True).first()
         db_key = (count, last_id)
-        now = time.monotonic()
         if (
             _LEARNED_BOOSTS_CACHE["db_key"] == db_key
             and (now - _LEARNED_BOOSTS_CACHE["ts"]) < _LEARNED_CACHE_TTL
@@ -872,16 +903,19 @@ def _score_actions_detailed(
     tokens: Optional[List[str]] = None,
     learned_action_boosts: Optional[Dict[str, float]] = None,
     has_payload: bool = False,
+    overlay_action_boosts: Optional[Dict[str, float]] = None,
 ) -> Tuple[Dict[str, float], Dict[str, Dict[str, Any]]]:
     """
-    v7.2: Combina reglas normalizadas (saturadas en 2.0 hits), TF-IDF con bigramas,
-    desempates semánticos de pares cercanos y refuerzos aprendidos de SQLite (<= +0.12).
+    v7.2 + v8.0 Overlay: Combina reglas normalizadas (saturadas en 2.0 hits), TF-IDF con bigramas,
+    desempates semánticos de pares cercanos, refuerzos aprendidos de SQLite (<= +0.12) y
+    capa supervisada de Active Learning (overlay).
     """
     tfidf_scores = _TFIDF_INDEX.score_text(text)
     actions_cfg = KNOWLEDGE_BASE.get("actions", {})
     combined: Dict[str, float] = {}
     details: Dict[str, Dict[str, Any]] = {}
     learned = learned_action_boosts or {}
+    overlay = overlay_action_boosts or {}
 
     for action_key, cfg in actions_cfg.items():
         lex_hits = 0.0
@@ -894,18 +928,19 @@ def _score_actions_detailed(
                 continue
             seen_norms.add(kw_norm)
             if " " in kw_norm:
-                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                if _get_kw_boundary_re(kw_norm).search(normalized_text):
                     lex_hits += 1.5
                     phrase_hit = True
             else:
-                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                if _get_kw_boundary_re(kw_norm).search(normalized_text):
                     lex_hits += 1.0
 
         lex_norm = min(lex_hits / 2.0, 1.0)
         tfidf_val = tfidf_scores.get(action_key, 0.0)
         phrase_bonus = 0.08 if phrase_hit else 0.0
         learned_bonus = min(learned.get(action_key, 0.0), 0.12)
-        score = min(0.55 * lex_norm + 0.45 * tfidf_val + phrase_bonus + learned_bonus, 0.99)
+        overlay_bonus = min(overlay.get(action_key, 0.0), 0.52)
+        score = min(0.55 * lex_norm + 0.45 * tfidf_val + phrase_bonus + learned_bonus + overlay_bonus, 0.99)
         combined[action_key] = round(score, 4)
         details[action_key] = {
             "lex_hits": lex_hits,
@@ -913,6 +948,7 @@ def _score_actions_detailed(
             "tfidf": tfidf_val,
             "phrase_hit": phrase_hit,
             "learned_bonus": learned_bonus,
+            "overlay_bonus": overlay_bonus,
         }
 
     # Desempate 1 (v7.0): reescribir_mejorar vs. redactar_contenido
@@ -1115,6 +1151,7 @@ def _classify_domain(
     explicit_category: str,
     entities: Optional[List[str]] = None,
     learned_domain_boosts: Optional[Dict[str, float]] = None,
+    overlay_domain_boosts: Optional[Dict[str, float]] = None,
 ) -> Tuple[str, List[Dict[str, Any]]]:
     trace: List[Dict[str, Any]] = []
     mapped = LEGACY_DOMAIN_ALIASES.get(explicit_category, explicit_category)
@@ -1126,6 +1163,7 @@ def _classify_domain(
 
     ent_set = set(entities or [])
     learned = learned_domain_boosts or {}
+    overlay_dom = overlay_domain_boosts or {}
     norm_no_al_final = re.sub(r"\b(?:al|hasta\s+el|hacia\s+el|por\s+el)\s+final\b", " ", normalized_text)
     has_no_ext_lib = bool(re.search(
         r"\b(?:sin\s+librerias\s+externas|libreria\s+estandar|python\s+puro|sin\s+paquetes\s+externos)\b",
@@ -1150,11 +1188,11 @@ def _classify_domain(
                 continue
             seen_norms.add(kw_norm)
             if " " in kw_norm:
-                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", target_norm):
+                if _get_kw_boundary_re(kw_norm).search(target_norm):
                     raw_hits += 1.5
                     hits.append(kw)
             else:
-                if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", target_norm):
+                if _get_kw_boundary_re(kw_norm).search(target_norm):
                     raw_hits += 1.0
                     hits.append(kw)
 
@@ -1168,7 +1206,7 @@ def _classify_domain(
         for anch in anchors:
             if anch == "csv" and has_no_ext_lib and dom_name == "Ciencia de Datos e IA":
                 continue
-            if anch in ent_set or re.search(rf"(?<![a-z0-9]){re.escape(anch)}(?![a-z0-9])", target_norm):
+            if anch in ent_set or _get_kw_boundary_re(anch).search(target_norm):
                 anchor_hits += 1
                 if anch not in hits:
                     hits.append(anch)
@@ -1179,6 +1217,11 @@ def _classify_domain(
         learned_b = min(learned.get(dom_name, 0.0), 0.12)
         if learned_b > 0.0:
             score += learned_b
+
+        # Refuerzo supervisado de Capa Active Learning (<= +0.45)
+        overlay_b = min(overlay_dom.get(dom_name, 0.0), 0.45)
+        if overlay_b > 0.0:
+            score += overlay_b
 
         domain_scores[dom_name] = score
         domain_hits[dom_name] = hits
@@ -1264,7 +1307,7 @@ def _classify_deliverable(normalized_text: str, action: str, form_data: Dict[str
             if not kw_norm or kw_norm in seen_norms:
                 continue
             seen_norms.add(kw_norm)
-            if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+            if _get_kw_boundary_re(kw_norm).search(normalized_text):
                 hits += 1
         if hits > best_hits:
             best_hits = hits
@@ -1315,9 +1358,9 @@ def _detect_subintents(raw_text: str, normalized_text: str, action: str) -> Tupl
                     continue
                 seen_norms.add(kw_norm)
                 if " " in kw_norm:
-                    if re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                    if _get_kw_boundary_re(kw_norm).search(normalized_text):
                         s += 1.5
-                elif re.search(rf"(?<![a-z0-9]){re.escape(kw_norm)}(?![a-z0-9])", normalized_text):
+                elif _get_kw_boundary_re(kw_norm).search(normalized_text):
                     s += 1.0
             for rgx in cfg.get("regex", []):
                 if re.search(rgx, raw_text, flags=re.IGNORECASE):
@@ -1855,6 +1898,11 @@ def parse_request(
     override_action: str = "",
     override_deliverable: str = "",
     negative_constraints: Optional[List[str]] = None,
+    enable_overlay: bool = True,
+    enable_hybrid: bool = True,
+    nb_classifier: Optional[Any] = None,
+    overlay_rules: Optional[List[Dict[str, Any]]] = None,
+    classify_only: bool = False,
 ) -> ParsedRequest:
     form_data = form_data or {}
     req = ParsedRequest(raw_text=(user_text or "").strip())
@@ -1874,10 +1922,11 @@ def parse_request(
     req.word_count = len(req.raw_text.split())
 
     # Etapa 2: PII
-    masked_text, pii_warnings = detect_and_mask_pii(req.raw_text)
-    req.masked_text = masked_text
-    req.pii_warnings = pii_warnings
-    req.has_pii_masked = bool(pii_warnings)
+    if not classify_only:
+        masked_text, pii_warnings = detect_and_mask_pii(req.raw_text)
+        req.masked_text = masked_text
+        req.pii_warnings = pii_warnings
+        req.has_pii_masked = bool(pii_warnings)
 
     # Etapa 3: Entidades (todo el texto) y Restricciones (solo pedido, sin contaminar por insumo pegado)
     classify_src = instr_part if payload_part else req.raw_text
@@ -1903,7 +1952,7 @@ def parse_request(
         classify_norm, req.neg_constraints, technique, form_data=form_data
     )
 
-    # Etapa 4: Aprendizaje activo local + Dominio + Acción (21 Arquetipos) + Sub-intención
+    # Etapa 4: Aprendizaje activo local + Capa Overlay v8.0 + Dominio + Acción (21 Arquetipos) + Sub-intención
     learned_tables = _get_learned_correction_boosts()
     learned_dom_boosts = _lookup_token_boosts(classify_tokens, learned_tables.get("domains", {}))
     learned_act_boosts = _lookup_token_boosts(classify_tokens, learned_tables.get("actions", {}))
@@ -1913,11 +1962,24 @@ def parse_request(
             "rule": f"Refuerzo SQLite aplicado (dominios={learned_dom_boosts}, acciones={learned_act_boosts})",
         })
 
+    overlay_act_boosts: Dict[str, float] = {}
+    overlay_dom_boosts: Dict[str, float] = {}
+    if enable_overlay:
+        overlay_act_boosts, overlay_dom_boosts, overlay_traces = match_overlay_rules(
+            classify_src, classify_norm, overlay_rules=overlay_rules
+        )
+        req.trace.extend(overlay_traces)
+
     domain_hint = override_domain or category
-    req.domain, dom_trace = _classify_domain(
-        classify_norm, domain_hint, entities=req.entities, learned_domain_boosts=learned_dom_boosts
-    )
-    req.trace.extend(dom_trace)
+    if not classify_only:
+        req.domain, dom_trace = _classify_domain(
+            classify_norm,
+            domain_hint,
+            entities=req.entities,
+            learned_domain_boosts=learned_dom_boosts,
+            overlay_domain_boosts=overlay_dom_boosts,
+        )
+        req.trace.extend(dom_trace)
 
     segments_raw = _split_segments_safe(classify_src)
     req.is_single_clause = len(segments_raw) <= 1
@@ -1928,6 +1990,7 @@ def parse_request(
         tokens=classify_tokens,
         learned_action_boosts=learned_act_boosts,
         has_payload=bool(payload_part),
+        overlay_action_boosts=overlay_act_boosts,
     )
     if len(segments_raw) > 1:
         seg0 = segments_raw[0]
@@ -1938,6 +2001,7 @@ def parse_request(
             tokens=seg0_toks,
             learned_action_boosts=learned_act_boosts,
             has_payload=bool(payload_part),
+            overlay_action_boosts=overlay_act_boosts,
         )
         # En pedidos multi-cláusula ("X; y además Y"), la primera cláusula define la intención principal
         blended_scores = {
@@ -1965,6 +2029,7 @@ def parse_request(
                 tokens=seg_toks,
                 learned_action_boosts=learned_act_boosts,
                 has_payload=bool(payload_part),
+                overlay_action_boosts=overlay_act_boosts,
             )
             seg_top, seg_val = max(seg_scores.items(), key=lambda kv: kv[1])
             if seg_top != top1_action and seg_val >= max(0.55 * top1_score, 0.20) and seg_top not in secondary:
@@ -2021,7 +2086,39 @@ def parse_request(
             cal += 0.06
         if top1_det.get("tiebreak"):
             cal += 0.05
+        if top1_det.get("overlay_bonus", 0.0) > 0.0:
+            cal += 0.10
         req.confidence = round(min(max(cal, 0.15), 0.99), 3)
+
+    # Desempate probabilístico híbrido v8.0 (únicamente en baja certeza, sin sobreescribir alta certeza)
+    if enable_hybrid and not (override_action and override_action in actions_cfg):
+        hyb = classify_hybrid_action(
+            text=classify_src,
+            det_action=req.action,
+            det_confidence=req.confidence,
+            det_margin=req.margin,
+            nb_classifier=nb_classifier,
+            word_count=req.word_count,
+            is_trivial=(norm_text in TRIVIAL_GREETINGS),
+        )
+        if hyb["used_nb"] and hyb["final_action"] in actions_cfg:
+            prev_action = req.action
+            req.action = hyb["final_action"]
+            req.action_label = actions_cfg.get(req.action, {}).get("label", req.action)
+            req.confidence = hyb["final_confidence"]
+            req.trace.append({
+                "stage": "hybrid_tiebreak",
+                "prev_action": prev_action,
+                "nb_action": hyb["nb_action"],
+                "nb_confidence": hyb["nb_confidence"],
+                "rule": (
+                    f"Desempate probabilístico Naive Bayes v8.0 (baja certeza): "
+                    f"'{prev_action}' → '{req.action}' (p={hyb['nb_confidence']:.2f})"
+                ),
+            })
+
+    if classify_only:
+        return req
 
     if override_deliverable:
         req.deliverable = override_deliverable
@@ -3406,6 +3503,9 @@ def get_gemini_response(
         analysis.append("Advertencia: " + " ".join(parsed.contradictions))
     if parsed.pii_warnings:
         analysis.append(f"Privacidad: se detectaron {len(parsed.pii_warnings)} tipo(s) de datos sensibles.")
+    for tr in parsed.trace:
+        if tr.get("stage") in ("active_learning_overlay", "hybrid_tiebreak") and tr.get("rule"):
+            analysis.append(tr["rule"])
 
     stored_original = parsed.masked_text if (mask_pii and parsed.has_pii_masked) else clean_input
 

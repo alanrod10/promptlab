@@ -11,10 +11,106 @@
                 ¿No sabés cómo pedirle algo a la IA? Elegí un caso parecido al tuyo, reemplazá lo que está entre <strong>[corchetes]</strong> con tus datos y dejá que PromptLab arme el prompt profesional.
             </p>
         </div>
-        <a href="{% url 'workspace' %}" class="btn btn-pl-secondary px-3 py-2 fw-medium flex-shrink-0">
-            <i class="bi bi-pencil-square me-1"></i> Ir al Espacio de Trabajo
-        </a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button type="button" class="btn btn-brand btn-sm px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#newUserTemplateModal">
+                <i class="bi bi-plus-lg me-1"></i> Nueva plantilla
+            </button>
+            <button type="button" class="btn btn-pl-accent-outline btn-sm px-3 py-2 fw-medium" data-bs-toggle="modal" data-bs-target="#importCollectionModal">
+                <i class="bi bi-upload me-1"></i> Importar colección (.JSON)
+            </button>
+            <a href="{% url 'export_user_templates_json' %}" class="btn btn-pl-secondary btn-sm px-3 py-2 fw-medium">
+                <i class="bi bi-download me-1"></i> Exportar colección (.JSON)
+            </a>
+            <a href="{% url 'workspace' %}" class="btn btn-pl-secondary btn-sm px-3 py-2 fw-medium">
+                <i class="bi bi-pencil-square me-1"></i> Ir al Espacio de Trabajo
+            </a>
+        </div>
     </header>
+
+    {% if tpl_flash %}
+    <div class="alert alert-{{ tpl_flash.tone|default:'info' }} rounded-3 py-2 px-3 small mb-4" role="status">
+        <i class="bi bi-info-circle me-1"></i> {{ tpl_flash.text }}
+    </div>
+    {% endif %}
+
+    <!-- Sección dedicada: Mis Plantillas guardadas (por usuario) + Portabilidad JSON -->
+    <section id="mis-plantillas" class="pl-card pl-user-templates-box p-3 p-md-4 mb-4" aria-label="Mis Plantillas guardadas">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold pl-text-primary mb-1">
+                    <i class="bi bi-bookmark-star-fill text-primary me-2"></i>Mis Plantillas guardadas ({{ user_templates|length }})
+                </h5>
+                <p class="pl-text-secondary small mb-0">
+                    Tu biblioteca privada aislada por usuario. Podés crearla desde cero, exportarla en <code>.json</code> o compartir colecciones offline con protección automática de datos sensibles.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-brand px-3 fw-medium" data-bs-toggle="modal" data-bs-target="#newUserTemplateModal">
+                    <i class="bi bi-plus-circle me-1"></i> Nueva plantilla
+                </button>
+            </div>
+        </div>
+
+        {% if user_templates %}
+        <div class="row g-3" id="user-templates-grid">
+            {% for ut in user_templates %}
+            <div class="col-md-6 col-xl-4 user-tpl-card-item"
+                 data-slug="user-{{ ut.id }}"
+                 data-title="{{ ut.title }}"
+                 data-category="{{ ut.category }}"
+                 data-mode="{{ ut.ui_modo }}"
+                 data-workspace-mode="{{ ut.workspace_mode }}">
+                <article class="pl-panel-soft h-100 d-flex flex-column p-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">{{ ut.category }}</span>
+                        <span class="pl-mode-badge pl-mode-badge--{{ ut.ui_modo }} tpl-mode-badge tpl-mode-badge-{{ ut.ui_modo }}">Modo {{ ut.modo_label }}</span>
+                    </div>
+
+                    <h6 class="fw-bold pl-text-primary mb-2" style="line-height: 1.35;">{{ ut.title }}</h6>
+
+                    <div class="tpl-prompt-preview p-3 mb-2 flex-grow-1">
+                        <div class="tpl-prompt-text">{{ ut.prompt_highlighted_html|safe }}</div>
+                        <textarea class="d-none tpl-raw-prompt" readonly aria-hidden="true">{{ ut.prompt_body }}</textarea>
+                    </div>
+
+                    {% if ut.why_it_works %}
+                    <div class="tpl-why-box small mb-2">
+                        <i class="bi bi-lightbulb text-warning me-1"></i>
+                        <strong class="pl-text-primary">Por qué funciona:</strong>
+                        <span class="pl-text-secondary">{{ ut.why_it_works }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-auto pt-2 pl-border-top">
+                        <a href="{% url 'workspace' %}?user_tpl={{ ut.id }}" class="btn btn-brand btn-sm flex-grow-1 py-1 fw-semibold tpl-use-btn">
+                            <i class="bi bi-magic me-1"></i> Usar esta plantilla
+                        </a>
+                        <button type="button" class="btn btn-pl-secondary btn-sm py-1 px-2 fw-medium tpl-copy-btn" title="Copiar texto de la plantilla">
+                            <i class="bi bi-clipboard me-1"></i> Copiar
+                        </button>
+                        <form method="post" action="{% url 'delete_user_template' ut.id %}" class="d-inline user-tpl-delete-form">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-sm btn-pl-danger py-1 px-2 btn-user-tpl-del-init" title="Eliminar plantilla propia">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <span class="d-none align-items-center gap-1 user-tpl-del-confirm">
+                                <span class="small text-danger fw-semibold">¿Borrar?</span>
+                                <button type="submit" class="btn btn-sm btn-danger rounded-pill px-2 py-0" style="font-size: 0.72rem;">Sí</button>
+                                <button type="button" class="btn btn-sm btn-pl-secondary rounded-pill px-2 py-0 btn-user-tpl-del-cancel" style="font-size: 0.72rem;">No</button>
+                            </span>
+                        </form>
+                    </div>
+                </article>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="pl-analysis-box p-3 small pl-text-secondary">
+            <i class="bi bi-info-circle text-primary me-1"></i>
+            Todavía no guardaste plantillas propias. Podés crear una desde el botón <strong>Nueva plantilla</strong>, guardarla desde el Espacio de Trabajo o importar un archivo <code>.json</code>.
+        </div>
+        {% endif %}
+    </section>
 
     <section class="pl-card p-3 p-md-4 mb-4" aria-label="Cómo usar las plantillas">
         <div class="tpl-steps-strip">
@@ -181,6 +277,89 @@
     </div>
 </div>
 
+<!-- Modal Nueva Plantilla Propia -->
+<div class="modal fade" id="newUserTemplateModal" tabindex="-1" aria-labelledby="newUserTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header pl-border-bottom">
+                <h5 class="modal-title fw-bold pl-text-primary" id="newUserTemplateModalLabel">
+                    <i class="bi bi-plus-circle text-primary me-2"></i>Crear nueva plantilla propia
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'create_user_template' %}">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label for="new-ut-title" class="form-label small fw-bold pl-text-primary">Título</label>
+                            <input type="text" id="new-ut-title" name="title" maxlength="140" required class="form-control form-control-sm pl-input" placeholder="Ej: Acta corta de reunión de consorcio">
+                        </div>
+                        <div class="col-md-5">
+                            <label for="new-ut-mode" class="form-label small fw-bold pl-text-primary">Modo recomendado</label>
+                            <select id="new-ut-mode" name="recommended_mode" class="form-select form-select-sm pl-input">
+                                <option value="express">Express</option>
+                                <option value="guiado" selected>Guiado</option>
+                                <option value="pro">Estudio Pro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-ut-cat" class="form-label small fw-bold pl-text-primary">Área temática</label>
+                            <select id="new-ut-cat" name="category" class="form-select form-select-sm pl-input">
+                                {% for dom in template_domains %}
+                                <option value="{{ dom }}" {% if dom == "Otro / General" %}selected{% endif %}>{{ dom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-ut-why" class="form-label small fw-bold pl-text-primary">Por qué funciona (opcional)</label>
+                            <input type="text" id="new-ut-why" name="why_it_works" maxlength="280" class="form-control form-control-sm pl-input" placeholder="Ej: Ordena decisiones, responsables y fechas">
+                        </div>
+                        <div class="col-12">
+                            <label for="new-ut-body" class="form-label small fw-bold pl-text-primary">Texto de la plantilla (podés usar [corchetes])</label>
+                            <textarea id="new-ut-body" name="prompt_body" rows="6" required class="form-control form-control-sm pl-input" placeholder="Ej: Resumime esta reunión de [tema] en una tabla con decisiones, responsables y fecha límite..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer pl-border-top">
+                    <button type="button" class="btn btn-sm btn-pl-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-brand px-4 fw-semibold">Guardar plantilla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Importar Colección .JSON -->
+<div class="modal fade" id="importCollectionModal" tabindex="-1" aria-labelledby="importCollectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header pl-border-bottom">
+                <h5 class="modal-title fw-bold pl-text-primary" id="importCollectionModalLabel">
+                    <i class="bi bi-upload text-primary me-2"></i>Importar colección (.JSON)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'import_user_templates_json' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="small pl-text-secondary mb-3">
+                        Subí un archivo <code>.json</code> exportado desde PromptLab (máx. 512 KB). Validamos la estructura, evitamos duplicados y protegemos automáticamente datos personales sensibles (DNI/CUIL, teléfonos, correos y CBU) sin alterar comprobantes AFIP.
+                    </p>
+                    <div>
+                        <label for="collection-file-input" class="form-label small fw-bold pl-text-primary">Archivo de colección (.json)</label>
+                        <input type="file" id="collection-file-input" name="collection_file" accept=".json,application/json" required class="form-control form-control-sm pl-input">
+                    </div>
+                </div>
+                <div class="modal-footer pl-border-top">
+                    <button type="button" class="btn btn-sm btn-pl-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-brand px-4 fw-semibold">Importar colección</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- compat: promptlab.css?v=7.2.2 templates_gallery.js?v=7.2.2 templates_gallery.js?v=7.2.3 -->
-<script src="{% static 'js/templates_gallery.js' %}?v=7.3"></script>
+<script src="{% static 'js/templates_gallery.js' %}?v=8.0"></script>
 {% endblock %}

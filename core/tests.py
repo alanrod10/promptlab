@@ -1668,11 +1668,11 @@ class PromptLabSiteCoherenceTests(TestCase):
     def test_cache_busting_v724_and_no_external_cdns(self):
         self._create_sample_prompts()
         checks = [
-            ("workspace", ["promptlab.css?v=7.3", "workspace.js?v=7.3"]),
-            ("templates_gallery", ["promptlab.css?v=7.3", "templates_gallery.js?v=7.3"]),
-            ("history", ["promptlab.css?v=7.3"]),
-            ("favorites", ["promptlab.css?v=7.3"]),
-            ("analytics", ["promptlab.css?v=7.3", "analytics_charts.js?v=7.3"]),
+            ("workspace", ["promptlab.css?v=8.0", "workspace.js?v=8.0"]),
+            ("templates_gallery", ["promptlab.css?v=8.0", "templates_gallery.js?v=8.0"]),
+            ("history", ["promptlab.css?v=8.0"]),
+            ("favorites", ["promptlab.css?v=8.0"]),
+            ("analytics", ["promptlab.css?v=8.0", "analytics_charts.js?v=8.0"]),
         ]
         for route_name, expected_assets in checks:
             resp = self.client.get(reverse(route_name))
@@ -2095,5 +2095,507 @@ class PromptLabV73OptionalAuthTests(TestCase):
         self.assertContains(guest.get(reverse("favorites")), "base de datos relacional")
         self.assertEqual(guest.post(reverse("delete_prompt", args=[pid]), {"next": "history"}).status_code, 302)
         self.assertFalse(Prompt.objects.filter(id=pid).exists())
+
+
+class PromptLabV80ScientificAndActiveLearningTests(TestCase):
+    """Pruebas Fase 1 v8.0: Dataset dorado, benchmark 5-Fold Python puro, comando CLI y capa Overlay."""
+
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+    FORBIDDEN_JARGON = (
+        "anchor_coverage",
+        "noise_ratio",
+        "subintent",
+        "user_score",
+        "final_score",
+        "Ligera",
+        "Completa",
+        "Profunda",
+        "delta",
+        "NaN",
+    )
+
+    def setUp(self):
+        from .scientific_eval import invalidate_scientific_cache
+
+        invalidate_scientific_cache()
+        self.client = Client()
+        self.user = User.objects.create_user(username="tester_v80", password="123")
+
+    def test_benchmark_dataset_validity_and_stratification(self):
+        from collections import Counter
+        from .scientific_eval import BENCHMARK_DATASET_PATH, load_benchmark_dataset
+
+        self.assertTrue(BENCHMARK_DATASET_PATH.is_file(), "Falta core/rules/benchmark_dataset.json")
+        cases = load_benchmark_dataset()
+        self.assertGreaterEqual(len(cases), 60)
+
+        valid_actions = set(KNOWLEDGE_BASE.get("actions", {}).keys())
+        valid_domains = set(KNOWLEDGE_BASE.get("domains", {}).keys())
+        required_fields = {"id", "text", "expected_action", "expected_category", "difficulty", "notes"}
+
+        seen_ids = set()
+        action_counts = Counter()
+        difficulties = Counter()
+
+        for case in cases:
+            self.assertEqual(set(case.keys()), required_fields)
+            self.assertNotIn(case["id"], seen_ids)
+            seen_ids.add(case["id"])
+            self.assertTrue(case["text"].strip())
+            self.assertIn(case["expected_action"], valid_actions)
+            self.assertIn(case["expected_category"], valid_domains)
+            self.assertIn(case["difficulty"], ("normal", "borde"))
+            self.assertTrue(case["notes"].strip())
+            action_counts[case["expected_action"]] += 1
+            difficulties[case["difficulty"]] += 1
+
+        self.assertGreaterEqual(difficulties["normal"], 30)
+        self.assertGreaterEqual(difficulties["borde"], 10)
+        for act, cnt in action_counts.items():
+            self.assertGreaterEqual(cnt, 5, f"La clase {act} debe tener al menos 5 casos para 5-Fold estratificado")
+
+    def test_scientific_benchmark_5fold_no_leakage_and_hybrid_gain(self):
+        from .scientific_eval import run_scientific_benchmark
+
+        report = run_scientific_benchmark(force_refresh=True)
+        self.assertGreaterEqual(report["dataset_size"], 60)
+        self.assertEqual(report["n_folds"], 5)
+        self.assertTrue(report["leakage_free"])
+
+        for lane in ("baseline", "hybrid"):
+            metrics = report[lane]
+            for metric_name in ("accuracy", "macro_precision", "macro_recall", "macro_f1", "weighted_f1"):
+                self.assertGreaterEqual(metrics[metric_name], 0.0)
+                self.assertLessEqual(metrics[metric_name], 1.0)
+
+        cm = report["confusion_matrix"]
+        matrix_total = sum(sum(row) for row in cm["matrix"])
+        self.assertEqual(matrix_total, report["dataset_size"])
+        self.assertEqual(cm["total"], report["dataset_size"])
+        self.assertEqual(sum(r["support"] for r in report["per_class"]), report["dataset_size"])
+        self.assertLess(report["elapsed_ms"], 300.0)
+        self.assertEqual(report["regressions_count"], 0)
+        self.assertGreaterEqual(report["hybrid"]["macro_f1"], report["baseline"]["macro_f1"])
+        self.assertGreaterEqual(report["improved_count"], 1)
+
+    def test_evaluate_engine_management_command(self):
+        from django.core.management import call_command
+
+        out = io.StringIO()
+        call_command("evaluate_engine", stdout=out)
+        output = out.getvalue()
+        self.assertIn("Baseline v7.2", output)
+        self.assertIn("Híbrido v8.0", output)
+        self.assertIn("Macro F1", output)
+        self.assertIn("Weighted F1", output)
+        self.assertIn("Aciertos en diagonal", output)
+
+    def test_active_learning_overlay_approve_trace_and_toggle_without_mutating_kb(self):
+        from .models import ActiveLearningRule
+
+        kb_path = Path(__file__).resolve().parent / "rules" / "knowledge_base.json"
+        kb_before = kb_path.read_bytes()
+
+        sample_text = "Procesar el relevamiento barrial de cuadrillas en los sectores sur"
+        base_parsed = parse_request(sample_text, enable_hybrid=False)
+        self.assertNotEqual(base_parsed.action, "analizar_datos")
+
+        approve_resp = self.client.post(
+            reverse("approve_learning_rule"),
+            {
+                "term": "relevamiento barrial",
+                "target_action": "analizar_datos",
+                "source_z_score": "1.85",
+            },
+        )
+        self.assertEqual(approve_resp.status_code, 302)
+        self.assertTrue(approve_resp["Location"].endswith("#bloque-aprendizaje"))
+
+        rule = ActiveLearningRule.objects.get(term="relevamiento barrial")
+        self.assertTrue(rule.is_active)
+        self.assertEqual(rule.target_action, "analizar_datos")
+
+        boosted_parsed = parse_request(sample_text)
+        self.assertEqual(boosted_parsed.action, "analizar_datos")
+        expected_trace = "Capa Active Learning v8.0: término 'relevamiento barrial' → acción 'analizar_datos'"
+        self.assertTrue(any(tr.get("rule") == expected_trace for tr in boosted_parsed.trace))
+
+        gen_res = get_gemini_response(sample_text, level="Completa")
+        self.assertEqual(gen_res["detected_action"], "analizar_datos")
+        self.assertIn(expected_trace, gen_res["analysis"])
+
+        # Verificar que knowledge_base.json nunca se modificó
+        self.assertEqual(kb_path.read_bytes(), kb_before)
+
+        # Desactivar la regla vía POST y verificar reversión 100 % limpia
+        toggle_resp = self.client.post(reverse("toggle_learning_rule", args=[rule.id]))
+        self.assertEqual(toggle_resp.status_code, 302)
+        rule.refresh_from_db()
+        self.assertFalse(rule.is_active)
+
+        reverted_parsed = parse_request(sample_text, enable_hybrid=False)
+        self.assertNotEqual(reverted_parsed.action, "analizar_datos")
+        self.assertFalse(any(tr.get("stage") == "active_learning_overlay" for tr in reverted_parsed.trace))
+
+    def test_analytics_renders_scientific_evaluation_and_overlay_cleanly(self):
+        from .models import ActiveLearningRule
+
+        # 1. Vista con BD vacía
+        resp_empty = self.client.get(reverse("analytics"))
+        self.assertEqual(resp_empty.status_code, 200)
+        body_empty = resp_empty.content.decode("utf-8")
+        self.assertIn("Evaluación Científica del Motor NLP (Benchmark 5-Fold Offline)", body_empty)
+        self.assertIn("Ver Matriz de Confusión y Métricas por Clase", body_empty)
+        self.assertIn("60 casos de referencia", body_empty)
+
+        # 2. Vista poblada con prompts repetidos para generar candidatos Log-Odds + regla activa
+        for i in range(3):
+            Prompt.objects.create(
+                user=self.user,
+                original_text=f"Revisar relevamiento vecinal urgente lote {i}",
+                improved_text="# Rol\nAnalista\n# Objetivo\nRevisar relevamiento vecinal.",
+                category="Planificación y productividad",
+                detected_action="analizar_datos",
+                improvement_level="Completa",
+                initial_score=40,
+                final_score=90,
+                quality_gain=50,
+                intent_confidence=0.40,
+                n_entities=0,
+            )
+        ActiveLearningRule.objects.create(
+            term="acta municipal",
+            target_action="auditar_criticar",
+            source_z_score=1.55,
+            is_active=True,
+            created_by=self.user,
+        )
+
+        resp_pop = self.client.get(reverse("analytics"))
+        self.assertEqual(resp_pop.status_code, 200)
+        body_pop = resp_pop.content.decode("utf-8")
+        self.assertIn("Evaluación Científica del Motor NLP (Benchmark 5-Fold Offline)", body_pop)
+        self.assertIn("Ver Matriz de Confusión y Métricas por Clase", body_pop)
+        self.assertIn("Aprobar en capa", body_pop)
+        self.assertIn("Reglas aprobadas por supervisión humana (Capa Overlay)", body_pop)
+        self.assertIn("acta municipal", body_pop)
+        self.assertIn("Desactivar", body_pop)
+
+        clean_body = body_pop.replace("http://www.w3.org/2000/svg", "")
+        self.assertNotIn("http://", clean_body)
+        self.assertNotIn("https://", clean_body)
+        for cdn in self.EXTERNAL_CDNS:
+            self.assertNotIn(cdn, body_pop)
+        for term in self.FORBIDDEN_JARGON:
+            self.assertNotIn(term, body_pop, f"Jerga cruda '{term}' encontrada en /analitica/")
+
+
+class PromptLabV80VersioningAndCollectionsTests(TestCase):
+    """Pruebas Fase 2 v8.0: Versionado v1->v2->v3, Mis Plantillas Propias y Portabilidad .JSON."""
+
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+    FORBIDDEN_JARGON = (
+        "anchor_coverage",
+        "noise_ratio",
+        "subintent",
+        "user_score",
+        "final_score",
+        "delta",
+        "NaN",
+    )
+    FORBIDDEN_MODES = ("Ligera", "Completa", "Profunda")
+
+    def setUp(self):
+        self.client = Client()
+
+    def _register_and_login(self, username: str, password: str = "secret123") -> Client:
+        cli = Client()
+        resp = cli.post(
+            reverse("register"),
+            {"username": username, "password": password, "password_confirm": password},
+        )
+        self.assertEqual(resp.status_code, 302)
+        return cli
+
+    def test_iterative_versioning_v1_v2_v3_and_history_evolution(self):
+        cli = self._register_and_login("iter_user")
+
+        r1 = cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": "Explicar regresión logística en python", "level": "Ligera"}),
+            content_type="application/json",
+        )
+        self.assertEqual(r1.status_code, 200)
+        d1 = r1.json()
+        self.assertEqual(d1["version_number"], 1)
+        self.assertEqual(d1["root_prompt_id"], d1["prompt_id"])
+        self.assertIsNone(d1["parent_prompt_id"])
+
+        r2 = cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({
+                "text": "Explicar regresión logística en python con ejemplos cotidianos",
+                "level": "Completa",
+                "parent_prompt_id": d1["prompt_id"],
+                "version_note": "Pasé a modo Guiado con ejemplos cotidianos",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(r2.status_code, 200)
+        d2 = r2.json()
+        self.assertEqual(d2["version_number"], 2)
+        self.assertEqual(d2["root_prompt_id"], d1["prompt_id"])
+        self.assertEqual(d2["parent_prompt_id"], d1["prompt_id"])
+        self.assertEqual(d2["version_note"], "Pasé a modo Guiado con ejemplos cotidianos")
+
+        r3 = cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({
+                "text": "Explicar regresión logística en python para principiantes sin fórmulas",
+                "level": "Profunda",
+                "parent_prompt_id": d2["prompt_id"],
+                "version_note": "Agregué casos borde y restricción sin fórmulas",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(r3.status_code, 200)
+        d3 = r3.json()
+        self.assertEqual(d3["version_number"], 3)
+        self.assertEqual(d3["root_prompt_id"], d1["prompt_id"])
+        self.assertEqual(d3["parent_prompt_id"], d2["prompt_id"])
+
+        p1 = Prompt.objects.get(id=d1["prompt_id"])
+        p2 = Prompt.objects.get(id=d2["prompt_id"])
+        p3 = Prompt.objects.get(id=d3["prompt_id"])
+        self.assertIsNone(p1.root_prompt)
+        self.assertEqual(p2.root_prompt_id, p1.id)
+        self.assertEqual(p3.root_prompt_id, p1.id)
+
+        hist_resp = cli.get(reverse("history"))
+        self.assertEqual(hist_resp.status_code, 200)
+        hist_body = hist_resp.content.decode("utf-8")
+        self.assertIn("Ver evolución (3 versiones)", hist_body)
+        self.assertIn("v1", hist_body)
+        self.assertIn("v2", hist_body)
+        self.assertIn("v3", hist_body)
+        self.assertIn("Pasé a modo Guiado con ejemplos cotidianos", hist_body)
+        self.assertIn("Agregué casos borde y restricción sin fórmulas", hist_body)
+
+        ws_iter = cli.get(reverse("workspace") + f"?load={p2.id}&iterate=1")
+        self.assertEqual(ws_iter.status_code, 200)
+        self.assertContains(ws_iter, "Iterar nueva versión")
+        self.assertContains(ws_iter, "Guardar como plantilla")
+
+    def test_versioning_strict_user_isolation(self):
+        cli_a = self._register_and_login("ver_owner_a")
+        cli_b = self._register_and_login("ver_other_b")
+
+        res_a = cli_a.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": "Armar script en Python para facturación", "level": "Completa"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res_a.status_code, 200)
+        prompt_a_id = res_a.json()["prompt_id"]
+
+        res_b = cli_b.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({
+                "text": "Intento de iterar prompt ajeno",
+                "level": "Completa",
+                "parent_prompt_id": prompt_a_id,
+                "version_note": "Nota intrusa",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(res_b.status_code, 200)
+        data_b = res_b.json()
+        self.assertEqual(data_b["version_number"], 1)
+        self.assertIsNone(data_b["parent_prompt_id"])
+        self.assertEqual(data_b["root_prompt_id"], data_b["prompt_id"])
+        self.assertEqual(data_b["version_note"], "")
+
+        saved_b = Prompt.objects.get(id=data_b["prompt_id"])
+        self.assertIsNone(saved_b.parent_prompt)
+        self.assertIsNone(saved_b.root_prompt)
+
+    def test_custom_user_templates_crud_isolation_and_curated_intact(self):
+        from .models import UserTemplate
+
+        cli_a = self._register_and_login("tpl_user_a")
+        cli_b = self._register_and_login("tpl_user_b")
+
+        create_resp = cli_a.post(
+            reverse("create_user_template"),
+            {
+                "title": "Planilla semanal de reparto",
+                "category": "Negocios y comercio",
+                "recommended_mode": "pro",
+                "prompt_body": "Armame una hoja de reparto para [zona] con [cantidad] pedidos.",
+                "why_it_works": "Ordena horarios y zonas sin omitir entregas.",
+            },
+        )
+        self.assertEqual(create_resp.status_code, 302)
+        ut = UserTemplate.objects.get(title="Planilla semanal de reparto")
+        self.assertEqual(ut.recommended_mode, "pro")
+
+        # En /plantillas/ de A aparece su plantilla y las 18 curadas quedan intactas
+        gal_a = cli_a.get(reverse("templates_gallery"))
+        self.assertEqual(gal_a.status_code, 200)
+        self.assertContains(gal_a, "Mis Plantillas guardadas (1)")
+        self.assertContains(gal_a, "Planilla semanal de reparto")
+        self.assertContains(gal_a, "Mostrando 18 de 18 plantillas")
+
+        # Usuario B no ve la plantilla de A y recibe 404 al intentar borrarla
+        gal_b = cli_b.get(reverse("templates_gallery"))
+        self.assertEqual(gal_b.status_code, 200)
+        self.assertContains(gal_b, "Mis Plantillas guardadas (0)")
+        self.assertNotContains(gal_b, "Planilla semanal de reparto")
+
+        self.assertEqual(cli_b.post(reverse("delete_user_template", args=[ut.id])).status_code, 404)
+        self.assertTrue(UserTemplate.objects.filter(id=ut.id).exists())
+
+        # Carga en workspace con ?user_tpl=<id> aislada por usuario
+        ws_a = cli_a.get(reverse("workspace") + f"?user_tpl={ut.id}")
+        self.assertEqual(ws_a.status_code, 200)
+        self.assertContains(ws_a, "Armame una hoja de reparto para [zona]")
+
+        ws_b = cli_b.get(reverse("workspace") + f"?user_tpl={ut.id}")
+        self.assertEqual(ws_b.status_code, 200)
+        self.assertNotContains(ws_b, "Armame una hoja de reparto para [zona]")
+
+        # GET a eliminar debe devolver 405; POST de A elimina correctamente
+        self.assertEqual(cli_a.get(reverse("delete_user_template", args=[ut.id])).status_code, 405)
+        del_a = cli_a.post(reverse("delete_user_template", args=[ut.id]))
+        self.assertEqual(del_a.status_code, 302)
+        self.assertFalse(UserTemplate.objects.filter(id=ut.id).exists())
+
+    def test_json_collection_export_import_dedup_validation_and_afip_safe_pii(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import UserTemplate
+
+        cli_a = self._register_and_login("export_user_a")
+        cli_b = self._register_and_login("import_user_b")
+
+        cli_a.post(
+            reverse("create_user_template"),
+            data=json.dumps({
+                "title": "Nota social con resguardo",
+                "category": "Trámites y documentos",
+                "recommended_mode": "guiado",
+                "prompt_body": (
+                    "Redactar nota para Ana Ruiz CUIL 27-34567890-4 cel 3884123456 "
+                    "mail ana@ejemplo.com por comprobante AFIP 0004-00018291 en [organismo]."
+                ),
+                "why_it_works": "Estructura formal verificable.",
+            }),
+            content_type="application/json",
+        )
+
+        exp_resp = cli_a.get(reverse("export_user_templates_json"))
+        self.assertEqual(exp_resp.status_code, 200)
+        exported = json.loads(exp_resp.content.decode("utf-8"))
+        self.assertEqual(exported["schema_version"], "promptlab-collection-v1")
+        self.assertEqual(exported["count"], 1)
+        self.assertEqual(len(exported["templates"]), 1)
+
+        # Importar en Usuario B -> anonimiza PII argentino y preserva AFIP 0004-00018291
+        upload_1 = SimpleUploadedFile(
+            "coleccion.json",
+            exp_resp.content,
+            content_type="application/json",
+        )
+        imp_1 = cli_b.post(reverse("import_user_templates_json"), {"collection_file": upload_1})
+        self.assertEqual(imp_1.status_code, 302)
+
+        user_b = User.objects.get(username="import_user_b")
+        imported_tpls = list(UserTemplate.objects.filter(user=user_b))
+        self.assertEqual(len(imported_tpls), 1)
+        body_b = imported_tpls[0].prompt_body
+        self.assertIn("[DNI_CUIL_OCULTO]", body_b)
+        self.assertIn("[TELEFONO_OCULTO]", body_b)
+        self.assertIn("[EMAIL_OCULTO]", body_b)
+        self.assertIn("0004-00018291", body_b)
+        self.assertNotIn("27-34567890-4", body_b)
+        self.assertNotIn("3884123456", body_b)
+        self.assertNotIn("ana@ejemplo.com", body_b)
+
+        # Re-importar el mismo archivo no debe duplicar
+        upload_2 = SimpleUploadedFile(
+            "coleccion.json",
+            exp_resp.content,
+            content_type="application/json",
+        )
+        imp_2 = cli_b.post(reverse("import_user_templates_json"), {"collection_file": upload_2})
+        self.assertEqual(imp_2.status_code, 302)
+        self.assertEqual(UserTemplate.objects.filter(user=user_b).count(), 1)
+
+        # JSON malformado y schema inválido devuelven 400 con mensaje claro
+        bad_json_file = SimpleUploadedFile("bad.json", b"{invalid json", content_type="application/json")
+        bad_resp = cli_b.post(reverse("import_user_templates_json"), {"collection_file": bad_json_file})
+        self.assertEqual(bad_resp.status_code, 400)
+        self.assertContains(bad_resp, "malformado", status_code=400)
+
+        bad_schema_file = SimpleUploadedFile(
+            "bad_schema.json",
+            json.dumps({"schema_version": "desconocida", "templates": []}).encode("utf-8"),
+            content_type="application/json",
+        )
+        bad_schema_resp = cli_b.post(reverse("import_user_templates_json"), {"collection_file": bad_schema_file})
+        self.assertEqual(bad_schema_resp.status_code, 400)
+        self.assertContains(bad_schema_resp, "Esquema inválido", status_code=400)
+
+    def test_no_cdns_or_forbidden_jargon_across_updated_views(self):
+        cli = self._register_and_login("coherence_v80_p2")
+        r1 = cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({"text": "Explicar SQL JOIN para principiantes", "level": "Ligera"}),
+            content_type="application/json",
+        ).json()
+        cli.post(
+            reverse("improve_prompt_api"),
+            data=json.dumps({
+                "text": "Explicar SQL JOIN para principiantes con ejemplos",
+                "level": "Completa",
+                "parent_prompt_id": r1["prompt_id"],
+                "version_note": "Sumé ejemplos de tablas",
+            }),
+            content_type="application/json",
+        )
+        cli.post(
+            reverse("create_user_template"),
+            {
+                "title": "Plantilla limpia sin jerga",
+                "category": "Estudio y academia",
+                "recommended_mode": "express",
+                "prompt_body": "Explicame [tema] con un ejemplo simple.",
+                "why_it_works": "Directa y clara.",
+            },
+        )
+
+        for route_name in ("workspace", "history", "favorites", "templates_gallery", "analytics"):
+            resp = cli.get(reverse(route_name))
+            self.assertEqual(resp.status_code, 200)
+            body = resp.content.decode("utf-8")
+            clean_body = body.replace("http://www.w3.org/2000/svg", "")
+            self.assertNotIn("http://", clean_body)
+            self.assertNotIn("https://", clean_body)
+            for cdn in self.EXTERNAL_CDNS:
+                self.assertNotIn(cdn, body)
+            for term in self.FORBIDDEN_JARGON:
+                self.assertNotIn(term, body, f"Jerga cruda '{term}' encontrada en {route_name}")
+            if route_name != "workspace":
+                for mode_w in self.FORBIDDEN_MODES:
+                    self.assertNotIn(mode_w, body, f"Modo interno '{mode_w}' encontrado en {route_name}")
 
 
