@@ -1718,6 +1718,7 @@ class PromptLabSiteCoherenceTests(TestCase):
             self.assertIn('aria-current="page"', body)
             for nav_label in ("Espacio de Trabajo", "Mi Historial", "Favoritos", "Plantillas", "Estadísticas y Datos"):
                 self.assertIn(nav_label, body)
+            self.assertIn("Motor Híbrido v8.0 • 100% Offline", body)
             self.assertIn("themeChanged", body)
 
 
