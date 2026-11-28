@@ -1198,8 +1198,8 @@ class PromptLabV721AuditRegressionTests(TestCase):
 
         ws = self.client.get(reverse("workspace"))
         self.assertEqual(ws.status_code, 200)
-        self.assertContains(ws, 'promptlab.css?v=8.0.2"')
-        self.assertContains(ws, 'workspace.js?v=8.0.2"')
+        self.assertContains(ws, 'promptlab.css?v=8.0.3"')
+        self.assertContains(ws, 'workspace.js?v=8.0.3"')
 
     def test_n6_five_day_study_plan_clean_topic_daily_tasks_and_filtered_slots(self):
         raw = (
@@ -1265,16 +1265,16 @@ class PromptLabTemplatesCatalogTests(TestCase):
         self.assertContains(resp, "Plantillas Listas para Usar")
         self.assertContains(resp, "1. Elegí tu caso")
         self.assertContains(resp, "Usar esta plantilla")
-        self.assertContains(resp, 'promptlab.css?v=8.0.2"')
-        self.assertContains(resp, 'templates_gallery.js?v=8.0.2"')
+        self.assertContains(resp, 'promptlab.css?v=8.0.3"')
+        self.assertContains(resp, 'templates_gallery.js?v=8.0.3"')
         self.assertContains(resp, "Mostrando 18 de 18 plantillas")
         for cat in self.EXPECTED_CATEGORIES:
             self.assertContains(resp, cat)
 
         ws = self.client.get(reverse("workspace"))
         self.assertEqual(ws.status_code, 200)
-        self.assertContains(ws, 'promptlab.css?v=8.0.2"')
-        self.assertContains(ws, 'workspace.js?v=8.0.2"')
+        self.assertContains(ws, 'promptlab.css?v=8.0.3"')
+        self.assertContains(ws, 'workspace.js?v=8.0.3"')
 
     def test_catalog_has_18_templates_across_6_categories_with_valid_fields(self):
         import re as _re
@@ -1356,7 +1356,7 @@ class PromptLabStatsDashboardTests(TestCase):
         self.assertContains(resp, "Todavía no hay estadísticas para mostrar")
         self.assertContains(resp, reverse("workspace"))
         self.assertContains(resp, reverse("templates_gallery"))
-        self.assertContains(resp, 'promptlab.css?v=8.0.2"')
+        self.assertContains(resp, 'promptlab.css?v=8.0.3"')
         for term in self.FORBIDDEN_JARGON:
             self.assertNotContains(resp, term)
 
@@ -1538,7 +1538,7 @@ class PromptLabStatsDashboardTests(TestCase):
         html_body = resp.content.decode("utf-8")
 
         self.assertIn('id="analytics-chart-data"', html_body)
-        self.assertIn('analytics_charts.js?v=8.0.2"', html_body)
+        self.assertIn('analytics_charts.js?v=8.0.3"', html_body)
         for container_id in (
             'id="chart-domains-svg"',
             'id="chart-donut-svg"',
@@ -1606,7 +1606,7 @@ class PromptLabStatsDashboardTests(TestCase):
 
 
 class PromptLabSiteCoherenceTests(TestCase):
-    """Pruebas de coherencia de diseño, lenguaje, cache-busting v8.0.2 y navegación entre las pestañas."""
+    """Pruebas de coherencia de diseño, lenguaje, cache-busting v8.0.3 y navegación entre las pestañas."""
 
     EXTERNAL_CDNS = (
         "cdn.jsdelivr.net",
@@ -1671,12 +1671,12 @@ class PromptLabSiteCoherenceTests(TestCase):
     def test_cache_busting_v724_and_no_external_cdns(self):
         self._create_sample_prompts()
         checks = [
-            ("workspace", ["promptlab.css?v=8.0.2", "workspace.js?v=8.0.2"]),
-            ("templates_gallery", ["promptlab.css?v=8.0.2", "templates_gallery.js?v=8.0.2"]),
-            ("history", ["promptlab.css?v=8.0.2"]),
-            ("favorites", ["promptlab.css?v=8.0.2"]),
-            ("analytics", ["promptlab.css?v=8.0.2", "analytics_charts.js?v=8.0.2"]),
-            ("glossary", ["promptlab.css?v=8.0.2", "glossary.js?v=8.0.2"]),
+            ("workspace", ["promptlab.css?v=8.0.3", "tooltips.js?v=8.0.3", "workspace.js?v=8.0.3"]),
+            ("templates_gallery", ["promptlab.css?v=8.0.3", "tooltips.js?v=8.0.3", "templates_gallery.js?v=8.0.3"]),
+            ("history", ["promptlab.css?v=8.0.3", "tooltips.js?v=8.0.3"]),
+            ("favorites", ["promptlab.css?v=8.0.3", "tooltips.js?v=8.0.3"]),
+            ("analytics", ["promptlab.css?v=8.0.3", "tooltips.js?v=8.0.3", "analytics_charts.js?v=8.0.3"]),
+            ("glossary", ["promptlab.css?v=8.0.3", "tooltips.js?v=8.0.3", "glossary.js?v=8.0.3"]),
         ]
         for route_name, expected_assets in checks:
             resp = self.client.get(reverse(route_name))
@@ -3064,8 +3064,8 @@ class PromptLabV802GlossaryTests(TestCase):
         self.assertIn("Mostrando 18 de 18 conceptos", body)
         self.assertIn("Entendé el idioma de la IA sin vueltas", body)
         self.assertIn("Limpiar filtros", body)
-        self.assertIn('glossary.js?v=8.0.2"', body)
-        self.assertIn('promptlab.css?v=8.0.2"', body)
+        self.assertIn('glossary.js?v=8.0.3"', body)
+        self.assertIn('promptlab.css?v=8.0.3"', body)
 
         for cat_name, expected_count in self.EXPECTED_CATEGORIES.items():
             self.assertIn(f"{cat_name} ({expected_count})", body)
@@ -3139,5 +3139,95 @@ class PromptLabV802GlossaryTests(TestCase):
         self.assertIn(f'{reverse("glossary")}#token', body)
         self.assertIn("¿Qué es un token? Ver Glosario →", body)
         self.assertIn("1 token ≈ ¾ de palabra; un prompt sin relleno consume menos y responde mejor.", body)
+
+
+class PromptLabV803EditorialAndTooltipsTests(TestCase):
+    """Pruebas v8.0.3: Voseo unificado en slot_catalog, tooltips accesibles sin CDNs y decimales en español."""
+
+    EXTERNAL_CDNS = (
+        "cdn.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "fonts.googleapis.com",
+    )
+
+    def test_slot_catalog_uses_argentine_voseo_without_tuteo_verbs(self):
+        import re as _re
+
+        slot_catalog = KNOWLEDGE_BASE.get("slot_catalog", {})
+        all_questions = []
+        for section in ("by_domain", "by_action"):
+            for slots in slot_catalog.get(section, {}).values():
+                for slot in slots:
+                    all_questions.append(slot.get("question", ""))
+
+        self.assertGreaterEqual(len(all_questions), 20)
+        joined = "\n".join(all_questions)
+        tuteo_re = _re.compile(
+            r"\b(?:tienes|quieres|buscas|cuentas|necesitas|prefieres|comparas)\b",
+            flags=_re.IGNORECASE,
+        )
+        self.assertIsNone(tuteo_re.search(joined), f"Tuteo detectado en slot_catalog: {joined}")
+        for expected_voseo in ("tenés", "querés", "buscás", "contás", "necesitás", "preferís", "comparás"):
+            self.assertIn(expected_voseo, joined.lower())
+
+    def test_global_tooltips_js_and_data_tip_attributes_across_views(self):
+        import re as _re
+
+        js_path = Path(__file__).resolve().parent / "static" / "js" / "tooltips.js"
+        self.assertTrue(js_path.is_file(), "Falta archivo estático core/static/js/tooltips.js")
+        self.assertIsNotNone(finders.find("js/tooltips.js"))
+        js_src = js_path.read_text(encoding="utf-8")
+        self.assertNotIn("innerHTML", js_src)
+
+        an_body = self.client.get(reverse("analytics")).content.decode("utf-8")
+        self.assertIn('tooltips.js?v=8.0.3"', an_body)
+        for cdn in self.EXTERNAL_CDNS:
+            self.assertNotIn(cdn, an_body)
+        for term in ("NLP", "5-Fold", "McNemar", "Jaccard"):
+            self.assertRegex(
+                an_body,
+                _re.compile(rf'data-tip="[^"]+"[^>]*>\s*{_re.escape(term)}|{_re.escape(term)}[^<]*</h5[^>]*>\s*<button[^>]*data-tip=|data-tip="[^"]*"[^>]*aria-label="Qué significa {_re.escape(term)}"'),
+            )
+            self.assertIn(term, an_body)
+        self.assertIn('data-tip="Procesamiento de Lenguaje Natural:', an_body)
+        self.assertIn('data-tip="Validación cruzada en 5 partes iguales', an_body)
+        self.assertIn('data-tip="Prueba estadística pareada', an_body)
+        self.assertIn('data-tip="Mide cuán parecidas son las palabras', an_body)
+
+        ws_body = self.client.get(reverse("workspace")).content.decode("utf-8")
+        self.assertIn('tooltips.js?v=8.0.3"', ws_body)
+        self.assertRegex(ws_body, r'data-tip="[^"]+">\s*128K\s*<')
+
+        gl_body = self.client.get(reverse("glossary")).content.decode("utf-8")
+        self.assertIn('tooltips.js?v=8.0.3"', gl_body)
+        self.assertIn('data-tip="Copiar enlace directo a este concepto"', gl_body)
+
+    def test_analytics_glossary_bridge_and_spanish_decimal_comma_in_verdict(self):
+        from django.core.management import call_command
+        from .scientific_eval import run_scientific_benchmark
+
+        report = run_scientific_benchmark(force_refresh=True)
+        self.assertIsInstance(report["mcnemar_p_value"], float)
+        self.assertIsInstance(report["total_errors_rescued_pct"], float)
+        self.assertEqual(report["mcnemar_p_display"], "0,1250")
+        self.assertIn("50,0 %", report["verdict_text"])
+        self.assertIn("80,0 %", report["verdict_text"])
+        self.assertIn("0,1250", report["verdict_text"])
+        self.assertNotIn("50.0%", report["verdict_text"])
+        self.assertNotIn("80.0%", report["verdict_text"])
+
+        resp = self.client.get(reverse("analytics"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn(f'{reverse("glossary")}#validacion-cruzada', body)
+        self.assertIn("¿Dudas con estos términos? Ver Glosario IA", body)
+        self.assertIn("p = 0,1250", body)
+        self.assertNotIn("prompt(s)", body)
+        self.assertNotIn("registro(s)", body)
+
+        out = io.StringIO()
+        call_command("evaluate_engine", stdout=out)
+        self.assertIn("McNemar", out.getvalue())
 
 

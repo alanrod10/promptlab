@@ -797,7 +797,7 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
     )
 
     mcnemar_p = mcnemar_exact_p_value(improved_count, regressions_count)
-    mcnemar_p_display = "< 0.001" if mcnemar_p < 0.001 else f"{mcnemar_p:.4f}"
+    mcnemar_p_display = "< 0,001" if mcnemar_p < 0.001 else f"{mcnemar_p:.4f}".replace(".", ",")
 
     # 3. Auditoría caso por caso
     outcome_rank = {
@@ -904,6 +904,7 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
     comparison_cards = [
         {
             "title": "Exactitud (Accuracy)",
+            "tooltip": "Porcentaje total de casos clasificados correctamente sobre el total evaluado.",
             "baseline_pct": base_raw["accuracy_pct"],
             "hybrid_pct": hyb_raw["accuracy_pct"],
             "diff_text": acc_diff,
@@ -911,6 +912,7 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         },
         {
             "title": "F1 Macro",
+            "tooltip": "Promedio equilibrado entre precisión y cobertura donde todas las tareas pesan igual, sin importar su frecuencia.",
             "baseline_pct": base_raw["macro_f1_pct"],
             "hybrid_pct": hyb_raw["macro_f1_pct"],
             "diff_text": mf1_diff,
@@ -918,6 +920,7 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         },
         {
             "title": "F1 Ponderado",
+            "tooltip": "Promedio de F1 ponderado según la cantidad de casos de cada tipo de tarea.",
             "baseline_pct": base_raw["weighted_f1_pct"],
             "hybrid_pct": hyb_raw["weighted_f1_pct"],
             "diff_text": wf1_diff,
@@ -925,6 +928,7 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
         },
         {
             "title": "Exhaustividad (Recall)",
+            "tooltip": "De todos los pedidos que realmente pertenecen a una tarea, qué porcentaje logró detectar el motor.",
             "baseline_pct": base_raw["macro_recall_pct"],
             "hybrid_pct": hyb_raw["macro_recall_pct"],
             "diff_text": mrec_diff,
@@ -936,27 +940,32 @@ def run_scientific_benchmark(force_refresh: bool = False) -> Dict[str, Any]:
     production_nb_classes = kb_actions_total or len(ACTION_LABELS_ES)
     coverage_actions = f"{len(expected_classes)}/{production_nb_classes}"
 
+    total_rescued_disp = f"{total_errors_rescued_pct:.1f}".replace(".", ",")
+    low_cert_rescued_disp = f"{low_certainty_rescued_pct:.1f}".replace(".", ",")
+    reg_word = "regresión" if regressions_count == 1 else "regresiones"
+    case_word = "caso" if improved_count == 1 else "casos"
+
     if hyb_raw["macro_f1"] > base_raw["macro_f1"] and regressions_count == 0:
         verdict_tone = "success"
         verdict_headline = "El enfoque híbrido supera al motor determinístico sin regresiones"
         verdict_text = (
-            f"Sobre {n_cases} casos curados ({coverage_actions} arquetipos) en 5-Fold balanceado (12x5) con Naive Bayes "
+            f"Sobre {n_cases} casos curados ({coverage_actions} arquetipos) en 5-Fold balanceado (12×5) con Naive Bayes "
             f"out-of-fold, rescató {improved_count} de {baseline_errors_total} errores totales del baseline "
-            f"({total_errors_rescued_pct:.1f}%) y {low_certainty_rescued}/{low_certainty_errors_baseline} de baja certeza "
-            f"({low_certainty_rescued_pct:.1f}%), con 0 regresiones (McNemar p = {mcnemar_p_display})."
+            f"({total_rescued_disp} %) y {low_certainty_rescued}/{low_certainty_errors_baseline} de baja certeza "
+            f"({low_cert_rescued_disp} %), con 0 regresiones (McNemar p = {mcnemar_p_display})."
         )
     elif hyb_raw["macro_f1"] >= base_raw["macro_f1"]:
         verdict_tone = "info"
         verdict_headline = "El enfoque híbrido iguala o mejora el F1 Macro del baseline"
         verdict_text = (
             f"Sobre {n_cases} casos en 5-Fold balanceado, rescató {improved_count} de {baseline_errors_total} errores "
-            f"con {regressions_count} regresión(es) (McNemar p = {mcnemar_p_display})."
+            f"con {regressions_count} {reg_word} (McNemar p = {mcnemar_p_display})."
         )
     else:
         verdict_tone = "warning"
         verdict_headline = "El baseline determinístico mantuvo mejor balance en esta corrida"
         verdict_text = (
-            f"El híbrido rescató {improved_count} caso(s) pero presentó {regressions_count} regresión(es); "
+            f"El híbrido rescató {improved_count} {case_word} pero presentó {regressions_count} {reg_word}; "
             "conviene ajustar los umbrales de intervención."
         )
 

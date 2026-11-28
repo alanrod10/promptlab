@@ -26,21 +26,21 @@
         </header>
 
         <div class="pl-mode-switcher" role="group" aria-label="Modo del Espacio de Trabajo">
-            <button type="button" id="mode-btn-express" class="pl-mode-btn" data-mode="express" aria-pressed="true">
+            <button type="button" id="mode-btn-express" class="pl-mode-btn" data-mode="express" aria-pressed="true" data-tip="Ideal para consultas rápidas y pedidos cotidianos: entrega un prompt breve y directo.">
                 <span class="pl-mode-title">
                     <span class="pl-mode-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
                     Express
                 </span>
                 <span class="pl-mode-sub">Breve (Directo)</span>
             </button>
-            <button type="button" id="mode-btn-guiado" class="pl-mode-btn" data-mode="guiado" aria-pressed="false">
+            <button type="button" id="mode-btn-guiado" class="pl-mode-btn" data-mode="guiado" aria-pressed="false" data-tip="Recomendado para sumar contexto paso a paso con preguntas rápidas sin reescribir tu pedido.">
                 <span class="pl-mode-title">
                     <span class="pl-mode-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="21" y1="12" x2="18" y2="12"/></svg></span>
                     Guiado
                 </span>
                 <span class="pl-mode-sub">Por Secciones (Recomendado)</span>
             </button>
-            <button type="button" id="mode-btn-pro" class="pl-mode-btn" data-mode="pro" aria-pressed="false">
+            <button type="button" id="mode-btn-pro" class="pl-mode-btn" data-mode="pro" aria-pressed="false" data-tip="Pensado para tareas técnicas, análisis de datos o casos críticos con casos borde y mapa de origen.">
                 <span class="pl-mode-title">
                     <span class="pl-mode-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg></span>
                     Estudio Pro
@@ -79,7 +79,7 @@
         <div class="d-flex align-items-center justify-content-between gap-2">
             <div>
                 <i class="bi bi-grid-1x2-fill text-primary me-1"></i>
-                <span>Plantilla cargada: reemplazá los campos entre <strong>[corchetes]</strong> con tus datos reales y tocá <strong>"Mejorar mi prompt"</strong>.</span>
+                <span>Plantilla cargada: reemplazá los campos entre <strong class="pl-tip" tabindex="0" role="note" data-tip="Campos editables que completás con tus datos reales antes de enviar el prompt a una IA.">[corchetes]</strong> con tus datos reales y tocá <strong>"Mejorar mi prompt"</strong>.</span>
             </div>
             <button type="button" id="btn-dismiss-template-banner" class="btn-close btn-sm flex-shrink-0" aria-label="Cerrar aviso"></button>
         </div>
@@ -219,7 +219,7 @@
                 <!-- Barra superior de acciones del resultado -->
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 pl-border-bottom">
                     <div class="d-flex flex-wrap align-items-center gap-2">
-                        <span id="output-version-badge" class="pl-version-badge" title="Versión actual del prompt">v{% if loaded_prompt %}{{ loaded_prompt.version_number|default:1 }}{% else %}1{% endif %}</span>
+                        <span id="output-version-badge" class="pl-version-badge pl-tip" tabindex="0" role="note" data-tip="Número de versión de este prompt. Usá 'Iterar nueva versión' para mejorar y comparar el salto de puntaje.">v{% if loaded_prompt %}{{ loaded_prompt.version_number|default:1 }}{% else %}1{% endif %}</span>
                         <span id="output-score-pill" class="pl-score-pill small">
                             <i class="bi bi-award-fill me-1"></i>
                             <strong id="output-score-val">{% if loaded_prompt %}{{ loaded_prompt.final_score }}/100{% else %}—/100{% endif %}</strong>
@@ -250,10 +250,10 @@
                         <button type="button" id="btn-compare" class="btn btn-sm btn-pl-secondary px-3" data-bs-toggle="modal" data-bs-target="#compareModal" title="Comparar Antes vs. Después">
                             <i class="bi bi-layout-split me-1"></i> Comparar <span class="d-none d-xl-inline">Antes vs. Después</span>
                         </button>
-                        <button type="button" id="btn-export-md" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" title="Descargar en formato Markdown (.md)">
+                        <button type="button" id="btn-export-md" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" data-tip="Descarga el prompt en Markdown (.md), formato de texto con títulos ideal para documentos y editores.">
                             <i class="bi bi-markdown me-1"></i> .MD
                         </button>
-                        <button type="button" id="btn-export-json" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" title="Descargar especificación en JSON (.json)">
+                        <button type="button" id="btn-export-json" class="btn btn-sm btn-pl-secondary px-3 pl-guiado-pro" data-tip="Descarga el prompt y sus métricas en formato estructurado (.json) para respaldo o análisis.">
                             <i class="bi bi-filetype-json me-1"></i> .JSON
                         </button>
                     </div>
@@ -274,6 +274,7 @@
                             </div>
                             <div id="privacy-afip-note" class="pl-privacy-seal-afip fw-semibold mt-1 d-none">
                                 <i class="bi bi-check2-circle me-1"></i>Comprobante AFIP preservado sin falsos positivos.
+                                <button type="button" class="pl-tip-icon" data-tip="Numeración oficial de comprobantes/facturas (ej. 0004-00018291) que PromptLab resguarda sin confundir con DNI ni teléfonos." aria-label="Qué significa comprobante AFIP">?</button>
                             </div>
                         </div>
                     </div>
@@ -379,7 +380,7 @@
                         <div class="pl-token-model-card" id="token-card-chatgpt">
                             <div class="d-flex justify-content-between align-items-center gap-1">
                                 <span class="fw-bold small pl-text-primary">ChatGPT</span>
-                                <span class="pl-token-window-tag">128K</span>
+                                <span class="pl-token-window-tag pl-tip" tabindex="0" role="note" data-tip="Ventana de contexto aproximada: cantidad máxima de tokens (texto enviado + respuesta) que recuerda el modelo en una charla.">128K</span>
                             </div>
                             <div class="pl-token-count" id="token-val-chatgpt">~0 tokens</div>
                             <div class="pl-token-context" id="token-ctx-chatgpt">0 % del contexto</div>
@@ -387,7 +388,7 @@
                         <div class="pl-token-model-card" id="token-card-gemini">
                             <div class="d-flex justify-content-between align-items-center gap-1">
                                 <span class="fw-bold small pl-text-primary">Gemini</span>
-                                <span class="pl-token-window-tag">1M</span>
+                                <span class="pl-token-window-tag pl-tip" tabindex="0" role="note" data-tip="Ventana de contexto aproximada: cantidad máxima de tokens (texto enviado + respuesta) que recuerda el modelo en una charla.">1M</span>
                             </div>
                             <div class="pl-token-count" id="token-val-gemini">~0 tokens</div>
                             <div class="pl-token-context" id="token-ctx-gemini">0 % del contexto</div>
@@ -395,7 +396,7 @@
                         <div class="pl-token-model-card" id="token-card-claude">
                             <div class="d-flex justify-content-between align-items-center gap-1">
                                 <span class="fw-bold small pl-text-primary">Claude</span>
-                                <span class="pl-token-window-tag">200K</span>
+                                <span class="pl-token-window-tag pl-tip" tabindex="0" role="note" data-tip="Ventana de contexto aproximada: cantidad máxima de tokens (texto enviado + respuesta) que recuerda el modelo en una charla.">200K</span>
                             </div>
                             <div class="pl-token-count" id="token-val-claude">~0 tokens</div>
                             <div class="pl-token-context" id="token-ctx-claude">0 % del contexto</div>
@@ -562,7 +563,7 @@
                         <div class="pl-token-model-card">
                             <div class="d-flex justify-content-between align-items-center gap-1">
                                 <span class="fw-bold small pl-text-primary">ChatGPT</span>
-                                <span class="pl-token-window-tag">128K</span>
+                                <span class="pl-token-window-tag pl-tip" tabindex="0" role="note" data-tip="Ventana de contexto aproximada: cantidad máxima de tokens (texto enviado + respuesta) que recuerda el modelo en una charla.">128K</span>
                             </div>
                             <div class="pl-token-count" id="cmp-tok-chatgpt">~0 tokens</div>
                             <div class="pl-token-context" id="cmp-ctx-chatgpt">0 % del contexto</div>
@@ -570,7 +571,7 @@
                         <div class="pl-token-model-card">
                             <div class="d-flex justify-content-between align-items-center gap-1">
                                 <span class="fw-bold small pl-text-primary">Gemini</span>
-                                <span class="pl-token-window-tag">1M</span>
+                                <span class="pl-token-window-tag pl-tip" tabindex="0" role="note" data-tip="Ventana de contexto aproximada: cantidad máxima de tokens (texto enviado + respuesta) que recuerda el modelo en una charla.">1M</span>
                             </div>
                             <div class="pl-token-count" id="cmp-tok-gemini">~0 tokens</div>
                             <div class="pl-token-context" id="cmp-ctx-gemini">0 % del contexto</div>
@@ -578,7 +579,7 @@
                         <div class="pl-token-model-card">
                             <div class="d-flex justify-content-between align-items-center gap-1">
                                 <span class="fw-bold small pl-text-primary">Claude</span>
-                                <span class="pl-token-window-tag">200K</span>
+                                <span class="pl-token-window-tag pl-tip" tabindex="0" role="note" data-tip="Ventana de contexto aproximada: cantidad máxima de tokens (texto enviado + respuesta) que recuerda el modelo en una charla.">200K</span>
                             </div>
                             <div class="pl-token-count" id="cmp-tok-claude">~0 tokens</div>
                             <div class="pl-token-context" id="cmp-ctx-claude">0 % del contexto</div>
@@ -664,5 +665,5 @@
 </div>
 
 <script id="workspace-boot-data" type="application/json">{{ workspace_boot_json|safe }}</script>
-<script src="{% static 'js/workspace.js' %}?v=8.0.2"></script>
+<script src="{% static 'js/workspace.js' %}?v=8.0.3"></script>
 {% endblock %}

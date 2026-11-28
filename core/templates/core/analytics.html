@@ -31,7 +31,9 @@
                 </a>
             </nav>
 
-            <a href="{% url 'export_csv' %}" class="btn btn-brand btn-sm px-3 py-2 fw-medium">
+            <a href="{% url 'export_csv' %}"
+               class="btn btn-brand btn-sm px-3 py-2 fw-medium"
+               data-tip="Archivo de tabla compatible con Excel, Google Sheets y Python con 38 columnas de métricas de tu historial.">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>Descargar Dataset (.CSV)
             </a>
         </div>
@@ -79,7 +81,7 @@
         </div>
         <h4 class="fw-bold pl-text-primary mb-2">Sin actividad en {{ summary_data.period_label }}</h4>
         <p class="pl-text-secondary small mx-auto mb-4" style="max-width: 520px; line-height: 1.6;">
-            Tenés <strong>{{ total_all_time }}</strong> prompt(s) en tu historial general, pero ninguno fue creado durante {{ summary_data.period_label }}.
+            Tenés <strong>{{ total_all_time }}</strong> prompt{% if total_all_time != 1 %}s{% endif %} en tu historial general, pero ninguno fue creado durante {{ summary_data.period_label }}.
         </p>
         <div class="d-flex flex-wrap justify-content-center gap-2">
             <a href="{% url 'analytics' %}?periodo=all" class="btn btn-brand px-4 py-2 fw-semibold">
@@ -108,7 +110,7 @@
                 <p class="pl-text-secondary small mb-0">
                     Tu área más consultada fue <strong>{{ summary_data.top_domain }}</strong> y tu modo más elegido fue <strong>{{ summary_data.top_mode }}</strong>.
                     {% if summary_data.pii_protected_count > 0 %}
-                        Además, se protegieron datos sensibles automáticamente en <strong>{{ summary_data.pii_protected_count }}</strong> registro(s).
+                        Además, se protegieron datos sensibles automáticamente en <strong>{{ summary_data.pii_protected_count }}</strong> registro{% if summary_data.pii_protected_count != 1 %}s{% endif %}.
                     {% endif %}
                 </p>
             </div>
@@ -480,10 +482,10 @@
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">
-                    Roles resueltos: <strong>{{ avg_roles_filled }}%</strong>
+                    <span class="pl-tip" tabindex="0" role="note" data-tip="Porcentaje de elementos clave del pedido (tema, destinatario, formato o plazo) que el motor logró identificar.">Roles resueltos</span>: <strong>{{ avg_roles_filled }}%</strong>
                 </span>
                 <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
-                    Criterios verificables: <strong>{{ avg_verifiable_ratio }}%</strong>
+                    <span class="pl-tip" tabindex="0" role="note" data-tip="Proporción de instrucciones generadas que se pueden comprobar objetivamente en la respuesta de la IA.">Criterios verificables</span>: <strong>{{ avg_verifiable_ratio }}%</strong>
                 </span>
             </div>
         </div>
@@ -495,7 +497,7 @@
                             <th>Término o Frase Candidata</th>
                             <th>Frecuencia</th>
                             <th title="Pedidos donde el motor tuvo menor certeza inicial y conviene sumar reglas">Casos de Baja Certeza</th>
-                            <th title="Puntaje estadístico Log-Odds (z-score) frente al resto del historial">Relevancia</th>
+                            <th><span class="pl-tip" tabindex="0" role="note" data-tip="Puntaje estadístico Log-Odds: indica cuánto se asocia esa palabra con pedidos donde el motor dudó; valores altos sugieren reglas útiles.">Relevancia</span></th>
                             <th>Tarea Sugerida</th>
                             <th class="text-end">Supervisión</th>
                         </tr>
@@ -547,9 +549,10 @@
                 <div>
                     <h6 class="fw-bold pl-text-primary mb-0" style="font-size: 0.9rem;">
                         <i class="bi bi-shield-check text-success me-1"></i>Reglas aprobadas por supervisión humana (Capa Overlay)
+                        <button type="button" class="pl-tip-icon" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original." aria-label="Qué significa Capa Overlay">?</button>
                     </h6>
                     <p class="pl-text-secondary small mb-0" style="font-size: 0.78rem;">
-                        Esta capa aditiva vive en SQLite y es 100 % reversible: nunca modifica el archivo base de conocimiento (<code>knowledge_base.json</code>).
+                        Esta capa aditiva vive en <span class="pl-tip" tabindex="0" role="note" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original.">SQLite</span> y es 100 % reversible: nunca modifica el archivo base de conocimiento (<code class="pl-tip" tabindex="0" role="note" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original.">knowledge_base.json</code>).
                         {% if not request.user.is_staff %}Solo cuentas administradoras pueden aprobar o revertir reglas globales.{% endif %}
                     </p>
                 </div>
@@ -564,7 +567,7 @@
                             <tr>
                                 <th>Término aprobado</th>
                                 <th>Tarea asociada</th>
-                                <th>Relevancia</th>
+                                <th><span class="pl-tip" tabindex="0" role="note" data-tip="Puntaje estadístico Log-Odds: indica cuánto se asocia esa palabra con pedidos donde el motor dudó; valores altos sugieren reglas útiles.">Relevancia</span></th>
                                 <th>Estado</th>
                                 <th class="text-end">Control</th>
                             </tr>
@@ -614,7 +617,7 @@
     </section>
 
     {{ chart_payload|json_script:"analytics-chart-data" }}
-    <script src="{% static 'js/analytics_charts.js' %}?v=8.0.2"></script>
+    <script src="{% static 'js/analytics_charts.js' %}?v=8.0.3"></script>
     {% endif %}
 
     {% if total_prompts == 0 and learning_rules %}
@@ -622,9 +625,10 @@
     <section id="bloque-aprendizaje" class="pl-card mb-4 p-4">
         <h6 class="fw-bold pl-text-primary mb-1">
             <i class="bi bi-shield-check text-success me-1"></i>Reglas aprobadas por supervisión humana (Capa Overlay)
+            <button type="button" class="pl-tip-icon" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original." aria-label="Qué significa Capa Overlay">?</button>
         </h6>
         <p class="pl-text-secondary small mb-3">
-            Esta capa aditiva vive en SQLite y es 100 % reversible: nunca modifica <code>knowledge_base.json</code>.
+            Esta capa aditiva vive en <span class="pl-tip" tabindex="0" role="note" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original.">SQLite</span> y es 100 % reversible: nunca modifica <code class="pl-tip" tabindex="0" role="note" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original.">knowledge_base.json</code>.
             {% if not request.user.is_staff %}Solo cuentas administradoras pueden aprobar o revertir reglas globales.{% endif %}
         </p>
         <div class="stats-table-wrap">
@@ -675,13 +679,17 @@
             <div>
                 <h5 class="fw-bold pl-text-primary mb-1">
                     <i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Evaluación Científica del Motor NLP (Benchmark 5-Fold Offline)
+                    <button type="button" class="pl-tip-icon" data-tip="Procesamiento de Lenguaje Natural: técnicas para que la computadora interprete texto escrito en idioma humano." aria-label="Qué significa NLP">?</button>
                 </h5>
-                <p class="pl-text-secondary small mb-0">
-                    Comparativa reproducible entre el motor determinístico base y la arquitectura híbrida con desempate probabilístico en baja certeza.
+                <p class="pl-text-secondary small mb-1">
+                    Comparativa reproducible entre el motor <span class="pl-tip" tabindex="0" role="note" data-tip="Procesamiento de Lenguaje Natural: técnicas para que la computadora interprete texto escrito en idioma humano.">NLP</span> determinístico base y la arquitectura híbrida con desempate probabilístico en baja certeza.
                 </p>
+                <a href="{% url 'glossary' %}#validacion-cruzada" class="pl-glossary-bridge-link small">
+                    ¿Dudas con estos términos? Ver Glosario IA &rarr;
+                </a>
             </div>
             <span class="pl-bench-seal">
-                <i class="bi bi-patch-check-fill me-1"></i>{{ scientific_benchmark.dataset_size }} casos curados (10 de 21 arquetipos) &middot; Validación cruzada 5-Fold balanceada (12×5) + CV repetida 10×5 &middot; Naive Bayes out-of-fold en Python puro
+                <i class="bi bi-patch-check-fill me-1"></i>{{ scientific_benchmark.dataset_size }} casos curados (10 de 21 <span class="pl-tip" tabindex="0" role="note" data-tip="Los 21 tipos de tarea base que PromptLab reconoce (como analizar datos, redactar nota, depurar código o comparar opciones).">arquetipos</span>) &middot; Validación cruzada <span class="pl-tip" tabindex="0" role="note" data-tip="Validación cruzada en 5 partes iguales de 12 casos: el modelo aprende con 4 partes y se evalúa en la 5.ª que no vio.">5-Fold</span> balanceada (<span class="pl-tip" tabindex="0" role="note" data-tip="Validación cruzada en 5 partes iguales de 12 casos: el modelo aprende con 4 partes y se evalúa en la 5.ª que no vio.">12×5</span>) + <span class="pl-tip" tabindex="0" role="note" data-tip="Validación cruzada repetida 10 veces con distintas mezclas de datos para medir estabilidad real (media y variación).">CV repetida 10×5</span> &middot; Naive Bayes <span class="pl-tip" tabindex="0" role="note" data-tip="Evaluación honesta: cada caso se predice con un modelo que nunca vio ese ejemplo durante el entrenamiento.">out-of-fold</span> en Python puro
             </span>
         </div>
 
@@ -691,8 +699,8 @@
             <div class="col-sm-6 col-xl-3">
                 <article class="pl-bench-card p-3 h-100 d-flex flex-column justify-content-between">
                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                        <span class="small fw-bold pl-text-secondary">{{ card.title }}</span>
-                        <span class="pl-bench-diff pl-bench-diff--{{ card.diff_tone }}">{{ card.diff_text }}</span>
+                        <span class="small fw-bold pl-text-secondary pl-tip" tabindex="0" role="note" data-tip="{{ card.tooltip }}">{{ card.title }}</span>
+                        <span class="pl-bench-diff pl-bench-diff--{{ card.diff_tone }} pl-tip" tabindex="0" role="note" data-tip="Puntos porcentuales: diferencia directa entre dos porcentajes (por ejemplo, pasar de 86,7 % a 93,3 % son +6,6 pp).">{{ card.diff_text }}</span>
                     </div>
                     <div class="d-flex align-items-baseline justify-content-between gap-2">
                         <div>
@@ -713,9 +721,11 @@
         <div class="row g-2 mb-3">
             <div class="col-sm-6 col-xl-3">
                 <div class="pl-bench-stat-pill p-2 px-3 h-100">
-                    <div class="pl-text-secondary" style="font-size: 0.72rem;">CV repetida 10&times;5</div>
+                    <div class="pl-text-secondary" style="font-size: 0.72rem;">
+                        <span class="pl-tip" tabindex="0" role="note" data-tip="Validación cruzada repetida 10 veces con distintas mezclas de datos para medir estabilidad real (media y variación).">CV repetida 10&times;5</span>
+                    </div>
                     <div class="fw-bold small pl-text-primary">
-                        {{ scientific_benchmark.repeated_cv.accuracy_mean_pct }}% &plusmn; {{ scientific_benchmark.repeated_cv.accuracy_std_pct }} pp
+                        {{ scientific_benchmark.repeated_cv.accuracy_mean_pct }}% &plusmn; {{ scientific_benchmark.repeated_cv.accuracy_std_pct }} <span class="pl-tip" tabindex="0" role="note" data-tip="Puntos porcentuales: diferencia directa entre dos porcentajes (por ejemplo, pasar de 86,7 % a 93,3 % son +6,6 pp).">pp</span>
                     </div>
                     <div class="pl-text-secondary" style="font-size: 0.71rem;">
                         Rango {{ scientific_benchmark.repeated_cv.accuracy_min_pct }}%–{{ scientific_benchmark.repeated_cv.accuracy_max_pct }}%
@@ -724,7 +734,9 @@
             </div>
             <div class="col-sm-6 col-xl-3">
                 <div class="pl-bench-stat-pill p-2 px-3 h-100">
-                    <div class="pl-text-secondary" style="font-size: 0.72rem;">IC 95 % (Wilson)</div>
+                    <div class="pl-text-secondary" style="font-size: 0.72rem;">
+                        <span class="pl-tip" tabindex="0" role="note" data-tip="Intervalo de confianza del 95 %: rango estadístico donde se ubica el rendimiento real considerando que son 60 casos.">IC 95 % (Wilson)</span>
+                    </div>
                     <div class="fw-bold small pl-text-primary">
                         [{{ scientific_benchmark.hybrid.accuracy_ci_low_pct }}% ; {{ scientific_benchmark.hybrid.accuracy_ci_high_pct }}%]
                     </div>
@@ -735,7 +747,9 @@
             </div>
             <div class="col-sm-6 col-xl-3">
                 <div class="pl-bench-stat-pill p-2 px-3 h-100">
-                    <div class="pl-text-secondary" style="font-size: 0.72rem;">McNemar exacto</div>
+                    <div class="pl-text-secondary" style="font-size: 0.72rem;">
+                        <span class="pl-tip" tabindex="0" role="note" data-tip="Prueba estadística pareada que evalúa si la diferencia entre el motor base y el híbrido sobre los mismos casos es significativa.">McNemar exacto</span>
+                    </div>
                     <div class="fw-bold small pl-text-primary">
                         p = {{ scientific_benchmark.mcnemar_p_display }}
                     </div>
@@ -746,12 +760,14 @@
             </div>
             <div class="col-sm-6 col-xl-3">
                 <div class="pl-bench-stat-pill p-2 px-3 h-100">
-                    <div class="pl-text-secondary" style="font-size: 0.72rem;">NB en producción</div>
+                    <div class="pl-text-secondary" style="font-size: 0.72rem;">
+                        <span class="pl-tip" tabindex="0" role="note" data-tip="Clasificador probabilístico Naive Bayes en Python puro entrenado sobre los 21 tipos de tarea (arquetipos) de PromptLab.">NB en producción (21/21)</span>
+                    </div>
                     <div class="fw-bold small pl-text-primary">
-                        {{ scientific_benchmark.production_nb_classes }}/21 arquetipos
+                        {{ scientific_benchmark.production_nb_classes }}/21 <span class="pl-tip" tabindex="0" role="note" data-tip="Los 21 tipos de tarea base que PromptLab reconoce (como analizar datos, redactar nota, depurar código o comparar opciones).">arquetipos</span>
                     </div>
                     <div class="pl-text-secondary" style="font-size: 0.71rem;">
-                        Jaccard máx. intra-clase: {{ scientific_benchmark.max_intra_class_jaccard }}
+                        <span class="pl-tip" tabindex="0" role="note" data-tip="Mide cuán parecidas son las palabras entre casos de la misma categoría (0 = distintos, 1 = idénticos). Menor a 0,35 confirma que no hay pares repetidos.">Jaccard máx. intra-clase</span>: {{ scientific_benchmark.max_intra_class_jaccard }}
                     </div>
                 </div>
             </div>
@@ -763,7 +779,7 @@
                 <i class="bi bi-compass me-1 text-primary"></i>Alcance y límites declarados
             </strong>
             <p class="pl-text-secondary mb-0" style="line-height: 1.55;">
-                El clasificador Naive Bayes se evalúa <em>out-of-fold</em> sobre el conjunto de referencia curado, aislado de SQLite y de la capa Overlay. Las reglas determinísticas base (v7.2) fueron diseñadas con conocimiento del dominio evaluado ({{ scientific_benchmark.coverage_actions }} arquetipos) y aún no cuentan con muestra externa independiente de terceros.
+                El clasificador Naive Bayes se evalúa <em class="pl-tip" tabindex="0" role="note" data-tip="Evaluación honesta: cada caso se predice con un modelo que nunca vio ese ejemplo durante el entrenamiento.">out-of-fold</em> sobre el conjunto de referencia curado, aislado de <span class="pl-tip" tabindex="0" role="note" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original.">SQLite</span> y de la <span class="pl-tip" tabindex="0" role="note" data-tip="Capa de reglas guardada aparte en la base local SQLite; se puede activar o revertir sin alterar nunca el archivo base original.">capa Overlay</span>. Las reglas determinísticas base (v7.2) fueron diseñadas con conocimiento del dominio evaluado ({{ scientific_benchmark.coverage_actions }} <span class="pl-tip" tabindex="0" role="note" data-tip="Los 21 tipos de tarea base que PromptLab reconoce (como analizar datos, redactar nota, depurar código o comparar opciones).">arquetipos</span>) y aún no cuentan con muestra externa independiente de terceros.
             </p>
         </div>
 
@@ -950,7 +966,7 @@
                         <strong>Puntaje final</strong> (0–100 según rúbrica de 5 criterios) &bull;
                         <strong>Datos útiles</strong> (meta &ge; 90%) &bull;
                         <strong>Texto de relleno</strong> (meta &lt; 10%) &bull;
-                        <strong>Roles resueltos</strong> y <strong>Criterios verificables</strong>.
+                        <strong class="pl-tip" tabindex="0" role="note" data-tip="Porcentaje de elementos clave del pedido (tema, destinatario, formato o plazo) que el motor logró identificar.">Roles resueltos</strong> y <strong class="pl-tip" tabindex="0" role="note" data-tip="Proporción de instrucciones generadas que se pueden comprobar objetivamente en la respuesta de la IA.">Criterios verificables</strong>.
                     </div>
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                         <div>

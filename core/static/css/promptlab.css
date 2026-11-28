@@ -3009,3 +3009,104 @@ body {
         animation: none;
     }
 }
+
+/* ==========================================================================
+   PromptLab v8.0.3 — Sistema de Tooltips Accesibles (WCAG AA)
+   ========================================================================== */
+
+.pl-tip {
+    border-bottom: 1px dotted rgba(91, 82, 245, 0.65);
+    text-underline-offset: 2px;
+    cursor: help;
+}
+
+[data-theme="dark"] .pl-tip {
+    border-bottom-color: rgba(165, 180, 252, 0.72);
+}
+
+.pl-tip:focus-visible,
+.pl-tip-icon:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(124, 115, 255, 0.42);
+    border-radius: 4px;
+}
+
+.pl-tip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin-left: 5px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+    cursor: help;
+    background-color: rgba(91, 82, 245, 0.13);
+    color: #4338ca;
+    border: 1px solid rgba(91, 82, 245, 0.34);
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pl-tip-icon:hover,
+.pl-tip-icon:focus-visible {
+    background-color: #5b52f5;
+    border-color: #5b52f5;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .pl-tip-icon {
+    background-color: rgba(124, 115, 255, 0.22);
+    color: #c7d2fe;
+    border-color: rgba(165, 180, 252, 0.40);
+}
+
+[data-theme="dark"] .pl-tip-icon:hover,
+[data-theme="dark"] .pl-tip-icon:focus-visible {
+    background-color: #5b52f5;
+    border-color: #8f88ff;
+    color: #ffffff;
+}
+
+.pl-tooltip-bubble {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1090;
+    max-width: min(280px, calc(100vw - 24px));
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.45;
+    pointer-events: none;
+    background-color: var(--pl-surface-elevated);
+    color: var(--pl-text);
+    border: 1px solid var(--pl-border);
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(3px);
+    transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s ease;
+}
+
+[data-theme="dark"] .pl-tooltip-bubble {
+    border-color: var(--pl-border-strong);
+    box-shadow: 0 12px 30px rgba(2, 6, 23, 0.65);
+}
+
+.pl-tooltip-bubble.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-tooltip-bubble {
+        transition: none;
+        transform: none;
+    }
+}

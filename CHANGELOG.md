@@ -4,6 +4,21 @@ Todas las mejoras relevantes de **PromptLab** se documentan en este archivo.
 
 ---
 
+## [v8.0.3] — Auditoría Editorial Final, Voseo Unificado y Sistema de Tooltips Accesibles (96 tests)
+
+- **Auditoría editorial integral (`core/rules/knowledge_base.json`, `core/glossary_data.py`, `core/scientific_eval.py`, `core/views.py`, `analytics.html`, `base.html`):**
+  - Unificadas a voseo argentino las 12 preguntas restantes en tuteo dentro de `slot_catalog` (`buscás`, `necesitás`, `preferís`, `tenés`, `contás`, `querés`, `comparás`).
+  - Afinadas las referencias de `in_promptlab` en `core/glossary_data.py` para reflejar los nombres exactos de botones, secciones y técnicas de la interfaz.
+  - Unificados los decimales visibles en `verdict_text` y `mcnemar_p_display` a coma decimal en español (`0,1250`, `50,0 %`, `80,0 %`) y reemplazados `prompt(s)` / `registro(s)` por pluralización natural sin alterar los valores numéricos ni el comando `evaluate_engine`.
+  - Actualizado el atributo `title` del cartel `Motor Híbrido v8.0 • 100% Offline` en `base.html` para describir el motor determinístico + desempate probabilístico Naive Bayes offline.
+- **Componente global de tooltips accesibles (`core/static/js/tooltips.js`, `core/static/css/promptlab.css`, `base.html`):**
+  - Implementado módulo liviano 100 % nativo sin Popper ni CDNs (`role="tooltip"`, cero `innerHTML`), activable por *hover*, foco de teclado (`Tab`), toque móvil y cierre con `Escape`, con *clamping* automático al viewport (`1280×720` y `390px`) y contraste WCAG AA en Modo Oscuro y Modo Claro.
+  - Incorporados tooltips `.pl-tip` / `.pl-tip-icon` sobre siglas y conceptos clave en `analytics.html` (`NLP`, `5-Fold`, `12×5`, `CV repetida 10×5`, `pp`, `Exactitud`, `F1 Macro`, `F1 Ponderado`, `Recall`, `IC 95 %`, `McNemar`, `NB 21/21`, `Jaccard`, `out-of-fold`, `arquetipos`, `Capa Overlay`, `Roles resueltos`, `Criterios verificables`, `Relevancia`, `Dataset (.CSV)` + puente `/glosario/#validacion-cruzada`), `workspace.html` (modos, `128K`/`1M`/`200K`, `.MD`/`.JSON`, `vN`, `AFIP`, `[corchetes]`), `templates_gallery.html` (`.JSON`, `[corchetes]`), `history.html` (`vN`, `Ver evolución`) y `glossary.html` (ancla `#` con copia de enlace y feedback).
+- **Cache-busting, tests y documentación (`?v=8.0.3`, `core/tests.py`):**
+  - Actualizado *cache-busting* a `?v=8.0.3` e incorporada la suite **`PromptLabV803EditorialAndTooltipsTests` (3 tests)** alcanzando **96 tests en verde** en **17 suites**, con `makemigrations --check --dry-run` sin cambios pendientes.
+
+---
+
 ## [v8.0.2] — Nueva pestaña didáctica Glosario IA (18 conceptos offline) (93 tests)
 
 - **Catálogo curado y vista read-only (`core/glossary_data.py`, `core/views.py`, `core/urls.py`):**

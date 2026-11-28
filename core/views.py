@@ -1449,18 +1449,20 @@ def analytics_dashboard(request):
                 "text": f"Tu idea inicial promedia {int(round(avg_initial_score))}/100. Aclarar a quién va dirigido o qué evitar eleva mucho la precisión final.",
             })
         if avg_final_score is not None and avg_final_score >= 88:
+            avg_final_disp = str(avg_final_score).replace(".", ",")
             personalized_tips.append({
                 "icon": "bi-award",
                 "tone": "success",
                 "title": "Excelente nivel estructural",
-                "text": f"Alcanzás {avg_final_score}/100 de calidad promedio. Podés partir de las Plantillas para acelerar pedidos repetitivos.",
+                "text": f"Alcanzás {avg_final_disp}/100 de calidad promedio. Podés partir de las Plantillas para acelerar pedidos repetitivos.",
             })
         if pii_protected_count > 0:
+            prompt_word = "prompt" if pii_protected_count == 1 else "prompts"
             personalized_tips.append({
                 "icon": "bi-shield-check",
                 "tone": "success",
                 "title": "Privacidad activa en tus textos",
-                "text": f"PromptLab protegió datos sensibles automáticamente en {pii_protected_count} prompt(s) de este período.",
+                "text": f"PromptLab protegió datos sensibles automáticamente en {pii_protected_count} {prompt_word} de este período.",
             })
         if len(personalized_tips) < 2:
             personalized_tips.append({

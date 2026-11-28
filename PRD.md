@@ -1,13 +1,13 @@
-# Product Requirements Document (PRD) — PromptLab v8.0.2
+# Product Requirements Document (PRD) — PromptLab v8.0.3
 
-**Versión de interfaz:** `v8.0` (`v8.0.2` pestaña didáctica Glosario IA + `v8.0.1` blindaje de seguridad y rigor científico) · **Arquitectura NLP:** `Motor Universal v7.2` (Caja Blanca determinístico) + `Capa Híbrida Científica, Seguridad y Gestión de Prompts v8.0.2` (100 % Offline)  
+**Versión de interfaz:** `v8.0` (`v8.0.3` auditoría editorial y tooltips accesibles + `v8.0.2` Glosario IA + `v8.0.1` blindaje y rigor científico) · **Arquitectura NLP:** `Motor Universal v7.2` (Caja Blanca determinístico) + `Capa Híbrida Científica, Seguridad y Gestión de Prompts v8.0.3` (100 % Offline)  
 **Contexto académico:** Proyecto de tesis — Tecnicatura Superior en Ciencia de Datos e Inteligencia Artificial (IES N° 11).
 
 ---
 
 ## 1. Visión del Producto
 
-Construir una plataforma web local e institucional de Ingeniería de Prompts que elimine la fricción y la ambigüedad en la comunicación humano-IA sin depender de servicios en la nube, APIs externas ni librerías pesadas de ML. **PromptLab v8.0.2** combina un motor heurístico determinístico auditado (`v7.2`) con una capa verificable de Ciencia de Datos en **Python puro** (*Multinomial Naive Bayes* sobre los 21 arquetipos, validación cruzada estratificada 5-Fold balanceada + CV repetida 10×5, IC 95 % de Wilson, test exacto de McNemar y capa incremental supervisada *Human-in-the-Loop*), junto a herramientas de versionado, intercambio seguro `.JSON`, endurecimiento de seguridad en producción y un **Glosario IA** didáctico 100 % offline.
+Construir una plataforma web local e institucional de Ingeniería de Prompts que elimine la fricción y la ambigüedad en la comunicación humano-IA sin depender de servicios en la nube, APIs externas ni librerías pesadas de ML. **PromptLab v8.0.3** combina un motor heurístico determinístico auditado (`v7.2`) con una capa verificable de Ciencia de Datos en **Python puro** (*Multinomial Naive Bayes* sobre los 21 arquetipos, validación cruzada estratificada 5-Fold balanceada + CV repetida 10×5, IC 95 % de Wilson, test exacto de McNemar y capa incremental supervisada *Human-in-the-Loop*), junto a herramientas de versionado, intercambio seguro `.JSON`, endurecimiento de seguridad en producción, un **Glosario IA** didáctico y un sistema global de tooltips accesibles 100 % offline.
 
 ---
 
@@ -74,8 +74,8 @@ Construir una plataforma web local e institucional de Ingeniería de Prompts que
 
 * **Modelos y Migraciones (`0001`–`0009`):** `Prompt` (telemetría NLP + `parent_prompt`, `root_prompt`, `version_number`, `version_note`), `ActiveLearningRule` (`0008`) y `UserTemplate` (`0009`).
 * **Seguridad de producción (`promptlab/settings.py`, `requirements.txt`):** variables de entorno (`DJANGO_SECRET_KEY`, `PYTHONANYWHERE_DOMAIN`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`), cabeceras y cookies HTTPS cuando `not DEBUG`, `STATIC_ROOT`, `LOGGING` a consola y `requirements.txt` limpio (`Django==6.1.3`, `asgiref==3.13.0`, `sqlparse==0.6.1`).
-* **Sistema Visual WCAG AA (`?v=8.0.2`):** contraste WCAG AA verificado en Modo Oscuro (`--pl-accent: #8f88ff`) y Modo Claro, adaptabilidad para proyector `1280×720` (6 enlaces de navegación + tarjeta de cuenta + tema + estado) y móvil `390px`.
-* **Validación Automatizada:** **93 tests en verde** distribuidos en **16 suites** en `core/tests.py` + comando CLI `./venv/bin/python manage.py evaluate_engine`.
+* **Sistema Visual WCAG AA y Tooltips Accesibles (`?v=8.0.3`):** contraste WCAG AA verificado en Modo Oscuro (`--pl-accent: #8f88ff`) y Modo Claro, adaptabilidad para proyector `1280×720` (6 enlaces de navegación + tarjeta de cuenta + tema + estado) y móvil `390px`, y sistema nativo `tooltips.js` sin Popper/CDNs (`hover`/`focus`/`touch`, `Escape` y *clamping* al viewport).
+* **Validación Automatizada:** **96 tests en verde** distribuidos en **17 suites** en `core/tests.py` + comando CLI `./venv/bin/python manage.py evaluate_engine`.
 
 ---
 

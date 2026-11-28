@@ -52,8 +52,8 @@ GLOSSARY_CATALOG = [
             "para que la IA redacte un resumen detallado."
         ),
         "in_promptlab": (
-            "La tarjeta de consumo del Espacio de Trabajo te muestra qué porcentaje de la ventana (128K, 1M o 200K) "
-            "ocupa tu prompt mejorado."
+            "La tarjeta 'Consumo estimado al copiar a una IA' del Espacio de Trabajo te muestra qué porcentaje "
+            "de la ventana (128K, 1M o 200K) ocupa tu prompt mejorado."
         ),
         "related_url_name": "workspace",
     },
@@ -173,8 +173,8 @@ GLOSSARY_CATALOG = [
             "Motivo: Rechazo de pago. Ahora clasificá: ...'"
         ),
         "in_promptlab": (
-            "En Estudio Pro podés cargar tu propio caso en el campo 'Ejemplo Few-Shot' o elegir la técnica "
-            "'Con Ejemplos Prácticos'."
+            "En Estudio Pro del Espacio de Trabajo podés cargar tu propio caso en 'Ejemplo Few-Shot (opcional)' "
+            "o elegir 'Con Ejemplos Prácticos' (Con Ejemplos)."
         ),
         "related_url_name": "workspace",
     },
@@ -197,8 +197,8 @@ GLOSSARY_CATALOG = [
             "se aplica en cada paso'."
         ),
         "in_promptlab": (
-            "Podés activar la técnica 'Paso a Paso' en Estudio Pro para sumar instrucciones de desglose secuencial "
-            "y verificación previa."
+            "En el Espacio de Trabajo podés activar la técnica 'Paso a Paso' dentro de Estudio Pro para sumar "
+            "instrucciones de desglose secuencial y verificación previa."
         ),
         "related_url_name": "workspace",
     },
@@ -294,8 +294,8 @@ GLOSSARY_CATALOG = [
             "legales que nunca aparecían en tu texto original."
         ),
         "in_promptlab": (
-            "PromptLab incorpora cláusulas de fidelidad y la técnica 'Con Control de Calidad' para exigir que la "
-            "IA no invente datos fuera de tu insumo."
+            "PromptLab incorpora cláusulas de fidelidad y la técnica 'Con Control de Calidad' (Verificación) en "
+            "Estudio Pro para exigir que la IA no invente datos fuera de tu insumo."
         ),
         "related_url_name": "workspace",
     },
@@ -318,8 +318,8 @@ GLOSSARY_CATALOG = [
             "'[DNI_CUIL_OCULTO]' y dejar intactos los números de comprobante."
         ),
         "in_promptlab": (
-            "PromptLab detecta y anonimiza automáticamente PII argentino en vivo (respetando montos y facturas "
-            "AFIP) y muestra el Sello de Privacidad verificada."
+            "PromptLab detecta y anonimiza automáticamente PII argentino en el Espacio de Trabajo y en Plantillas "
+            "(respetando montos y facturas AFIP) y muestra el sello 'Privacidad verificada'."
         ),
         "related_url_name": "workspace",
     },
@@ -391,8 +391,8 @@ GLOSSARY_CATALOG = [
             "cuando usen voseo argentino o palabras distintas."
         ),
         "in_promptlab": (
-            "El motor híbrido local combina reglas transparentes en español con un clasificador probabilístico "
-            "Naive Bayes para detectar dominio, acción y entregable en vivo."
+            "En el Espacio de Trabajo, el motor híbrido local combina reglas en español con un modelo estadístico "
+            "(Naive Bayes) para detectar el área, la tarea y el formato de salida en vivo."
         ),
         "related_url_name": "workspace",
     },
@@ -415,8 +415,8 @@ GLOSSARY_CATALOG = [
             "a ciegas hasta cubrir los 60."
         ),
         "in_promptlab": (
-            "En Estadísticas y Datos podés consultar el Benchmark 5-Fold Offline y la validación repetida 10×5 "
-            "que comparan el motor base frente al híbrido."
+            "En Estadísticas y Datos podés consultar el bloque 'Evaluación Científica del Motor NLP' con la "
+            "validación cruzada 5-Fold y la validación repetida 10×5."
         ),
         "related_url_name": "analytics",
     },
@@ -439,8 +439,8 @@ GLOSSARY_CATALOG = [
             "y medir la mejora real tras el desempate."
         ),
         "in_promptlab": (
-            "En la sección científica de Estadísticas y Datos podés desplegar la Matriz de Confusión 10 × 10, "
-            "las métricas por clase y la auditoría caso por caso."
+            "En Estadísticas y Datos podés abrir el desplegable 'Ver Matriz de Confusión y Métricas por Clase' "
+            "con la tabla 10 × 10 y la auditoría caso por caso."
         ),
         "related_url_name": "analytics",
     },

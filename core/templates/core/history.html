@@ -88,7 +88,7 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 {% if p.has_version_chain %}
-                                <span class="pl-version-badge" title="Versión en cadena de iteraciones">v{{ p.version_number|default:1 }}</span>
+                                <span class="pl-version-badge pl-tip" tabindex="0" role="note" data-tip="Muestra cómo cambió el puntaje de tu prompt entre versiones sucesivas.">v{{ p.version_number|default:1 }}</span>
                                 {% endif %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1">{{ p.category|default:"General" }}</span>
                                 <span class="pl-mode-badge pl-mode-badge--{{ p.display_mode_key }}">Modo {{ p.display_mode }}</span>
@@ -164,6 +164,7 @@
                                     class="btn btn-sm btn-pl-secondary px-3 fw-medium"
                                     data-bs-toggle="collapse"
                                     data-bs-target="#ver-chain-{{ p.id }}"
+                                    data-tip="Muestra cómo cambió el puntaje de tu prompt entre versiones sucesivas."
                                     aria-expanded="false">
                                 <i class="bi bi-diagram-2 text-primary me-1"></i>Ver evolución ({{ p.family_size }} versiones)
                             </button>
@@ -173,7 +174,7 @@
                                     <div class="pl-version-step {% if ver.id == p.id %}is-current{% endif %}">
                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                                             <div class="d-flex flex-wrap align-items-center gap-2 small">
-                                                <span class="pl-version-badge">v{{ ver.version_number }}</span>
+                                                <span class="pl-version-badge pl-tip" tabindex="0" role="note" data-tip="Muestra cómo cambió el puntaje de tu prompt entre versiones sucesivas.">v{{ ver.version_number }}</span>
                                                 <span class="pl-text-secondary">{{ ver.date_short }}</span>
                                                 <strong class="pl-text-primary">{{ ver.final_score }}/100</strong>
                                                 {% if ver.score_diff_fmt %}

@@ -130,6 +130,30 @@
         }, 3200);
     }
 
+    function copyAnchorUrl(text) {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            return navigator.clipboard.writeText(text).catch(() => copyAnchorFallback(text));
+        }
+        return copyAnchorFallback(text);
+    }
+
+    function copyAnchorFallback(text) {
+        return new Promise((resolve) => {
+            try {
+                const ta = document.createElement("textarea");
+                ta.value = text;
+                ta.setAttribute("readonly", "");
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                document.body.removeChild(ta);
+            } catch (_e) {}
+            resolve();
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         const searchInput = $("glossary-search-input");
         if (searchInput) {
@@ -172,6 +196,22 @@
             anchor.addEventListener("click", () => {
                 const href = anchor.getAttribute("href") || "";
                 if (href.startsWith("#")) {
+                    const shareUrl = `${window.location.origin}${window.location.pathname}${href}`;
+                    copyAnchorUrl(shareUrl).then(() => {
+                        const prevTip = anchor.getAttribute("data-tip") || "Copiar enlace directo a este concepto";
+                        anchor.textContent = "✓";
+                        anchor.setAttribute("data-tip", "¡Enlace copiado!");
+                        if (window.PromptLabTooltips && typeof window.PromptLabTooltips.refresh === "function") {
+                            window.PromptLabTooltips.refresh(anchor);
+                        }
+                        setTimeout(() => {
+                            anchor.textContent = "#";
+                            anchor.setAttribute("data-tip", prevTip);
+                            if (window.PromptLabTooltips && typeof window.PromptLabTooltips.refresh === "function") {
+                                window.PromptLabTooltips.refresh(anchor);
+                            }
+                        }, 1400);
+                    });
                     setTimeout(() => highlightTargetCard(href), 20);
                 }
             });

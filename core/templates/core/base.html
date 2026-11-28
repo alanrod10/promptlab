@@ -20,7 +20,7 @@
     </script>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
-    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=8.0.2">
+    <link rel="stylesheet" href="{% static 'css/promptlab.css' %}?v=8.0.3">
 </head>
 <body class="d-flex">
     <!-- Isotipo SVG reutilizable LOGO-A (gradiente fuera de symbol para compatibilidad cross-browser) -->
@@ -131,7 +131,7 @@
                     <i class="bi bi-arrow-left-right small opacity-50"></i>
                 </button>
             </div>
-            <div class="status-card small text-secondary d-flex align-items-center gap-2" title="Motor NLP determinístico local sin conexión a internet. Meta: al menos 90% de datos útiles y menos de 10% de relleno.">
+            <div class="status-card small text-secondary d-flex align-items-center gap-2" title="Motor híbrido 100 % offline: reglas determinísticas locales + desempate probabilístico Naive Bayes sin conexión a internet ni APIs externas.">
                 <span class="pulse-dot"></span>
                 <div class="lh-sm">
                     <div class="text-light fw-semibold" style="font-size: 0.78rem;">Motor Híbrido v8.0 • 100% Offline</div>
@@ -214,7 +214,7 @@
                         <i class="bi bi-arrow-left-right small opacity-50"></i>
                     </button>
                 </div>
-                <div class="status-card small text-secondary d-flex align-items-center gap-2" title="Motor NLP determinístico local sin conexión a internet. Meta: al menos 90% de datos útiles y menos de 10% de relleno.">
+                <div class="status-card small text-secondary d-flex align-items-center gap-2" title="Motor híbrido 100 % offline: reglas determinísticas locales + desempate probabilístico Naive Bayes sin conexión a internet ni APIs externas.">
                     <span class="pulse-dot"></span>
                     <div class="lh-sm">
                         <div class="text-light fw-semibold" style="font-size: 0.78rem;">Motor Híbrido v8.0 • 100% Offline</div>
@@ -230,6 +230,7 @@
     </main>
 
     <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'js/tooltips.js' %}?v=8.0.3"></script>
     <script>
         function updateThemeToggleUI(theme) {
             const isDark = theme === 'dark';

@@ -1776,7 +1776,7 @@
         },
         {
           "id": "ml_goal",
-          "question": "¿Qué buscas priorizar en el análisis o modelo?",
+          "question": "¿Qué buscás priorizar en el análisis o modelo?",
           "impact_pts": 6,
           "options": [
             "Interpretabilidad clara",
@@ -1817,7 +1817,7 @@
       "Estudio y academia": [
         {
           "id": "edu_level",
-          "question": "¿Para qué nivel educativo necesitas la explicación o trabajo?",
+          "question": "¿Para qué nivel educativo necesitás la explicación o trabajo?",
           "impact_pts": 7,
           "options": [
             "Secundaria",
@@ -1830,7 +1830,7 @@
         },
         {
           "id": "study_focus",
-          "question": "¿Cómo prefieres reforzar el aprendizaje?",
+          "question": "¿Cómo preferís reforzar el aprendizaje?",
           "impact_pts": 5,
           "options": [
             "Con analogías simples",
@@ -1844,7 +1844,7 @@
       "Negocios y comercio": [
         {
           "id": "biz_scale",
-          "question": "¿Qué tipo o escala de negocio tienes en mente?",
+          "question": "¿Qué tipo o escala de negocio tenés en mente?",
           "impact_pts": 7,
           "options": [
             "Comercio minorista / local",
@@ -1871,7 +1871,7 @@
       "Redacción y comunicación": [
         {
           "id": "comm_audience",
-          "question": "¿Quién es el destinatario y qué relación tienes con él?",
+          "question": "¿Quién es el destinatario y qué relación tenés con él?",
           "impact_pts": 8,
           "options": [
             "Cliente o prospecto",
@@ -1927,7 +1927,7 @@
       "Planificación y productividad": [
         {
           "id": "plan_timeframe",
-          "question": "¿Con cuánto tiempo o plazo cuentas para ejecutar el plan?",
+          "question": "¿Con cuánto tiempo o plazo contás para ejecutar el plan?",
           "impact_pts": 7,
           "options": [
             "Esta semana (7 días)",
@@ -1999,7 +1999,7 @@
       "analizar_datos": [
         {
           "id": "data_question",
-          "question": "¿Qué pregunta concreta quieres responder con los datos?",
+          "question": "¿Qué pregunta concreta querés responder con los datos?",
           "impact_pts": 7,
           "options": [
             "Detectar anomalías / errores",
@@ -2013,7 +2013,7 @@
       "comparar_evaluar": [
         {
           "id": "compare_axes",
-          "question": "¿Cuántas opciones comparas y qué eje te importa más?",
+          "question": "¿Cuántas opciones comparás y qué eje te importa más?",
           "impact_pts": 6,
           "options": [
             "2 opciones (A vs B)",
@@ -2027,7 +2027,7 @@
       "resumir_sintetizar": [
         {
           "id": "summary_length",
-          "question": "¿Qué extensión máxima prefieres para el resumen?",
+          "question": "¿Qué extensión máxima preferís para el resumen?",
           "impact_pts": 6,
           "options": [
             "Ultra breve (3-5 puntos)",
@@ -2041,7 +2041,7 @@
       "planificar_pasos": [
         {
           "id": "plan_granularity",
-          "question": "¿Qué nivel de detalle necesitas en cada paso?",
+          "question": "¿Qué nivel de detalle necesitás en cada paso?",
           "impact_pts": 6,
           "options": [
             "Checklist rápido accionable",
@@ -2055,7 +2055,7 @@
       "redactar_contenido": [
         {
           "id": "draft_cta",
-          "question": "¿Qué acción quieres que tome quien lea el mensaje?",
+          "question": "¿Qué acción querés que tome quien lea el mensaje?",
           "impact_pts": 6,
           "options": [
             "Responder / confirmar reunión",
@@ -2069,7 +2069,7 @@
       "explicar_concepto": [
         {
           "id": "explain_depth",
-          "question": "¿Con qué profundidad prefieres la explicación?",
+          "question": "¿Con qué profundidad preferís la explicación?",
           "impact_pts": 6,
           "options": [
             "Intuitiva desde cero",
